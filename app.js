@@ -17,6 +17,21 @@ const projectData = [
 ];
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+// Add future, verified model series here; every value uses this project's own baseline.
+const comparisonSeries = [
+  { label: 'Baseline', value: () => 1, baseline: true },
+  { label: 'RBA', value: project => Number(project.speed), baseline: false }
+];
+function renderComparison(project) {
+  if (!project.speed) return '<p class="chart-pending">Comparison pending verified measurements.</p>';
+  const series = comparisonSeries.map(model => ({ ...model, speed: model.value(project) })).filter(model => Number.isFinite(model.speed) && model.speed > 0);
+  const maximum = Math.max(...series.map(model => model.speed));
+  return `<div class="project-chart" style="grid-template-columns:repeat(${series.length},minmax(0,1fr))" role="group" aria-label="${esc(project.name)} relative speed${project.estimate ? ', estimated' : ''}"><p class="chart-heading">Relative speed${project.estimate ? ' · Estimated' : ''}</p>${series.map(model => `<div class="chart-row"><span class="chart-label">${esc(model.label)}</span><span class="chart-track" aria-hidden="true"><span class="chart-bar${model.baseline ? ' chart-baseline' : ''}" style="height:${(model.speed / maximum * 100).toFixed(4)}%"></span></span><span class="chart-value">${esc(model.speed)}×</span></div>`).join('')}<p class="chart-note">Own baseline = 1× · Higher is faster</p></div>`;
+}
+function renderProjectCard(project) {
+  const repository = `https://github.com/AI4AI-for-Anything/${encodeURIComponent(project.name)}`;
+  return `<article class="project-card"><div class="project-name"><span class="project-type">${esc(project.type)}</span><h3><a href="${repository}">${esc(project.name)}</a></h3><p>${esc(project.workload)}</p>${project.private ? '<span class="private-label">Private repository · Access required</span>' : ''}</div><div class="card-summary"><div class="project-number${project.speed && project.speed.length > 4 ? ' precise' : ''}">${project.speed ? `${esc(project.speed)}<span>×</span><small>${project.estimate ? 'estimated speedup' : 'speedup'}</small>` : 'Pending'}</div><a class="project-detail" href="${repository}" aria-label="Detail: ${esc(project.name)} repository${project.private ? ', access required' : ''}">Detail <span aria-hidden="true">↗</span></a></div>${renderComparison(project)}</article>`;
+}
 const projectList = document.querySelector('#project-list');
 function renderProjects(filter = 'all') {
   const projects = filter === 'all' ? projectData : projectData.filter(project => project.categories.includes(filter));
@@ -25,7 +40,7 @@ function renderProjects(filter = 'all') {
     projectList.innerHTML = `<div class="empty-state"><p class="project-type">Pending research direction</p><h3>${esc(filter)} is an open direction.</h3><p>No verified result is published here yet. Have a reproducible workload? <a class="inline-link" href="#wishing-list">Add it to the Wishing List ↗</a></p></div>`;
     return;
   }
-  projectList.innerHTML = projects.map(project => `<article class="project-row"><div class="project-name"><span class="project-type">${esc(project.type)}</span><h3><a href="https://github.com/AI4AI-for-Anything/${encodeURIComponent(project.name)}">${esc(project.name)} <span aria-hidden="true">↗</span></a></h3><p>${esc(project.workload)}</p>${project.private ? '<span class="private-label">Private repository · Access required</span>' : ''}</div><div class="project-number${project.speed ? (project.speed.length > 4 ? ' precise' : '') : ' pending'}">${project.speed ? `${esc(project.speed)}<span>×</span><small>${project.estimate ? 'estimated speedup' : 'speedup'}</small>` : 'Pending<small>result verification</small>'}</div></article>`).join('');
+  projectList.innerHTML = projects.map(renderProjectCard).join('');
 }
 document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('[data-filter]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
