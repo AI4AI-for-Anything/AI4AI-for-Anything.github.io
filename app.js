@@ -25,8 +25,9 @@ const comparisonSeries = [
 function renderComparison(project) {
   if (!project.speed) return '<p class="chart-pending">Comparison pending verified measurements.</p>';
   const series = comparisonSeries.map(model => ({ ...model, speed: model.value(project) })).filter(model => Number.isFinite(model.speed) && model.speed > 0);
-  const maximum = Math.max(...series.map(model => model.speed));
-  return `<div class="project-chart" style="grid-template-columns:repeat(${series.length},minmax(0,1fr))" role="group" aria-label="${esc(project.name)} relative speed${project.estimate ? ', estimated' : ''}"><p class="chart-heading">Relative speed${project.estimate ? ' · Estimated' : ''}</p>${series.map(model => `<div class="chart-row"><span class="chart-label">${esc(model.label)}</span><span class="chart-track" aria-hidden="true"><span class="chart-bar${model.baseline ? ' chart-baseline' : ''}" style="height:${(model.speed / maximum * 100).toFixed(4)}%"></span></span><span class="chart-value">${esc(model.speed)}×</span></div>`).join('')}<p class="chart-note">Own baseline = 1× · Higher is faster</p></div>`;
+  // Keep the same relative-speed axis even when the project filter changes.
+  const maximum = Math.ceil(Math.max(1, ...projectData.map(item => Number(item.speed) || 1)));
+  return `<div class="project-chart" role="group" aria-label="${esc(project.name)} relative speed${project.estimate ? ', estimated' : ''}"><p class="chart-heading">Relative speed${project.estimate ? ' · Estimated' : ''}</p>${series.map(model => `<div class="chart-row${model.baseline ? ' is-baseline' : ' is-rba'}"><span class="chart-label">${esc(model.label)}</span><span class="chart-track" aria-hidden="true"><span class="chart-bar${model.baseline ? ' chart-baseline' : ''}" style="width:${(model.speed / maximum * 100).toFixed(4)}%"></span></span><span class="chart-value">${esc(model.speed)}×</span></div>`).join('')}<div class="chart-axis" aria-hidden="true"><span>0</span><span>${maximum / 2}×</span><span>${maximum}×</span></div><p class="chart-note">Own baseline = 1× · Longer is faster</p></div>`;
 }
 function renderProjectCard(project) {
   const repository = `https://github.com/AI4AI-for-Anything/${encodeURIComponent(project.name)}`;
