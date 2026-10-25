@@ -39,9 +39,11 @@ function renderProjects(filter = 'all') {
   document.querySelector('#results-context').textContent = `${filter === 'all' ? 'All research directions' : filter} · ${projects.length} project${projects.length === 1 ? '' : 's'} · Source-reported evidence, not a cross-hardware ranking.`;
   if (!projects.length) {
     projectList.innerHTML = `<div class="empty-state"><p class="project-type">Pending research direction</p><h3>${esc(filter)} is an open direction.</h3><p>No verified result is published here yet. Have a reproducible workload? <a class="inline-link" href="#wishing-list">Add it to the Wishing List ↗</a></p></div>`;
+    projectList.dispatchEvent(new Event('projectsupdated'));
     return;
   }
   projectList.innerHTML = projects.map(renderProjectCard).join('');
+  projectList.dispatchEvent(new Event('projectsupdated'));
 }
 document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('[data-filter]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
