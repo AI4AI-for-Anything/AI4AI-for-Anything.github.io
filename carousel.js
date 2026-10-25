@@ -11,118 +11,158 @@
   const play = root.querySelector('.project-play');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let originals = [], slides = [], choices = [];
-  let position = 1, busy = false, settleTimer = null, autoTimer = null, playing = !reduced.matches;
-  let hovering = false, inView = false;
-  const index = () => (position - 1 + originals.length) % originals.length;
-  function pause() {
-    playing = false;
-    clearInterval(autoTimer); autoTimer = null;
-    play.setAttribute('aria-pressed', 'false');
-    play.textContent = '▶ Auto-play';
-  }
-  function syncAuto() {
-    clearInterval(autoTimer); autoTimer = null;
+  let offset = 0, stride = 0, cycle = 0, cardWidth = 0, current = -1;
+  let playing = !reduced.matches, hovering = false, inView = false;
+  let frame = 0, lastTime = 0, holdUntil = 0, tween = null, drag = null, suppressClickUntil = 0;
+  const speed = 22; // CSS pixels per second, independent of display refresh rate.
+  const logical = () => originals.length ? ((Math.round(offset / stride) % originals.length) + originals.length) % originals.length : 0;
+  function syncButton() {
     play.setAttribute('aria-pressed', String(playing));
-    play.textContent = playing ? 'Ⅱ Pause' : '▶ Auto-play';
-    if (originals.length > 1 && playing && inView && !document.hidden && !hovering && !track.contains(document.activeElement)) {
-      autoTimer = setInterval(() => move(position + 1, false), 5000);
-    }
+    play.textContent = playing ? 'Ⅱ Pause motion' : '▶ Resume motion';
   }
-  function paint(animate) {
-    if (originals.length < 2) return;
-    track.classList.toggle('is-snap', !animate);
-    const selected = index();
-    const card = slides[position];
-    track.style.transform = `translateX(${viewport.clientWidth / 2 - 3 - card.offsetLeft - card.offsetWidth / 2}px)`;
+  function canDrift() {
+    return originals.length > 1 && playing && inView && !document.hidden && !hovering && !drag && !track.contains(document.activeElement);
+  }
+  function normalize() {
+    if (!cycle) return;
+    while (offset < cycle - stride / 2) { offset += cycle; if(tween) {tween.from += cycle; tween.to += cycle;} if(drag) drag.origin += cycle; }
+    while (offset >= cycle * 2 - stride / 2) { offset -= cycle; if(tween) {tween.from -= cycle; tween.to -= cycle;} if(drag) drag.origin -= cycle; }
+  }
+  function paint() {
+    if (originals.length < 2 || !stride) return;
+    normalize();
+    track.style.transform = `translate3d(${(viewport.clientWidth - cardWidth) / 2 - 3 - offset}px,0,0)`;
+    const physical = Math.round(offset / stride);
+    if (physical === current) return;
+    current = physical;
+    const selected = logical();
     slides.forEach((slide, i) => {
-      slide.classList.toggle('is-current', i === position);
-      const accessible = !slide.hasAttribute('data-carousel-clone') && i === selected + 1;
-      slide.setAttribute('aria-hidden', String(!accessible));
-      slide.querySelectorAll('a').forEach(link => { link.tabIndex = accessible ? 0 : -1; });
+      const active = i === physical;
+      slide.classList.toggle('is-current', active);
+      slide.setAttribute('aria-hidden', String(!active));
+      slide.querySelectorAll('a').forEach(link => {link.tabIndex = active ? 0 : -1;});
     });
-    choices.forEach((choice, i) => choice.setAttribute('aria-pressed', String(i === selected)));
+    choices.forEach((button, i) => button.setAttribute('aria-pressed', String(i === selected)));
     count.innerHTML = `${String(selected + 1).padStart(2, '0')} <span>/ ${String(originals.length).padStart(2, '0')}</span>`;
-    if (!animate) { void track.offsetWidth; track.classList.remove('is-snap'); }
   }
-  function settle() {
-    clearTimeout(settleTimer);
-    if (position === 0) position = originals.length;
-    if (position === originals.length + 1) position = 1;
-    paint(false); busy = false;
+  function tick(now) {
+    frame = 0;
+    const dt = lastTime ? Math.min(now - lastTime, 64) : 0;
+    lastTime = now;
+    if (tween) {
+      const t = Math.min(1, (now - tween.start) / tween.duration);
+      offset = tween.from + (tween.to - tween.from) * (1 - Math.pow(1 - t, 3));
+      if (t === 1) tween = null;
+      paint();
+    } else if (canDrift() && now >= holdUntil) { offset += speed * dt / 1000; paint(); }
+    if (tween || canDrift()) frame = requestAnimationFrame(tick);
+    else lastTime = 0;
   }
-  function move(next, announce = true) {
-    if (busy || originals.length < 2 || next === position) return;
-    busy = true; position = next;
-    paint(!reduced.matches);
-    if (announce) status.textContent = `${originals[index()].querySelector('h3').textContent}, ${index() + 1} of ${originals.length}`;
-    if (reduced.matches) settle();
-    else settleTimer = setTimeout(settle, 440);
+  function wake() { if (!frame && (tween || canDrift())) {lastTime = 0; frame = requestAnimationFrame(tick);} }
+  function goTo(target) {
+    if (originals.length < 2) return;
+    if (track.contains(document.activeElement)) root.querySelector('.project-next').focus({preventScroll:true});
+    holdUntil = performance.now() + 1300;
+    if (reduced.matches) {offset = target; tween = null; paint();}
+    else tween = {from:offset,to:target,start:performance.now(),duration:650};
+    const i = ((Math.round(target / stride) % originals.length) + originals.length) % originals.length;
+    status.textContent = `${originals[i].querySelector('h3').textContent}, ${i + 1} of ${originals.length}`;
+    wake();
   }
-  function manual(next) { move(next); syncAuto(); }
-  function reset() {
-    clearInterval(autoTimer); autoTimer = null;
-    clearTimeout(settleTimer); busy = false; position = 1;
+  function choose(i) {
+    let delta = i - logical();
+    if (delta > originals.length / 2) delta -= originals.length;
+    if (delta < -originals.length / 2) delta += originals.length;
+    goTo((Math.round(offset / stride) + delta) * stride);
+  }
+  function measure(reset = false) {
+    if (originals.length < 2) return;
+    const oldStride = stride;
+    const progress = oldStride ? offset / oldStride : originals.length;
+    cardWidth = slides[0].getBoundingClientRect().width;
+    stride = slides[1].getBoundingClientRect().left - slides[0].getBoundingClientRect().left;
+    cycle = stride * originals.length;
+    offset = reset ? cycle : progress * stride;
+    // A queued ResizeObserver after filtering must not cancel a user's navigation.
+    if (tween && oldStride && !reset) {tween.from *= stride / oldStride; tween.to *= stride / oldStride;}
+    if (drag && oldStride) drag.origin *= stride / oldStride;
+    current = -1; paint(); wake();
+  }
+  function rebuild() {
+    cancelAnimationFrame(frame); frame = 0; lastTime = 0; tween = null; drag = null;
+    viewport.classList.remove('is-dragging');
     root.classList.remove('is-ready'); track.style.transform = '';
     track.querySelectorAll('[data-carousel-clone]').forEach(card => card.remove());
     originals = [...track.querySelectorAll('.project-card')];
-    dots.replaceChildren(); status.textContent = '';
+    dots.replaceChildren(); status.textContent = ''; current = -1;
     controls.hidden = originals.length < 2;
-    if (originals.length < 2) { syncAuto(); return; }
-    originals.forEach((card, i) => {
-      card.setAttribute('role', 'group'); card.setAttribute('aria-roledescription', 'slide');
-      card.setAttribute('aria-label', `${card.querySelector('h3').textContent}, ${i + 1} of ${originals.length}`);
-    });
-    const clone = card => { const copy = card.cloneNode(true); copy.dataset.carouselClone = ''; return copy; };
-    track.prepend(clone(originals.at(-1))); track.append(clone(originals[0]));
-    slides = [...track.children];
-    choices = originals.map((card, i) => {
-      const button = document.createElement('button'); button.type = 'button';
-      button.setAttribute('aria-label', `Show ${card.querySelector('h3').textContent}`);
-      button.title = card.querySelector('h3').textContent;
-      button.addEventListener('click', () => manual(i + 1)); dots.append(button); return button;
-    });
-    root.classList.add('is-ready'); paint(false); syncAuto();
-  }
-  root.querySelector('.project-prev').addEventListener('click', () => manual(position - 1));
-  root.querySelector('.project-next').addEventListener('click', () => manual(position + 1));
-  play.addEventListener('click', () => {
-    if (playing) pause();
-    else { playing = true; play.setAttribute('aria-pressed', 'true'); play.textContent = 'Ⅱ Pause'; syncAuto(); }
-  });
-  track.addEventListener('click', event => {
+    syncButton();
     if (originals.length < 2) return;
-    const card = event.target.closest('.project-card'); if (!card) return;
-    const target = slides.indexOf(card);
-    if (target !== position || card.hasAttribute('data-carousel-clone') || busy) {
-      event.preventDefault(); if (!busy) manual(target);
-    }
-  });
-  root.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || originals.length < 2) return;
+    originals.forEach((card, i) => {
+      card.setAttribute('role','group'); card.setAttribute('aria-roledescription','slide');
+      card.setAttribute('aria-label',`${card.querySelector('h3').textContent}, ${i+1} of ${originals.length}`);
+    });
+    const copies = () => originals.map(card => {const copy = card.cloneNode(true); copy.dataset.carouselClone = ''; return copy;});
+    track.prepend(...copies()); track.append(...copies()); slides = [...track.children];
+    choices = originals.map((card,i) => {
+      const button = document.createElement('button'); button.type = 'button';
+      button.setAttribute('aria-label',`Show ${card.querySelector('h3').textContent}`);
+      button.title = card.querySelector('h3').textContent;
+      button.addEventListener('click',()=>choose(i)); dots.append(button); return button;
+    });
+    root.classList.add('is-ready'); measure(true);
+  }
+  root.querySelector('.project-prev').addEventListener('click',()=>goTo((Math.round(offset/stride)-1)*stride));
+  root.querySelector('.project-next').addEventListener('click',()=>goTo((Math.round(offset/stride)+1)*stride));
+  play.addEventListener('click',()=>{playing = !playing; syncButton(); wake();});
+  root.addEventListener('keydown',event=>{
+    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key) || originals.length<2) return;
     event.preventDefault();
-    // Move focus out of a slide before that slide becomes hidden.
-    if (track.contains(event.target)) root.querySelector(event.key === 'ArrowLeft' ? '.project-prev' : '.project-next').focus({preventScroll:true});
-    manual(event.key === 'Home' ? 1 : event.key === 'End' ? originals.length : position + (event.key === 'ArrowLeft' ? -1 : 1));
+    if(event.key==='Home') choose(0);
+    else if(event.key==='End') choose(originals.length-1);
+    else goTo((Math.round(offset/stride)+(event.key==='ArrowLeft'?-1:1))*stride);
   });
-  let touch = null;
-  viewport.addEventListener('touchstart', event => { touch = event.touches.length === 1 ? {x:event.touches[0].clientX,y:event.touches[0].clientY} : null; }, {passive:true});
-  viewport.addEventListener('touchend', event => {
-    if (!touch) return;
-    const dx = event.changedTouches[0].clientX - touch.x, dy = event.changedTouches[0].clientY - touch.y;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) manual(position + (dx < 0 ? 1 : -1));
-    touch = null;
-  }, {passive:true});
-  viewport.addEventListener('touchcancel', () => {touch = null;}, {passive:true});
-  viewport.addEventListener('mouseenter', () => {hovering = true; syncAuto();});
-  viewport.addEventListener('mouseleave', () => {hovering = false; syncAuto();});
-  track.addEventListener('focusin', syncAuto);
-  track.addEventListener('focusout', () => setTimeout(syncAuto, 0));
-  document.addEventListener('visibilitychange', syncAuto);
-  new IntersectionObserver(entries => {inView = entries[0].isIntersecting; syncAuto();}, {threshold:0.15}).observe(viewport);
+  track.addEventListener('click',event=>{
+    if (performance.now()<suppressClickUntil) {event.preventDefault();return;}
+    if (originals.length<2) return;
+    const card=event.target.closest('.project-card'); if(!card) return;
+    const i=slides.indexOf(card);
+    if(i!==current) {event.preventDefault();goTo(i*stride);}
+  });
+  viewport.addEventListener('dragstart',event=>event.preventDefault());
+  viewport.addEventListener('pointerdown',event=>{
+    if(event.button!==0 || !event.isPrimary || originals.length<2) return;
+    tween=null;drag={id:event.pointerId,x:event.clientX,y:event.clientY,origin:offset,moved:false};
+  });
+  viewport.addEventListener('pointermove',event=>{
+    if(!drag || event.pointerId!==drag.id) return;
+    const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+    if(!drag.moved && Math.abs(dx)>6 && Math.abs(dx)>Math.abs(dy)) {
+      drag.moved=true;viewport.setPointerCapture(event.pointerId);viewport.classList.add('is-dragging');
+    }
+    if(drag.moved) {offset=drag.origin-dx;paint();}
+  });
+  function release(event) {
+    if(!drag || event.pointerId!==drag.id) return;
+    if(drag.moved) suppressClickUntil=performance.now()+350;
+    drag=null;viewport.classList.remove('is-dragging');holdUntil=performance.now()+1200;
+    if(viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+    wake();
+  }
+  viewport.addEventListener('pointerup',release);viewport.addEventListener('pointercancel',release);
+  viewport.addEventListener('lostpointercapture',release);
+  viewport.addEventListener('wheel',event=>{
+    if(originals.length<2 || Math.abs(event.deltaX)<=Math.abs(event.deltaY)) return;
+    event.preventDefault();tween=null;offset+=event.deltaX*(event.deltaMode===1?16:1);holdUntil=performance.now()+1200;paint();wake();
+  },{passive:false});
+  viewport.addEventListener('mouseenter',()=>{hovering=true;});
+  viewport.addEventListener('mouseleave',()=>{hovering=false;wake();});
+  track.addEventListener('focusout',()=>setTimeout(wake,0));
+  document.addEventListener('visibilitychange',()=>{lastTime=0;wake();});
+  new IntersectionObserver(entries=>{inView=entries[0].isIntersecting;lastTime=0;wake();},{threshold:0.1}).observe(viewport);
   let resizeFrame;
-  new ResizeObserver(() => {cancelAnimationFrame(resizeFrame); resizeFrame = requestAnimationFrame(settle);}).observe(viewport);
-  reduced.addEventListener('change', () => {pause(); settle();});
-  track.addEventListener('projectsupdated', reset);
-  reset();
-  document.fonts.ready.then(() => paint(false));
+  new ResizeObserver(()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>measure());}).observe(viewport);
+  reduced.addEventListener('change',()=>{playing=!reduced.matches;tween=null;syncButton();wake();});
+  track.addEventListener('projectsupdated',rebuild);
+  rebuild();document.fonts.ready.then(()=>measure());
 })();

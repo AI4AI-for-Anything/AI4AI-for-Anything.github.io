@@ -25,3 +25,11 @@
 @media(max-width:380px){.project-carousel.is-ready .project-card{flex-basis:92%;padding:20px}.project-dots button{width:16px}.project-dots button[aria-pressed=true]::after{width:13px}.project-prev,.project-next{width:40px}}
 @media(prefers-reduced-motion:reduce){.project-carousel.is-ready .project-grid,.project-carousel.is-ready .project-card,.project-dots button::after{transition:none}}
 @media print{.project-carousel.is-ready .project-window{overflow:visible}.project-carousel.is-ready .project-grid{display:grid;grid-template-columns:repeat(2,1fr);transform:none!important}.project-carousel.is-ready .project-card{transform:none}.project-card[data-carousel-clone],.project-controls{display:none!important}}
+/* Continuous subpixel movement; direct dragging replaces timed slide jumps. */
+.project-carousel.is-ready .project-grid{transition:none;will-change:transform}
+.project-carousel.is-ready .project-card,.project-carousel.is-ready .project-card.is-current{transform:none;background:#f8f8ef;cursor:grab;box-shadow:none;transition:border-color .5s}
+.project-carousel.is-ready .project-window{cursor:grab;user-select:none}
+.project-carousel.is-ready .project-card a{cursor:pointer}
+.project-carousel.is-ready .project-window.is-dragging,.project-carousel.is-ready .is-dragging .project-card,.project-carousel.is-ready .is-dragging a{cursor:grabbing}
+.project-drag-hint{font-size:13px;color:#506449;margin-left:8px}
+@media(max-width:760px){.project-drag-hint{display:none}}

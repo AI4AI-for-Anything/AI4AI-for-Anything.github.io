@@ -30,10 +30,7 @@
     root.querySelector('#wf-output').textContent = index === 2 ? (scenario === 'pass' ? 'Timing target reached → continue to the frozen judge.' : 'Below the timing target → log the round without a full check.') : data.output;
     root.querySelector('#wf-path-label').textContent = scenario === 'miss' ? 'Below target: Screen → Log → Next → Profile.' : 'Target reached: Screen → Check → Log → Next.';
     root.querySelector('#wf-next').innerHTML = `${index === 5 ? 'Back to profile' : 'Next step'} <span aria-hidden="true">→</span>`;
-    root.querySelectorAll('.wf-stage-art span').forEach((bar, i) => {
-      bar.style.height = `${25 + ((i * 23 + index * 17) % 76)}%`;
-      bar.style.background = i === index ? '#d9c893' : '#9eaf8c';
-    });
+    root.querySelector('.wf-detail-art .lab-sprite').className = `lab-sprite lab-${['profile','edit','screen','check','log','next'][index]}`;
     if (announce) announcement.textContent = `Step ${index + 1}: ${data.title} ${data.description}`;
   }
   function stop() {
