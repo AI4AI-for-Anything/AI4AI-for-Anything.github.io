@@ -7,15 +7,11 @@ Organization homepage: https://ai4ai-for-anything.github.io/
 This is a buildless static website. GitHub Pages serves `main` from the repository root.
 
 - `index.html`: page structure and copy
-- `style.css`: original responsive styles
-- `readability.css`: larger text, stronger contrast, responsive readability adjustments
-- `workflow.css` / `workflow.js`: interactive HTML workflow, playback and timing branches
-- `carousel.css` / `carousel.js`: single-row project carousel with circular navigation, filters, swipe and automatic playback
-- `app.js`: project index, filters, and local form interactions
-- `assets/researchboost-workflow.png`: original ResearchBoost workflow diagram
-- `illustrations.css` / `illustrations.js`: illustrated section layouts and viewport-aware decorative animation
-- `assets/research-lab-atlas.png`: six original robot lab illustrations with transparency
-- `assets/research-lab-prompt.txt`: built-in image generation prompt and provenance
+- `style.css`: the visual system (bone paper, ink, one red; Instrument Serif, Inter, Geist Mono; figure frames)
+- `app.js`: project data, results ladder with domain filters, Mini Bench tabs, Wishing List form
+- `loop.js`: the Research Loop (ring of six steps inside the frozen task, a stage showing what each step does to one training step, autoplay) and the replayed agent session
+- `motion.js`: headline reveals, Fig. 1 training-step timeline, Fig. 2 research stack, nested orbits; motion pauses off-screen and respects reduced motion
+- `assets/`: earlier illustrations and the original workflow diagram (not used by the current page)
 
 Project details and evaluation protocols live in the linked research repositories. Mini Bench rankings remain pending validation. The Star link opens ResearchBoost-Agent on GitHub, where visitors confirm their star.
 
