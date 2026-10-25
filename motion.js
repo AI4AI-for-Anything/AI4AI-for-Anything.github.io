@@ -86,12 +86,12 @@
       const X = t => left + t / (baseEnd * 1.02) * (right - left);
       ctx.font = '400 10px "JetBrains Mono", monospace'; ctx.textBaseline = 'middle';
       // time axis
-      ctx.fillStyle = '#9a958a';
+      ctx.fillStyle = '#151412';
       ['0', '¼', '½', '¾', '1 step'].forEach((s, k) => { const x = X(baseEnd * k / 4); ctx.fillRect(x, top - 10, 1, 5); ctx.textAlign = k === 4 ? 'right' : 'center'; ctx.fillText(s, k === 4 ? x + 4 : x, top - 18); });
       let end = 0;
       lanes.forEach((blocks, lane) => {
         const y = top + lane * laneH + (laneH - barH) / 2;
-        ctx.textAlign = 'left'; ctx.fillStyle = '#9a958a'; ctx.fillText(`GPU ${lane}`, 4, y + barH / 2);
+        ctx.textAlign = 'left'; ctx.fillStyle = '#151412'; ctx.fillText(`GPU ${lane}`, 4, y + barH / 2);
         let cursor = 0;
         blocks.forEach(b => {
           // a block is boosted once the sweep has passed it
@@ -190,7 +190,7 @@
     });
     rings.forEach((ring, k) => {
       const grad = make(defs, 'linearGradient', {id: `ob-trail-${k}`, gradientUnits: 'userSpaceOnUse'});
-      make(grad, 'stop', {offset: 0, 'stop-color': '#f0644c', 'stop-opacity': 0}); make(grad, 'stop', {offset: 1, 'stop-color': '#f0644c', 'stop-opacity': .9});
+      make(grad, 'stop', {offset: 0, 'stop-color': '#c8361f', 'stop-opacity': 0}); make(grad, 'stop', {offset: 1, 'stop-color': '#c8361f', 'stop-opacity': .9});
       ring.grad = grad;
     });
     const core = make(svg, 'text', {class: 'ob-core', x: C, y: C + 17, 'text-anchor': 'middle'}); core.textContent = 'AI';
@@ -213,7 +213,7 @@
         ring.stops.forEach((stop, i) => {
           const sa = (-90 + i * 60) * Math.PI / 180;
           const d = Math.abs(Math.atan2(Math.sin(a - sa), Math.cos(a - sa)));
-          stop.style.fill = d < .12 ? '#f0644c' : '';
+          stop.style.fill = d < .12 ? '#c8361f' : '';
         });
       });
       for (let i = pulses.length - 1; i >= 0; i--) {

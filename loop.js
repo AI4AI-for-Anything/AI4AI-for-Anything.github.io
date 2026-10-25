@@ -55,11 +55,6 @@
   make('stop', {offset: 0, 'stop-color': '#c8361f', 'stop-opacity': .07}, glow); make('stop', {offset: 1, 'stop-color': '#c8361f', 'stop-opacity': 0}, glow);
   make('circle', {class: 'glow', cx: C, cy: C, r: R - 6});
   make('circle', {class: 'frozen', cx: C, cy: C, r: RF});
-  const [fx0, fy0] = pt(180, RF + 8), [fx1, fy1] = pt(0, RF + 8);
-  make('path', {id: 'frozen-arc', d: `M${f1(fx0)} ${f1(fy0)}A${RF + 8} ${RF + 8} 0 0 1 ${f1(fx1)} ${f1(fy1)}`, fill: 'none'}, defs);
-  const ftext = make('text', {class: 'frozen-text'});
-  const fpath = make('textPath', {href: '#frozen-arc', startOffset: '50%', 'text-anchor': 'middle'}, ftext);
-  fpath.innerHTML = '<tspan class="r">frozen before the agent starts</tspan> · workload · precision · semantics · reference run · judge hashed';
   const ticks = make('g', {class: 'ticks'});
   for (let a = 0; a < 360; a += 6) {
     if (ANG.some(s => Math.abs(((a - s + 540) % 360) - 180) < 9)) continue;
@@ -71,9 +66,6 @@
   const chordD = `M${f1(sx)} ${f1(sy)}Q${C} ${C + 148} ${f1(lx)} ${f1(ly)}`;
   const base = ANG.map((_, i) => make('path', {class: 'track', d: arcD(i)}));
   const chord = make('path', {class: 'chord', d: chordD});
-  make('path', {id: 'chord-label', d: `M${f1(lx)} ${f1(ly - 9)}Q${C} ${C + 139} ${f1(sx)} ${f1(sy - 9)}`, fill: 'none'}, defs);
-  const ctext = make('text', {class: 'chord-text'});
-  make('textPath', {href: '#chord-label', startOffset: '50%', 'text-anchor': 'middle'}, ctext).textContent = 'below target → skip the check, log it';
   const segs = {};
   ANG.forEach((_, i) => { segs[`a${i}`] = make('path', {class: 'seg-hot', d: arcD(i)}); });
   segs.chord = make('path', {class: 'seg-hot', d: chordD});
@@ -90,7 +82,7 @@
     button.style.setProperty('--x', (x / 640 * 100).toFixed(3)); button.style.setProperty('--y', (y / 640 * 100).toFixed(3));
     button.setAttribute('aria-pressed', 'false'); button.setAttribute('aria-controls', 'wf-detail');
     button.setAttribute('aria-label', `Step ${i + 1}: ${step.name}`);
-    button.innerHTML = `<span class="st-node"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[i]}</svg></span><span class="st-label lab-${SIDE[i]}" aria-hidden="true"><span class="st-num">0${i + 1}</span><span class="st-name">${step.name}</span>${i === 3 ? `<span class="st-tag">${LOCK}frozen judge</span>` : ''}</span>`;
+    button.innerHTML = `<span class="st-node"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[i]}</svg></span><span class="st-label lab-${SIDE[i]}" aria-hidden="true"><span class="st-name">${step.name}</span></span>`;
     stationsHost.append(button);
     return button;
   });
@@ -334,7 +326,7 @@
   const make = (name, attrs, parent = svg) => { const el = document.createElementNS(NS, name); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); parent.append(el); return el; };
   const defs = make('defs', {});
   const grad = make('linearGradient', {id: 'sx-area', x1: 0, y1: 0, x2: 0, y2: 1}, defs);
-  make('stop', {offset: 0, 'stop-color': '#f0644c', 'stop-opacity': .2}, grad); make('stop', {offset: 1, 'stop-color': '#f0644c', 'stop-opacity': 0}, grad);
+  make('stop', {offset: 0, 'stop-color': '#c8361f', 'stop-opacity': .16}, grad); make('stop', {offset: 1, 'stop-color': '#c8361f', 'stop-opacity': 0}, grad);
   const clip = make('clipPath', {id: 'sx-clip'}, defs);
   const clipRect = make('rect', {x: X0 - 8, y: 0, width: X1 - X0 + 16, height: 420}, clip);
   clipRect.style.transformBox = 'fill-box'; clipRect.style.transformOrigin = 'left'; clipRect.style.transition = 'transform .8s cubic-bezier(.2,.75,.1,1)';
