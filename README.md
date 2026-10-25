@@ -11,7 +11,8 @@ This is a buildless static website. GitHub Pages serves `main` from the reposito
 - `app.js`: project data, results ladder with domain filters, Mini Bench tabs, Wishing List form
 - `loop.js`: the Research Loop (ring of six steps inside the frozen task, a stage showing what each step does to one training step, autoplay) and the replayed agent session
 - `motion.js`: headline reveals, Fig. 1 training-step timeline, Fig. 2 research stack, nested orbits; motion pauses off-screen and respects reduced motion
-- `assets/`: earlier illustrations and the original workflow diagram (not used by the current page)
+- `assets/rba-mark.png`, `favicon-*.png`, `apple-touch-icon.png`: the emblem from the ResearchBoost-Agent logo (`docs/assets/researchboost-agent-logo.png`), cut out on a transparent background
+- other `assets/` files: earlier illustrations and the original workflow diagram (not used by the current page)
 
 Project details and evaluation protocols live in the linked research repositories. Mini Bench rankings remain pending validation. The Star link opens ResearchBoost-Agent on GitHub, where visitors confirm their star.
 

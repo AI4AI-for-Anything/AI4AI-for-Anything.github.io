@@ -19,7 +19,9 @@
     {hot:'copy', what:'pageable host → device copies', drill:['data', 'loader', 'H2D copy', 'memcpy · pageable'], idea:'prefetch batches into pinned buffers', sw:'PINNED_PREFETCH', code:['batch = prefetch_pinned(loader)', 'batch = next(loader)'], change:'prefetch into pinned buffers', to:{pass:3, miss:11}, outcome:'pass'}
   ];
   const TARGET = 1.10;
-  const DWELL = [4600, 4400, 4200, 4800, 3800, 3800];
+  // One knob for the whole loop: dwell per step, the comet's travel and every stage animation.
+  const SPEED = 2.2;
+  const DWELL = [4600, 4400, 4200, 4800, 3800, 3800].map(ms => ms / SPEED);
   const ANG = [-90, -30, 30, 90, 150, 210];
   const SIDE = ['top', 'right', 'right', 'bottom', 'left', 'left'];
   const ICONS = [
@@ -167,7 +169,7 @@
   function count(el) {
     const from = Number(el.dataset.countFrom), to = Number(el.dataset.countTo);
     if (reduced.matches) { el.textContent = `${to} ms`; return; }
-    const delay = Number(el.dataset.delay || 0), dur = Number(el.dataset.dur || 1000), start = performance.now() + delay;
+    const delay = Number(el.dataset.delay || 0) / SPEED, dur = Number(el.dataset.dur || 1000) / SPEED, start = performance.now() + delay;
     el.textContent = `${from} ms`;
     const frame = now => {
       const t = Math.max(0, Math.min(1, (now - start) / dur));
@@ -214,6 +216,7 @@
     root.querySelector('#wf-next').innerHTML = `${index === 5 ? 'Next round' : 'Next step'} <span aria-hidden="true">→</span>`;
     restart(panel, 'is-swapping', !reduced.matches);
     stage.innerHTML = SCENES[index]();
+    stage.getAnimations?.({subtree: true}).forEach(animation => { animation.playbackRate = SPEED; });
     stage.querySelectorAll('[data-count-to]').forEach(count);
     paintCenter();
     if (announce) announcement.textContent = `Step ${index + 1}, ${data.name}: ${data.title} ${data.description}`;
@@ -241,7 +244,7 @@
   }
   function travelAlong(ids, done) {
     const paths = travelling = ids.map(id => segs[id]);
-    const length = paths.reduce((s, p) => s + p.len, 0), duration = 900, start = performance.now();
+    const length = paths.reduce((s, p) => s + p.len, 0), duration = 900 / SPEED, start = performance.now();
     paths.forEach(p => { p.lit = true; p.classList.remove('is-fading'); });
     comet.classList.add('is-on');
     const frame = now => {
@@ -323,7 +326,8 @@
     {r:'R5', ms:394.98, kind:'pass', label:'394.98', log:['pad discriminator seq 785 → 792', '✓ 394.98 ms · PASS'], res:'ok'},
     {r:'R6', ms:357.19, kind:'pass', label:'357.19', log:['compile LPIPS + frozen DINO blocks', '✓ 357.19 ms · PASS'], res:'ok'}
   ];
-  const tail = {r:'R8', log:['profile: GEMM 49% · attention bmm 14% · copies 8%', '→ alternatives measured slower → stop']};
+  // The video's log jumps from R6 to "R8"; R7 is not shown anywhere we can check, so the closing profile is labelled "end".
+  const tail = {r:'end', log:['profile: GEMM 49% · attention bmm 14% · copies 8%', '→ alternatives measured slower → stop']};
   const X0 = 64, X1 = 690, Y0 = 356, Y1 = 26;
   const x = i => X0 + (X1 - X0) * i / (rounds.length - 1);
   const y = v => Y0 - v / 1000 * (Y0 - Y1);
