@@ -30,7 +30,7 @@ function renderComparison(project) {
 }
 function renderProjectCard(project) {
   const repository = `https://github.com/AI4AI-for-Anything/${encodeURIComponent(project.name)}`;
-  return `<article class="project-card"><div class="project-name"><span class="project-type">${esc(project.type)}</span><h3><a href="${repository}">${esc(project.name)}</a></h3><p>${esc(project.workload)}</p>${project.private ? '<span class="private-label">Private repository · Access required</span>' : ''}</div><div class="card-summary"><div class="project-number${project.speed && project.speed.length > 4 ? ' precise' : ''}">${project.speed ? `${esc(project.speed)}<span>×</span><small>${project.estimate ? 'estimated speedup' : 'speedup'}</small>` : 'Pending'}</div><a class="project-detail" href="${repository}" aria-label="Detail: ${esc(project.name)} repository${project.private ? ', access required' : ''}">Detail <span aria-hidden="true">↗</span></a></div>${renderComparison(project)}</article>`;
+  return `<article class="project-card"><div class="project-name"><span class="project-type">${esc(project.type)}</span><h3><a href="${repository}">${esc(project.name)}</a></h3><p>${esc(project.workload)}</p></div><div class="card-summary"><div class="project-number${project.speed && project.speed.length > 4 ? ' precise' : ''}">${project.speed ? `${esc(project.speed)}<span>×</span><small>${project.estimate ? 'estimated speedup' : 'speedup'}</small>` : 'Pending'}</div><a class="project-detail" href="${repository}" aria-label="Detail: ${esc(project.name)} repository">Detail <span aria-hidden="true">↗</span></a></div>${renderComparison(project)}</article>`;
 }
 const projectList = document.querySelector('#project-list');
 function renderProjects(filter = 'all') {
