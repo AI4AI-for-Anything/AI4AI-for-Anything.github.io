@@ -11,7 +11,7 @@
   const play = root.querySelector('.project-play');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let originals = [], slides = [], choices = [];
-  let position = 1, busy = false, settleTimer = null, autoTimer = null, playing = false;
+  let position = 1, busy = false, settleTimer = null, autoTimer = null, playing = !reduced.matches;
   let hovering = false, inView = false;
   const index = () => (position - 1 + originals.length) % originals.length;
   function pause() {
@@ -22,7 +22,9 @@
   }
   function syncAuto() {
     clearInterval(autoTimer); autoTimer = null;
-    if (playing && inView && !document.hidden && !hovering && !track.contains(document.activeElement)) {
+    play.setAttribute('aria-pressed', String(playing));
+    play.textContent = playing ? 'Ⅱ Pause' : '▶ Auto-play';
+    if (originals.length > 1 && playing && inView && !document.hidden && !hovering && !track.contains(document.activeElement)) {
       autoTimer = setInterval(() => move(position + 1, false), 5000);
     }
   }
@@ -56,15 +58,16 @@
     if (reduced.matches) settle();
     else settleTimer = setTimeout(settle, 440);
   }
-  function manual(next) { pause(); move(next); }
+  function manual(next) { move(next); syncAuto(); }
   function reset() {
-    pause(); clearTimeout(settleTimer); busy = false; position = 1;
+    clearInterval(autoTimer); autoTimer = null;
+    clearTimeout(settleTimer); busy = false; position = 1;
     root.classList.remove('is-ready'); track.style.transform = '';
     track.querySelectorAll('[data-carousel-clone]').forEach(card => card.remove());
     originals = [...track.querySelectorAll('.project-card')];
     dots.replaceChildren(); status.textContent = '';
     controls.hidden = originals.length < 2;
-    if (originals.length < 2) return;
+    if (originals.length < 2) { syncAuto(); return; }
     originals.forEach((card, i) => {
       card.setAttribute('role', 'group'); card.setAttribute('aria-roledescription', 'slide');
       card.setAttribute('aria-label', `${card.querySelector('h3').textContent}, ${i + 1} of ${originals.length}`);
@@ -78,7 +81,7 @@
       button.title = card.querySelector('h3').textContent;
       button.addEventListener('click', () => manual(i + 1)); dots.append(button); return button;
     });
-    root.classList.add('is-ready'); paint(false);
+    root.classList.add('is-ready'); paint(false); syncAuto();
   }
   root.querySelector('.project-prev').addEventListener('click', () => manual(position - 1));
   root.querySelector('.project-next').addEventListener('click', () => manual(position + 1));
@@ -112,7 +115,8 @@
   viewport.addEventListener('touchcancel', () => {touch = null;}, {passive:true});
   viewport.addEventListener('mouseenter', () => {hovering = true; syncAuto();});
   viewport.addEventListener('mouseleave', () => {hovering = false; syncAuto();});
-  track.addEventListener('focusin', pause);
+  track.addEventListener('focusin', syncAuto);
+  track.addEventListener('focusout', () => setTimeout(syncAuto, 0));
   document.addEventListener('visibilitychange', syncAuto);
   new IntersectionObserver(entries => {inView = entries[0].isIntersecting; syncAuto();}, {threshold:0.15}).observe(viewport);
   let resizeFrame;

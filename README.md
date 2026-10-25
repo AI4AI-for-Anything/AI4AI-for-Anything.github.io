@@ -10,7 +10,7 @@ This is a buildless static website. GitHub Pages serves `main` from the reposito
 - `style.css`: original responsive styles
 - `readability.css`: larger text, stronger contrast, responsive readability adjustments
 - `workflow.css` / `workflow.js`: interactive HTML workflow, playback and timing branches
-- `carousel.css` / `carousel.js`: single-row project carousel with circular navigation, filters, swipe and optional playback
+- `carousel.css` / `carousel.js`: single-row project carousel with circular navigation, filters, swipe and automatic playback
 - `app.js`: project index, filters, and local form interactions
 - `assets/researchboost-workflow.png`: original ResearchBoost workflow diagram
 
@@ -35,7 +35,9 @@ preferences disable visual animation. No build or application dependencies are
 required.
 
 The research index shows one centered project with adjacent previews. Navigate with
-arrows, position dots, arrow keys, Home / End, or a horizontal swipe. Auto-play is
-opt-in and pauses while hovering over the cards or while the carousel is off-screen.
-Focusing a project link stops playback. Without JavaScript, the static project grid
+arrows, position dots, arrow keys, Home / End, or a horizontal swipe. Auto-play starts
+when the carousel enters view and advances every five seconds. Hovering a card,
+focusing its links, leaving the section or hiding the tab temporarily suspends it.
+It resumes when those conditions clear; an explicit Pause remains paused, including
+after filtering. Reduced-motion users start paused. Without JavaScript, the static project grid
 remains visible.
