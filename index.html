@@ -12,10 +12,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261026-light">
-  <script src="app.js?v=20261026-light" defer></script>
-  <script src="loop.js?v=20261026-light" defer></script>
-  <script src="motion.js?v=20261026-light" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261026-nohw">
+  <script src="app.js?v=20261026-nohw" defer></script>
+  <script src="loop.js?v=20261026-nohw" defer></script>
+  <script src="motion.js?v=20261026-nohw" defer></script>
 </head>
 <body id="top">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -63,7 +63,7 @@
           <div class="ladder-rows"></div>
         </div>
         <button class="results-more" type="button" aria-expanded="false" aria-controls="ladder-panel" hidden>View all 12 results</button>
-        <p class="section-note">Speedup on a log scale, each against its own baseline (1×). Source-reported measurements—not a cross-hardware ranking. See each repository for its evaluation setup.</p>
+        <p class="section-note">Speedup on a log scale, each against its own baseline (1×). Source-reported measurements—not a head-to-head ranking. See each repository for its evaluation setup.</p>
       </div></div>
       <noscript><p class="section-note">Enable JavaScript to browse the project results. Every project is listed at <a class="text-link" href="https://github.com/AI4AI-for-Anything">github.com/AI4AI-for-Anything ↗</a></p></noscript>
     </section>
@@ -144,7 +144,7 @@
           <h2 id="session-title" class="split">Faster is a hypothesis.<br> <em>Evidence is the standard.</em></h2>
         </div>
         <figure class="figure session" aria-labelledby="fig4-caption">
-          <div class="figure-bar"><span>Fig. 4 · ms per training step, lower is faster</span><span>agent · 2 × H200</span></div>
+          <div class="figure-bar"><span>Fig. 4 · ms per training step, lower is faster</span></div>
           <div class="session-grid">
             <svg class="session-chart" viewBox="0 0 720 400" role="img" aria-label="Step time by round: R0 reference 989.38 ms; R1 faster but rejected as incorrect; R2 522.73 ms screened; R3 458.59, R4 408.33, R5 394.98 and R6 357.19 ms, each passing the frozen judge."></svg>
             <ol class="notebook"></ol>
@@ -166,7 +166,7 @@
         </div>
         <form id="wish-form" class="card" data-reveal>
           <div class="form-row"><label><span>Your email</span><input type="email" name="email" placeholder="you@lab.org" autocomplete="email" required></label><label><span>Repository URL</span><input type="url" name="repository" placeholder="https://github.com/…" required></label></div>
-          <div class="form-row"><label><span>GPU support</span><input name="gpu" placeholder="e.g. 4 × H100, or none available" required></label><label><span>Minimum compute budget</span><input name="compute" placeholder="e.g. 8 GPU-hours to reproduce" required></label></div>
+          <div class="form-row"><label><span>GPU support</span><input name="gpu" placeholder="e.g. 4 GPUs, or none available" required></label><label><span>Minimum compute budget</span><input name="compute" placeholder="e.g. 8 GPU-hours to reproduce" required></label></div>
           <label><span>Workload &amp; notes</span><textarea name="notes" rows="3" placeholder="What is slow? How would you verify a faithful result?" required></textarea></label>
           <div class="form-actions"><button class="button" type="submit">Draft an email <span aria-hidden="true">↗</span></button><button class="copy-button" id="copy-template" type="button">Copy template <span aria-hidden="true">⧉</span></button></div>
           <p class="form-help">Opens your email app with a draft. Nothing is sent automatically.</p>
