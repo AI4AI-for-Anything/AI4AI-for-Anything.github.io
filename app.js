@@ -41,7 +41,8 @@ const repoUrl = project => `https://github.com/AI4AI-for-Anything/${encodeURICom
   const ladder = document.querySelector('.ladder');
   const filters = document.querySelector('.filters');
   const panel = document.querySelector('.ladder-wrap');
-  if (!ladder || !filters || !panel) return;
+  const more = document.querySelector('.results-more');
+  if (!ladder || !filters || !panel || !more) return;
   const rowsHost = ladder.querySelector('.ladder-rows');
   const MAX = 10;
   const pos = s => Math.log(s) / Math.log(MAX) * 100;
@@ -56,45 +57,52 @@ const repoUrl = project => `https://github.com/AI4AI-for-Anything/${encodeURICom
       + `<span class="l-rank">${String(k + 1).padStart(2, '0')}</span>`
       + `<span class="l-name"><strong>${esc(p.short)}</strong><small><i>${esc(domainName(p.domain))}</i> · ${esc(p.hardware)}</small></span>`
       + `<span class="l-track" aria-hidden="true"><span class="l-line" style="--p:${pos(Number(p.speed)).toFixed(2)};--k:${k}"></span><span class="l-dot${p.estimate ? ' est' : ''}" style="--p:${pos(Number(p.speed)).toFixed(2)};--k:${k}"></span></span>`
-      + `<span class="l-val">${Number(p.speed).toFixed(2)}<small>×</small>${p.estimate ? '<span class="sr-only"> estimated</span>' : ''}</span></button>`
-      + `<div class="ldetail" id="${id}"><div><div class="ldetail-inner"><a class="text-link" href="${repoUrl(p)}">${esc(p.name)} ↗</a><dl><dt>Workload</dt><dd>${esc(p.workload)}</dd><dt>Measured</dt><dd>${esc(p.speed)}× · ${esc(p.scope)}${p.estimate ? ' (estimated)' : ''}</dd><dt>Correctness</dt><dd>${esc(p.status)}</dd><dt>Notes</dt><dd>${esc(p.note)}</dd></dl></div></div></div>`
+      + `<span class="l-val">${Number(p.speed).toFixed(2)}<small>×</small>${p.estimate ? '<span class="l-est" aria-label="estimated">est.</span>' : ''}</span></button>`
+      + `<div class="ldetail" id="${id}" hidden><div><div class="ldetail-inner"><a class="text-link" href="${repoUrl(p)}">${esc(p.name)} ↗</a><dl><dt>Workload</dt><dd>${esc(p.workload)}</dd><dt>Measured</dt><dd>${esc(p.speed)}× · ${esc(p.scope)}${p.estimate ? ' (estimated)' : ''}</dd><dt>Correctness</dt><dd>${esc(p.status)}</dd><dt>Notes</dt><dd>${esc(p.note)}</dd></dl></div></div></div>`
       + `</div></div>`;
   }).join('');
   rowsHost.querySelectorAll('.lbtn').forEach(button => button.addEventListener('click', () => {
     const open = button.getAttribute('aria-expanded') !== 'true';
     button.setAttribute('aria-expanded', String(open));
-    document.getElementById(button.getAttribute('aria-controls')).classList.toggle('is-open', open);
+    const detail = document.getElementById(button.getAttribute('aria-controls'));
+    detail.hidden = !open;
+    detail.classList.toggle('is-open', open);
   }));
 
   const choices = [{id:'all', name:'All'}, ...domains];
-  filters.innerHTML = choices.map(c => `<button type="button" data-filter="${c.id}" aria-pressed="false" aria-controls="ladder-panel">${esc(c.name)} <small>${c.id === 'all' ? projectData.length : projectData.filter(p => p.domain === c.id).length}</small></button>`).join('')
-    + '<span class="filters-hint" aria-hidden="true"><i>↓</i>Click a domain to expand</span>'
-    + '<button type="button" class="filters-hide" aria-controls="ladder-panel" hidden>Hide results ↑</button>';
-  const hide = filters.querySelector('.filters-hide'), hint = filters.querySelector('.filters-hint');
-  // Closed by default, also when reached through #research: only a domain button opens the ladder.
+  filters.innerHTML = choices.map(c => `<button type="button" data-filter="${c.id}" aria-pressed="false" aria-controls="ladder-panel">${esc(c.name)} <small>${c.id === 'all' ? projectData.length : projectData.filter(p => p.domain === c.id).length}</small></button>`).join('');
+  let activeFilter = 'all';
+  let expanded = false;
   function show(filter) {
-    const open = filter !== null;
+    activeFilter = filter;
     filters.querySelectorAll('[data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
-    hide.hidden = !open; hint.hidden = open;
-    panel.classList.toggle('is-open', open);
-    rowsHost.querySelectorAll('.lbtn').forEach(b => { b.tabIndex = -1; });
-    if (!open) { ladder.classList.remove('is-in'); return; }
+    more.hidden = filter !== 'all';
+    more.textContent = expanded ? 'Show top 6' : `View all ${projectData.length} results`;
+    more.setAttribute('aria-expanded', String(expanded));
     let rank = 0;
-    rowsHost.querySelectorAll('.lrow').forEach(row => {
-      const visible = filter === 'all' || row.dataset.domain === filter;
-      row.classList.toggle('is-hidden', !visible);
-      row.querySelector('.lbtn').tabIndex = visible ? 0 : -1;
+    rowsHost.querySelectorAll('.lrow').forEach((row, index) => {
+      const visible = filter === 'all' ? expanded || index < 6 : row.dataset.domain === filter;
+      row.hidden = !visible;
+      if (!visible) {
+        row.querySelector('.lbtn').setAttribute('aria-expanded', 'false');
+        const detail = row.querySelector('.ldetail');
+        detail.hidden = true;
+        detail.classList.remove('is-open');
+      }
       if (visible) row.querySelector('.l-rank').textContent = String(++rank).padStart(2, '0');
     });
     if (reducedMotion.matches) ladder.classList.add('is-in');
     else requestAnimationFrame(() => requestAnimationFrame(() => ladder.classList.add('is-in')));
   }
   filters.addEventListener('click', event => {
-    if (event.target.closest('.filters-hide')) { show(null); filters.querySelector('[data-filter]').focus(); return; }
     const button = event.target.closest('[data-filter]');
-    if (button) show(button.getAttribute('aria-pressed') === 'true' ? null : button.dataset.filter);
+    if (button) {
+      expanded = false;
+      show(button.dataset.filter);
+    }
   });
-  show(null);
+  more.addEventListener('click', () => { expanded = !expanded; show(activeFilter); });
+  show('all');
 })();
 
 /* ---------- Header menu ---------- */
