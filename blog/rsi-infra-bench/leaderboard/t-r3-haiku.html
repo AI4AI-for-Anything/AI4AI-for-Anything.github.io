@@ -1,0 +1,236 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Haiku 5.5 · R3 · RSI-Infra Bench</title><meta name="description" content="Claude Haiku 5.5 on R3: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="on">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="r3.html">R3</a><span>/</span><b>Claude Haiku 5.5</b></nav><h1>Claude Haiku 5.5 <em>1.64×</em></h1><p class="lede">Harness: Claude Code · switches: <code>R3OPT_CPU_STEP=1</code> <code>R3OPT_DECODE_FUSED=1</code> <code>R3OPT_DECODE_GRAPH=1</code> <code>R3OPT_DECODE_SYNCFREE=1</code> <code>R3OPT_DENOISE_PREPLAN=1</code> <code>R3OPT_DENOISE_SYNCFREE=1</code> <code>R3OPT_GEN_BLOCK=1</code> <code>R3OPT_GEN_FUSED=1</code> <code>R3OPT_LATE_REWARD=1</code> <code>R3OPT_MERGE_FUSED=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.64×</dd></div><div class=""><dt>Tier</dt><dd>N0</dd></div><div class=""><dt>Self-best</dt><dd>1.62×</dd></div><div class=""><dt>Rounds</dt><dd>16</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$12.6</dd></div><div class=""><dt>Input tokens · 99.3% cached</dt><dd>185 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.0 M</dd></div><div class=""><dt>Requests</dt><dd>383</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-r3-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.41×</small></a><a class="chip" data-k="sonnet" href="t-r3-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.96×</small></a><a class="chip self" data-k="haiku" href="t-r3-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.64×</small></a><a class="chip" data-k="mm" href="t-r3-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.62×</small></a><a class="chip" data-k="astra" href="t-r3-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.47×</small></a><a class="chip" data-k="glm" href="t-r3-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.45×</small></a><a class="chip" data-k="kimi" href="t-r3-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.41×</small></a><a class="chip" data-k="ds" href="t-r3-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.19×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Text-decode CUDA graph</dt><dd>✓ <code>R3OPT_DECODE_GRAPH</code>, 1.10× → 1.31× (single-run timing)</dd><dt>Reward wait hidden behind forward</dt><dd>✓ <code>R3OPT_LATE_REWARD</code>, 1.31× → 1.42×</dd><dt>Rollout-side bitwise fused kernels</dt><dd>✓ Triton decode / denoise elementwise fusion, full check 1.45× → 1.50×; rows of the two experts laid out as contiguous blocks + merged kernels → 1.61×</dd><dt>Train-side bitwise kernels / freeing memory</dt><dd>✗ listed under "remaining directions", noted as high effort, not done (peak 130.8 GiB)</dd><dt>Other main levers</dt><dd>AdamW step counter moved back to CPU; one-step decode lookahead, expandable segments (1.48×, slower) tried, reverted</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>21 sections</small></summary><div class="rounds"><details><summary><em class="">0.0 h</em><span>Round 1 (started 2026-11-06 05:57 UTC, GPU lock taken 05:58:27)</span></summary><pre>- Start: profile of the unchanged reference (<code>bench/bench.py profile --tree targets/reference</code>,
+  output <code>/tmp/prof-ref-1</code>, log <code>/tmp/prof-ref-1.log</code>, detached). Ends after optimizer steps 11-12.
+- Reference timing (task/timing_ref.json): 22.97 / 23.47 / 23.12 s per step in windows 10-11, 12-13, 14-15.
+- Code reading so far (train/online_rl.py, train/rollout_controller.py, modeling/bagel/bagel.py):
+  - Step loop: rollout (text decode with sampling via <code>generate_text_batch</code>, then CFG image denoising via
+    <code>generate_image_mix</code>), <code>.result()</code> wait on reward futures, <code>prepack</code>, <code>pack_iterator</code> (one batch),
+    ref forward (inference_mode), policy forward, loss, backward, clip, AdamW step.
+  - Host syncs in decode: <code>generate_text_batch</code> calls <code>.item()</code> per sequence per token; the static-cache attention path in
+    <code>modeling/bagel/qwen2_navit.py</code> (<code>_static_kv_cache_attention</code>) calls <code>.item()</code> per layer per token.
+  - <code>context()</code> calls <code>torch.cuda.empty_cache()</code> on entry and exit of each rollout, and <code>rollout_buffer.all_gather()</code> calls it too.
+  - Reward futures are submitted at the end of <code>rollout</code> and awaited right after it (serial with the step).</pre></details><details><summary><em class="">0.0 h</em><span>Round 1 profile (reference, optimizer steps 11 edit + 12 gen; /tmp/prof-ref-1)</span></summary><pre>- Step times on the profiled run: edit (refine) steps 30-35 s, generate steps 14-16 s. GPU busy 27.0 s of a 53 s span.
+- Timeline (1 s bins, rank 0):
+  - text decode (reflection ~305 tokens, then generation ~160 tokens): 0-11 s and 34-41 s, GPU only ~20% busy,
+    ~46k kernels/s; 244k <code>_local_scalar_dense</code> (<code>.item()</code>) syncs in the 2 steps.
+  - image denoising with CFG (21 / 16 steps, read-only static-cache attention): 12-24 s and 42-49 s, GPU ~65% busy.
+  - training (ref forward, policy forward/backward, flex attention, FSDP): 27-33 s and 51-52 s, GPU ~100% busy.
+  - idle gaps with no GPU work: 1.2 s (edit) and 1.6 s (gen), i.e. the reward wait after the rollout.
+- Operators by self CUDA time: aten::mm 42.5% (nvjet GEMMs), aten::mul 10.1% (226k calls), _index_put_impl_ 6.2%,
+  index kernels 5.1%, aten::copy_ 4.9%, flash-attn 6.6%, NCCL 5.4%, Memcpy DtoH 2.2% (263k, from the <code>.item()</code>s).
+- Classification: decode = host-bound (missed syncs and per-op dispatch); denoise = sync-bound at ~35% idle;
+  training = compute-bound; reward wait = serial latency.</pre></details><details><summary><em class="">0.0 h</em><span>Round 1 change (commit 33ba26e): sync-free static-cache text decode (switch R3OPT_DECODE_SYNCFREE)</span></summary><pre>- <code>Bagel._generate_text_batch_static_syncfree</code>: same kernel calls, batch composition and RNG draws; host keeps the
+  active set and cache lengths; one device-to-host transfer per step; the attention reads decode facts from
+  <code>StaticKVCache.decode_host_meta</code>.
+- Numerics N0 by construction; tiny-model bitwise test over 24 configurations (identical, 96 EOS, RNG state included).
+- Time: /tmp/time-r1-a, <code>speedup_vs_frozen_reference</code> = 1.0223 (22.68 s/step; windows 22.19 / 23.53 / 22.32).
+  Within noise. Finding: decode is bound by op dispatch (about 1.8k eager ops per token), not by the syncs.
+- Full check: not run yet.</pre></details><details><summary><em class="">1.2 h</em><span>Round 2 (commit 9655800): host-planned read-only static-cache attention in denoising (switch R3OPT_DENOISE_SYNCFREE)</span></summary><pre>- Target: the CFG denoising forwards (update_past_key_values=False) ran the masked merge with ~8 host syncs per layer per forward.
+- Change: <code>build_static_readonly_plan</code> (host index plan, one H2D copy per forward), <code>_merge_static_kv_planned</code> (same
+  gathers and scatters), flash call with host max lengths. N0 by construction.
+- Unit test (8 cases, random caches): bitwise identical.
+- Time: /tmp/time-r2-a with R3OPT_DECODE_SYNCFREE=1 + R3OPT_DENOISE_SYNCFREE=1: speedup_vs_frozen_reference 1.0995
+  (21.09 s/step; windows 20.59 / 21.16 / 21.52 vs frozen 22.97 / 23.47 / 23.12). Rounds 1 and 2 were timed together here.
+- check --quick (gates 0 and 2, record run) on the same config: PASS, bitwise, N0 (3200 tensors, 235 reward requests),
+  output /tmp/check-r2q/check.json. The full check (gate 1 with reference A/B) has not been run yet.
+- /submission/switches.json set to {R3OPT_DECODE_SYNCFREE: 1, R3OPT_DENOISE_SYNCFREE: 1} after this check.</pre></details><details><summary><em class="">1.2 h</em><span>Round 3 (commit pending amend): CUDA-graph replay of the text-decode step (switch R3OPT_DECODE_GRAPH)</span></summary><pre>- Profile basis: decode ~19 s of the 53 s profiled span at ~20% GPU busy, dispatch-bound; round 1 showed syncs are not the limit.
+- Change: <code>_decode_step_body</code> (one step, shared by eager and graph paths), <code>_capture_decode_graph</code> (one graph per active
+  batch size per generate call, generator registered), replay with host-side decisions unchanged.
+- Tiny-model bitwise test: 48 runs, default and deterministic algorithms, 70 captures each: identical (tokens, probs,
+  generator state, KV cache, lengths, positions). Test script: /tmp/analysis/unit/test_decode_graph.py.
+- Time: pending (/tmp/time-r3-a, switches R3OPT_DECODE_SYNCFREE=1, R3OPT_DENOISE_SYNCFREE=1, R3OPT_DECODE_GRAPH=1).
+- Round 3 check (check --quick, record run, /tmp/check-r3q, config = switch-r3): PASS, bitwise, N0 (3200 tensors, 235 reward
+  requests). Enabled in /submission/switches.json (with DECODE_SYNCFREE and DENOISE_SYNCFREE).
+- Current best: switches {R3OPT_DECODE_SYNCFREE, R3OPT_DENOISE_SYNCFREE, R3OPT_DECODE_GRAPH} = 1.3087 (time-r3-a).</pre></details><details><summary><em class="">2.0 h</em><span>Round 4 (commit f07de6b): reward wait after the policy forward (switch R3OPT_LATE_REWARD)</span></summary><pre>- Profile basis (round 1 profile): reward wait = 1.2-1.6 s per step with no GPU work in flight, serial with packing and training.
+- Change: <code>_finish_rewards</code> (the reward block, unchanged code) runs after the policy forward; advantages reach the loss through
+  <code>LateValue</code> placeholders (pack lists kept unconverted), materialized just before the loss. Same values, same tensors.
+- check --quick (record run, /tmp/check-r4q): PASS, bitwise, N0 (3200 tensors, 235 reward requests).
+- Time: /tmp/time-r4-a, all four switches: speedup_vs_frozen_reference 1.4176 (16.36 s/step; windows 15.94 / 16.59 / 16.54).
+- /submission/switches.json now: DECODE_SYNCFREE, DENOISE_SYNCFREE, DECODE_GRAPH, LATE_REWARD (all = 1).
+
+### Cumulative (time runs against the frozen reference, same host)
+| step | switches | speedup_vs_frozen_reference | s/step |
+|---|---|---|---|
+| r1 | DECODE_SYNCFREE | 1.0223 | 22.68 |
+| r1+r2 | + DENOISE_SYNCFREE | 1.0995 | 21.09 |
+| r1+r2+r3 | + DECODE_GRAPH | 1.3087 | 17.72 |
+| r1-r4 | + LATE_REWARD | 1.4176 | 16.36 |
+(reference: 23.19 s/step; windows 22.97 / 23.47 / 23.12)</pre></details><details><summary><em class="">2.6 h</em><span>Round 5 (commit 30190d2): proactive empty_cache skipped on the rollout path (switch R3OPT_NO_EMPTY_CACHE, off)</span></summary><pre>- Trace estimate (reference profile): cudaFree 1.17 s and cudaMalloc 0.36 s over 2 steps (mostly from empty_cache).
+- Time: /tmp/time-r5-b (round 4 switches + NO_EMPTY_CACHE=1): 1.433 (16.18 s/step) vs 1.4176 for round 4: within noise.
+  Peak memory unchanged (130.78 / 133.72 GiB). Left off in switches.json.
+- First attempt /tmp/time-r5-a failed: helper inserted between @contextmanager and fsdp2_rollout_context
+  (AttributeError: __enter__). Fixed and re-timed.</pre></details><details><summary><em class="">2.6 h</em><span>Round 6 (in progress): batched device-scalar transfer in packing (switch R3OPT_BATCH_SCALARS, default off)</span></summary><pre>- Profile basis (round 4 profile, transition after the denoising): ~33k <code>aten::item</code> calls in 2 s. Cause: <code>torch.tensor(list)</code>
+  of 0-dim CUDA tensors (<code>dts</code>, <code>packed_timesteps_for_loss</code>, one entry per latent token, repeated) syncs once per element.
+- Change: <code>_float32_tensor_from_scalars</code> gathers the distinct tensors in one transfer (same float32 values).
+  Unit test (/tmp/analysis/unit/test_scalars.py): identical for repeated and distinct device scalars.
+- Time: /tmp/time-r6-a (round 4 switches + R3OPT_BATCH_SCALARS=1): pending.
+
+### FULL CHECK of the submitted configuration (commit c37c742, switches = DECODE_SYNCFREE, DENOISE_SYNCFREE, DECODE_GRAPH, LATE_REWARD)
+- <code>bench.py check --config /submission/switches.json --out /tmp/check-full-1</code>: status PASS, verdict bitwise (N0; 3200 tensors,
+  235 reward requests), speedup 1.3733 (window ratios 1.4797 / 1.3733 / 1.4024; candidate 15.53 / 17.09 / 16.48 s/step vs
+  frozen reference 22.97 / 23.47 / 23.12; reference spread 0.0205, bar 1.041). Peak 130.76 GiB allocated, 133.72 reserved.
+- The check&#x27;s own timing gave 1.3733 while the earlier <code>time</code> runs gave 1.42; the difference is run-to-run variation.</pre></details><details><summary><em class="">2.6 h</em><span>Round 6 result</span></summary><pre>- Time /tmp/time-r6-a: 1.419 vs 1.4176 (no measurable gain). Switch left off.</pre></details><details><summary><em class="">3.1 h</em><span>Round 7 (dev worktree /tmp/r3-dev, branch dev-round7; in progress): denoising plans once per call, no per-forward device reads</span></summary><pre>- Gap analysis of the round 4 profile (denoising windows): ~60 ms GPU-idle gaps once per denoising step (about 1 s per edit round).
+  Cause: <code>torch.tensor([t] * B)</code> with B = number of image tokens (about 4096) and 0-dim CUDA <code>t</code> reads the device once per
+  element (4096 syncs per step), and the plan building runs after the <code>unique()</code> sync, with the GPU idle.
+- Change (switch R3OPT_DENOISE_PREPLAN, requires R3OPT_DENOISE_SYNCFREE): plans built once per generate_image_mix call; timestep
+  built as t.reshape(1).expand(B).clone() (same float32 values); the tautological <code>unique()</code> assert skipped.
+- Round 7 check --quick (/tmp/check-r7q): PASS, bitwise, N0 (3200 tensors, 235 reward requests).
+- Round 7 time (/tmp/time-r7-a): 1.4754 (15.72 s/step; windows 15.10 / 16.12 / 15.93) vs round 4 1.4176.
+- Committed as e01e369 (fast-forward of opt). /submission/switches.json now enables R3OPT_DENOISE_PREPLAN too.</pre></details><details><summary><em class="">3.1 h</em><span>CURRENT SUMMARY (updated after round 7)</span></summary><pre>- Submission: /submission/r3 branch opt at e01e369. Switch file /submission/switches.json:
+  {R3OPT_DECODE_SYNCFREE: 1, R3OPT_DENOISE_SYNCFREE: 1, R3OPT_DECODE_GRAPH: 1, R3OPT_LATE_REWARD: 1, R3OPT_DENOISE_PREPLAN: 1}.
+- Latest full check of the previous configuration (c37c742, four switches): PASS, bitwise, speedup 1.3733.
+  The full check of e01e369 with the current switch file: running, output /tmp/check-full-2 (see below).
+- Gains by change (time runs vs the frozen reference, same host):
+  - R1 sync-free text decode: ~0 on its own (decode is dispatch bound, not sync bound).
+  - R2 read-only plan in denoising (with R1 timed together): 1.0223 -&gt; 1.0995 (R1+R2).
+  - R3 CUDA-graph decode step: 1.0995 -&gt; 1.3087 (R1-R3).
+  - R4 reward wait after the policy forward: 1.3087 -&gt; 1.4176.
+  - R5 no proactive empty_cache: 1.4176 -&gt; 1.433 (within noise; left off).
+  - R6 batched device-scalar transfer: 1.4176 -&gt; 1.419 (no gain; left off).
+  - R7 denoise plans once per call / no per-forward device reads: 1.4176 -&gt; 1.4754.
+- Did not work or not worth it: sync removal alone in decode (R1); empty_cache removal (R5); batched scalar transfer (R6).
+- Remaining cost (r4 profile, 2 steps, 33 s span): decode ~6.5 s (GPU replay ~8.4 ms/token plus ~2.4 ms per
+  cudaGraphLaunch, GPU idle during the launch), denoising ~15 s (after R7 the gaps are gone; GPU-bound), training ~9 s
+  (GPU-bound: ref + policy forward/backward with activation checkpointing), transitions ~2 s (packing, CPU).
+- Next candidates: (a) decode K-step graph or speculative replay with rollback (removes the per-token graph launch gap,
+  est. 4-5%, high complexity); (b) denoise forwards are GPU-bound, no bitwise lever found; (c) training GPU-bound.
+
+### FULL CHECK of the current submission (commit e01e369; switches DECODE_SYNCFREE, DENOISE_SYNCFREE, DECODE_GRAPH, LATE_REWARD, DENOISE_PREPLAN)
+- <code>bench.py check --config /submission/switches.json --out /tmp/check-full-2</code>: status PASS, verdict bitwise (N0; 3200 tensors,
+  235 reward requests), speedup 1.4538 (window ratios 1.4991 / 1.4758 / 1.4538; candidate 15.33 / 15.90 / 15.90 s per step vs
+  frozen reference 22.97 / 23.47 / 23.12; bar 1.041). Peak 130.76 GiB allocated.</pre></details><details><summary><em class="">3.9 h</em><span>Round 8 (dev worktree /tmp/r3-dev2, branch dev-round8; in progress): decode replay with one step of lookahead (switch R3OPT_DECODE_PIPELINE, needs R3OPT_DECODE_GRAPH)</span></summary><pre>- Finding (r4 profile, decode window): each token costs one cudaGraphLaunch of ~2.4 ms CPU time during which the GPU is idle,
+  then a ~8.4 ms replay: ~11.2 ms per token, the replay is ~75% of it.
+- Design: the replay of the next step (same active set, device-side state: current tokens and positions updated before
+  the launch) is queued before the host reads this step&#x27;s tokens. If no sequence finishes, it is the next step. If one
+  does, the lookahead is rolled back (cache lengths, positions, current tokens of finished sequences, generator state
+  restored to the state after this step&#x27;s replay) and the step is replayed for the new active set.
+- Tiny-model test (/tmp/analysis/unit/test_decode_pipe.py): 128 runs default and 128 deterministic, all identical
+  (tokens, probabilities, generator state, live cache entries, lengths, positions, current tokens); overflow raises the
+  same error (/tmp/analysis/unit/overflow_pipe.py).
+- Time: /tmp/time-r8-a (round 7 switches plus R3OPT_DECODE_PIPELINE=1): pending.
+- Round 8 result: the first time run failed (pinned CPU buffer allocated on the default CUDA device; fixed, and the tiny test now
+  sets the default device as main() does). Time /tmp/time-r8-b: 1.4794 (15.67 s/step; windows 15.24 / 16.01 / 15.78) vs round 7
+  1.4754. No measurable gain, so not merged (branch dev-round8, commit recorded there, worktree removed).</pre></details><details><summary><em class="">4.3 h</em><span>Round 9 (started 10:20 UTC): profile of the current best (e01e369 + switches), output /tmp/prof-r9, log /tmp/prof-r9.log</span></summary><pre>- Purpose: re-profile before choosing the next hotspot (the earlier profile was of the r4 configuration; its trace was deleted).
+- Profile of the current best (e01e369 + switches): /tmp/prof-r9 (profile.txt). Decode per token: many small element-wise
+  kernels (RMSNorm chains of ~8 kernels, rotary ~10, SiLU*up 2) on top of the GEMMs.
+- Round 9 change (dev worktree /tmp/r3-dev3, branch dev-round9): modeling/bagel/fused_decode.py: Triton kernels for the decode
+  step&#x27;s element-wise work, reproducing PyTorch&#x27;s CUDA ops bit for bit: add+square (residual add fused), final RMSNorm
+  (rsqrt via libdevice, bf16 roundings), rotary for q and k in one launch, SiLU*up. The reductions (torch.mean) and all
+  GEMMs and attention calls stay PyTorch&#x27;s. Switch R3OPT_DECODE_FUSED (decode steps only).
+- Numerics finding: Triton&#x27;s .to(bf16).to(f32) pairs were folded in one kernel (wrong rounding); every bf16 rounding is
+  now an explicit PTX cvt.rn.bf16.f32 (inline_asm_elementwise). Unit test (168 cases, RMSNorm/rotary/SiLU): bitwise identical.
+- Tiny-model equivalence (/tmp/analysis/unit/test_decode_fused.py, 81 runs x 3 modes, default and deterministic, 382 fused calls):
+  identical.
+- Time: /tmp/time-r9-a (current switches plus R3OPT_DECODE_FUSED=1): pending.
+- Round 9 time (/tmp/time-r9-a): 1.4504 (15.99 s/step; windows 14.82 / 17.54 / 15.60) vs round 7 1.4754 (15.72). The per-step
+  times show the gain that is expected: refine (edit) steps about 1 s faster in 5 of 6 steps, generate steps about 0.2 s
+  faster; the window average is hit by one slow step (13: 25.0 s). A check --quick of this configuration is running (/tmp/check-r9q).
+- Round 9 check --quick (/tmp/check-r9q, config = switch-r9): PASS, bitwise, N0 (3200 tensors, 235 reward requests).
+- Committed as 660be19 (fast-forward of opt); /submission/switches.json now also enables R3OPT_DECODE_FUSED.</pre></details><details><summary><em class="">5.2 h</em><span>Round 10 (dev worktree /tmp/r3-dev4, branch dev-round10): fused element-wise work in the generation (denoising) path (switch R3OPT_GEN_FUSED)</span></summary><pre>- Profile basis (round 9 profile, denoising window 5.5-12.5 s): GEMM 60% of busy time, element-wise 23%, index (gather/scatter) 13%.
+- Change: subset RMSNorm (bf16) with the fused kernel for the input, post-attention and final norms of the two MoT experts;
+  the MLPs with the fused SiLU*up; the float32 q/k norms written straight into the full layout (gen_qk_norm_rope) and the
+  float32 rotary with explicit PTX mul/add (no contraction) writing bfloat16. Gathers, scatters, GEMMs and attention unchanged.
+- Unit tests: /tmp/analysis/unit/test_gen_kernels.py (48 cases, head dim 128): identical. /tmp/analysis/unit/test_gen_fused.py
+  (Qwen2Model gen-mode forward, 4 trials, fused calls 8): identical.
+- check --quick (/tmp/check-r10q, config /tmp/switch-r10.json): PASS, bitwise, N0 (3200 tensors, 235 reward requests).
+- Time: /tmp/time-r10-a: pending.
+- Round 10 time (/tmp/time-r10-a, round 9 switches + R3OPT_GEN_FUSED=1): 1.6159 (14.35 s/step; windows 13.89 / 15.07 / 14.09)
+  vs round 9 1.4504 (per-step: generate steps about 8.8-9.7 s, refine steps 18.7-20.5 s).
+- Committed as the fast-forward to dev-round10 (see git log); /submission/switches.json enables R3OPT_GEN_FUSED too.
+- Full check of this configuration started (/tmp/check-full-3).
+- FULL CHECK of the current submission (commit f212eb7, switches = DECODE_SYNCFREE, DENOISE_SYNCFREE, DECODE_GRAPH, LATE_REWARD,
+  DENOISE_PREPLAN, DECODE_FUSED, GEN_FUSED): PASS, bitwise (N0), speedup 1.5035 (window ratios 1.6612 / 1.5035 / 1.5892;
+  candidate 13.83 / 15.61 / 14.55 s per step vs frozen reference 22.97 / 23.47 / 23.12). Output /tmp/check-full-3/check.json.
+- Round 10 result: adopted (see the round 10 time above).</pre></details><details><summary><em class="">5.8 h</em><span>Round 11 (started 11:44 UTC): profile of the current submission, output /tmp/prof-r11</span></summary><pre>- Round 11 profile (/tmp/prof-r11, current submission): per 2 steps ~29 s span: decode ~5 s (GEMM 72% of decode busy), denoising
+  ~13 s (GEMM 72%, index gather/scatter 16%, element-wise 2% after round 10), training ~9 s, other ~2 s (straggler wait 1.6 s).
+- Next candidate (round 11): block-ordered generation forward (permute the packed stream once per forward so the two experts&#x27; rows
+  are contiguous blocks; GEMM inputs become views; attention stays in sample order via fused gathers). Expected ~3-4%.
+- Round 11 check --quick of the block-ordered generation forward (/tmp/check-r11q, switches = r10 + R3OPT_GEN_BLOCK=1): PASS, bitwise,
+  N0 (3200 tensors, 235 reward requests). Unit: test_gen_block.py (4 trials) identical.
+- Round 12 (same worktree, uncommitted until verified): R3OPT_MERGE_FUSED: the read-only cache merge as one copy kernel per k/v
+  driven by a source table (test_merge_fused.py, 6 cases identical). Time run with both switches: /tmp/time-r12-a (pending).
+- Round 12 time (/tmp/time-r12-a; block + merge): 1.5753 (14.72 s/step; windows 13.80 / 14.44 / 15.91). Excluding one outlier step
+  (step 14: 12.6 s), generate steps average about 8.6 s (round 10: 9.0 s) and refine steps about 18.9 s (round 10: 19.3 s).
+  Check --quick of this combination started (/tmp/check-r12q).
+- FULL CHECK (commit c19bf57; switches DECODE_SYNCFREE, DENOISE_SYNCFREE, DECODE_GRAPH, LATE_REWARD, DENOISE_PREPLAN,
+  DECODE_FUSED, GEN_FUSED, GEN_BLOCK, MERGE_FUSED): PASS, bitwise (N0), speedup 1.6117 (window ratios 1.6998 / 1.6117 / 1.6569;
+  candidate 13.52 / 14.56 / 13.95 s per step vs frozen reference 22.97 / 23.47 / 23.12). Peak 130.76 GiB allocated, 133.72 reserved.
+  Output /tmp/check-full-4/check.json. Adopted (previous full check of f212eb7: 1.5035).</pre></details><details><summary><em class="">6.9 h</em><span>CURRENT SUMMARY (after round 12; updated 12:52 UTC)</span></summary><pre>- Submission: /submission/r3, branch opt, commit c19bf57 (clean). /submission/switches.json enables nine switches (list above).
+- Latest full check on exactly this state: PASS, bitwise N0, speedup 1.6117 (/tmp/check-full-4).
+- Gains by change (time runs; the rounds are cumulative):
+  R1 sync-free decode ~0; R2 denoise read-only plan (with R1) 1.02 -&gt; 1.10; R3 CUDA-graph decode 1.10 -&gt; 1.31;
+  R4 late reward wait 1.31 -&gt; 1.42; R5 empty_cache (off, noise); R6 batched scalars (off, noise); R7 denoise plans once per call
+  1.42 -&gt; 1.48; R9 fused decode element-wise 1.48 -&gt; 1.45 (time run; per-step gain about 1 s per refine step; full checks
+  of f212eb7 1.50); R10 fused gen-mode element-wise 1.45 -&gt; 1.62 (time) / 1.50 (full check); R11-12 block-ordered gen forward
+  and merge kernel: full check 1.61.
+- Did not work or not adopted: decode lookahead (dev-round8; no gain), empty_cache removal, batched scalar transfer.
+- Remaining cost per 2 steps (round 11 profile): decode ~5 s (GEMM bound), denoising ~11 s (GEMM bound, index work reduced by R11-12),
+  training ~9 s (autograd; its element-wise and index work is about 30% of busy time, not fused), straggler wait ~1.6 s (rank imbalance
+  in decode lengths).
+- Directions left: fused training element-wise with exact custom autograd (large effort); decode cache-index hoisting (&lt;1%).</pre></details><details><summary><em class="">6.9 h</em><span>Round 13 (dev worktree /tmp/r3-dev6, branch dev-round13): per-forward index work hoisted out of the layer loop</span></summary><pre>- Change: decode attention computes the cache-index triple (batch index, cache indices, sequence lengths) once per forward
+  (_static_kv_index_prep, passed as pre=); the read-only plan carries the cumulative query and key lengths as device tensors
+  (cu_q, cu_k) instead of pad/cumsum per layer. Same integers, N0 by construction.
+- Tests: t13_decode (tiny decode, fused, 81 runs x 3 modes, both modes) identical; t13_gen (block gen forward, 4 trials) identical;
+  t13_merge (planned merge, 6 cases) identical.
+- check --quick (/tmp/check-r13q, config = current submission switches): started.
+- Round 13 check --quick (/tmp/check-r13q, current switches): PASS, bitwise, N0. Committed as the fast-forward to dev-round13
+  (see git log). Time run of the submitted tree: /tmp/time-r13-a (pending).
+- Round 13 time (/tmp/time-r13-a, the submitted tree 329c0f0): 1.6579 (13.99 s/step; windows 13.38 / 13.85 / 14.72). Refine steps
+  average about 18.3 s (round 12: 18.9 s); generate steps about 8.6 s (unchanged).
+- FULL CHECK (commit 329c0f0, the current submission; switches as in /submission/switches.json): PASS, bitwise (N0), speedup 1.6239
+  (window ratios 1.7710 / 1.6315 / 1.6239; candidate 12.97 / 14.39 / 14.23 s per step vs frozen reference 22.97 / 23.47 / 23.12).
+  Peak 130.76 GiB allocated. Output /tmp/check-full-5/check.json. Adopted (previous full check c19bf57: 1.6117).</pre></details><details><summary><em class="">8.2 h</em><span>Round 14 (13:36-14:10 UTC; dev worktree /tmp/r3-dev7, branch dev-round14): profile of the submitted state, host-stall analysis, allocator switch rejected</span></summary><pre>- Profile (/tmp/prof-r14, submission 329c0f0 with the switches of /submission/switches.json; optimizer steps 11-12 under
+  torch.profiler, instrumented, so not comparable with time): the pair spans 27.5 s on the GPU stream (refine step about 18.5 s,
+  generate step about 9.2 s). GPU busy 21.7 s (79%).
+- Kernel mix (22.9 s of GPU busy time over the two steps): GEMMs (aten::mm/addmm and cuBLAS nvjet kernels) about half; flash attention
+  about 1.3 s (6%); NCCL all-gather and reduce-scatter about 0.9 s (4%); our fused Triton kernels about 1.3 s (6%); remaining
+  element-wise, index, copy, cat and reduce about 5 s (22%); AdamW 0.22 s (1%).
+- GPU idle: 4.6 s in gaps of at least 0.3 ms (957 gaps); about 1.2 s more in about 591k gaps of about 2 us (kernel-to-kernel).
+- Largest gap, 1.51 s in the generate step: it sits between the last GEMMs of the policy forward and the first loss kernels
+  (log-softmax, gather). No traced CPU operation covers it, so it is the late-reward wait (<code>_finish_rewards()</code> runs after
+  <code>fsdp_model(...)</code> in late mode). The reward requests are fixed by gate 2 (content and count), and the loss needs the advantages
+  before backward, so this wait is structural: the reward latency is not covered by the forward and reference forward.
+- Other gap time, by overlapping main-thread operations: aten::item 0.61 s (nested with _local_scalar_dense), cudaGraphLaunch 0.46 s,
+  cudaStreamSynchronize 0.33 s, cudaMalloc 0.23 s and cudaFree 0.19 s (device-synchronizing allocator calls), cudaMemcpyAsync 0.15 s,
+  aten::linear/index/copy/empty about 0.5 s together, Optimizer.step 0.12 s; unattributed Python time 0.44 s.
+- Rejected before any measurement: moving the barrier at train/online_rl.py:1168 after prepack and pack_batch. Packing is not a GPU
+  gap on rank 0 in this profile, and for the slowest rank (which sets the step time) packing follows its own rollout in both orders,
+  so the reordering cannot shorten the critical path.
+- Allocator switch PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True (time run /tmp/time-r14-alloc, switch file /tmp/switches-r14-alloc.json):
+  speedup_vs_frozen_reference 1.4801 (15.67 s per step; generate steps 9.3-10.1 s, refine steps 21.5-23.7 s), against 1.6579 for the
+  submitted state in round 13. Slower by more than the noise: not adopted, not in /submission/switches.json.
+- Round 14 result: no change adopted; the submission stays at 329c0f0.</pre></details><details><summary><em class="">9.0 h</em><span>Round 15 (14:30-14:45 UTC; branch dev-round14, commit 2c95746; not merged): defer the loss statistics (no gain)</span></summary><pre>- Change (switch R3OPT_DEFER_STATS, default off): the per-key statistics and log lines of the loss section (about 15 host reads
+  before backward) are read after total_norm, in the same per-key order; the large-KL test reuses one host read.
+- check --quick (/tmp/check-r15q): PASS, bitwise N0 (14 optimizer steps, 3200 tensors, 235 reward requests).
+- Time (/tmp/time-r15-a): 1.6643 (13.93 s per step) against 1.6579 (13.99 s) for the submitted tree. No measurable gain: not merged.</pre></details><details><summary><em class="">9.0 h</em><span>Round 15 profile with stage labels (/tmp/prof-r14b; diagnostic tree /tmp/r3-prof on branch dev-prof14, labels only, no</span></summary><pre>computation changed; analysis scripts /tmp/analysis/r14_stages.py, r14_cpu_in_label.py). Per-step averages over the refine and
+generate steps of the profiled pair (CPU wall = time the host spends in the stage; GPU busy = kernels launched in it):
+| stage | CPU wall ms | GPU busy ms | GPU idle before its kernels ms |
+|---|---|---|---|
+| rollout own kernels (decode and denoise nested below) | 7695 total | 564 | 436 |
+| denoise (16/21 steps, CFG) | 4727 | 4558 | 172 |
+| text decode | 1872 | 1331 | 538 |
+| backward | 2600 | 2415 | 191 |
+| policy forward | 1185 | 938 | 217 |
+| reward wait (after the policy forward) | 858 | 4 | 721 |
+| reference forward | 762 | 876 | 16 |
+| optimizer and clip | 595 | 81 | 108 |
+| pack_batch | 438 | 37 | 442 |
+| barrier | 86 | 86 | 97 |
+- Reading: the step runs serially; rollout (about 7.7 s) then training (about 6.2 s). Denoising is GPU-bound. Three stages are host-bound
+  with the GPU idle: the optimizer section (about 800 host reads per step: the AdamW step counters are CUDA tensors because main()
+  sets the default device to CUDA, while torch keeps them on the host for CUDA parameters), pack_batch (about 18k small device copies
+  per call and Python list work), and the text decode (about 0.5 s per step: one host read per token and one graph launch of about
+  0.9 ms per token, serialized with the GPU; the active batch shape must stay as it is, so the next graph cannot be launched before
+  the read).</pre></details><details><summary><em class="">9.0 h</em><span>Round 16 (14:45 UTC-; branch dev-round15, worktree /tmp/r3-dev8): AdamW step counters on the host (switch R3OPT_CPU_STEP)</span></summary><pre>- Change: after optimizer.step(), state[&#x27;step&#x27;] tensors that live on CUDA are moved to the CPU, which is torch&#x27;s own placement for
+  CUDA parameters. The counters hold integers in float32, and the bias corrections are Python floats read from them, so the values and
+  arithmetic are unchanged; the judge&#x27;s optimizer hyper-parameters are not touched.
+- check --quick (/tmp/check-r15c): PASS, bitwise N0 (14 optimizer steps, 3200 tensors, 235 reward requests).
+- Time (/tmp/time-r15c): pending.
+- Time (/tmp/time-r15c): 1.6963 (13.67 s per step; windows 13.23 / 14.10 / 13.67; the submitted round-13 tree measured 1.6579 with
+  13.38 / 13.85 / 14.72). Window 2 is slower, so the gain is about 2 percent and within the run-to-run noise; the host work removed
+  (about 1600 host syncs and about 0.6 s of optimizer host time per step) is the reason for the change.
+- Committed as 1bfde6a (fast-forward of opt, branch dev-round15); /submission/switches.json enables R3OPT_CPU_STEP=1.
+- FULL CHECK of 1bfde6a (switches as in /submission/switches.json): started 15:08 UTC, output /tmp/check-full-6 (pending).
+- Round 16 result: adopted provisionally until the full check reports.
+- FULL CHECK of 1bfde6a (commit 1bfde6a, switches as in /submission/switches.json): PASS, bitwise (N0), speedup 1.6242 (window
+  ratios 1.7690 / 1.6242 / 1.6391). The full check of 329c0f0 gave 1.6239: no measurable change at this level of noise. Kept: it is
+  bitwise identical and removes about 1600 host syncs per step. Output /tmp/check-full-6/check.json.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-r3-sonnet.html"><small>← 1.96×</small><strong>Sonnet 5.5</strong></a><a class="up" href="r3.html">↑ R3</a><a class="next" href="t-r3-mm.html"><small>1.62× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-r3-opus.html", "pts": [[0.688, 1.419, 1], [1.181, 1.935, 2], [1.913, 2.127, 3], [2.374, 2.138, 4], [3.43, 2.405, 5], [4.941, 2.432, 6], [8.251, 2.449, 7], [9.753, 2.471, 8]], "end": 10.002, "final": 2.4056}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-r3-sonnet.html", "pts": [[1.301, 1.378, 1], [2.447, 1.704, 2], [3.318, 1.709, 4], [3.777, 1.746, 5], [6.176, 1.845, 7], [7.682, 1.915, 8]], "end": 10.001, "final": 1.9602}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-r3-haiku.html", "pts": [[0.717, 1.022, 1], [1.191, 1.099, 2], [1.964, 1.418, 4], [3.055, 1.418, 6], [3.801, 1.454, 7], [5.774, 1.504, 10], [6.907, 1.612, 11], [6.907, 1.612, 12], [7.626, 1.624, 13], [8.186, 1.624, 14], [9.522, 1.624, 16]], "end": 10.004, "final": 1.6442}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-r3-astra.html", "pts": [[0.633, 1.118, 2], [1.815, 1.335, 4], [2.882, 1.397, 6], [3.694, 1.397, 8], [4.192, 1.397, 9], [4.764, 1.4, 10], [5.536, 1.401, 12], [6.373, 1.401, 14], [6.922, 1.401, 16], [7.631, 1.417, 18], [8.963, 1.506, 20], [9.975, 1.539, 22]], "end": 10.005, "final": 1.4707}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-r3-glm.html", "pts": [[1.012, 1.027, 1], [1.244, 1.081, 2], [1.466, 1.081, 3], [2.28, 1.101, 4], [3.729, 1.391, 7], [4.636, 1.391, 8], [5.303, 1.391, 9], [5.58, 1.456, 10], [6.865, 1.456, 11], [7.971, 1.456, 13], [9.004, 1.46, 16], [9.423, 1.46, 17]], "end": 10.002, "final": 1.4509}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-r3-kimi.html", "pts": [[0.948, 1.032, 2], [1.745, 1.073, 3], [3.661, 1.073, 6], [4.167, 1.084, 7], [5.149, 1.084, 8], [5.68, 1.084, 9], [6.245, 1.084, 10], [7.206, 1.319, 12], [8.392, 1.319, 13], [8.864, 1.319, 14], [9.36, 1.384, 15]], "end": 10.002, "final": 1.4078}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-r3-ds.html", "pts": [[0.704, 1.126, 2], [1.69, 1.126, 4], [2.636, 1.144, 5], [3.047, 1.144, 6], [4.411, 1.144, 8], [5.661, 1.174, 9], [6.588, 1.175, 11], [7.93, 1.277, 13]], "end": 10.0, "final": 1.1884}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-r3-mm.html", "pts": [[1.543, 1.036, 2], [2.423, 1.074, 3], [2.965, 1.105, 5], [4.406, 1.372, 6], [5.486, 1.372, 7], [6.467, 1.418, 9], [6.845, 1.437, 10], [7.201, 1.472, 12], [7.809, 1.499, 13], [8.274, 1.574, 14], [9.347, 1.606, 15]], "end": 10.002, "final": 1.6165}], "focus": "haiku", "xmax": 10.5, "aria": "Claude Haiku 5.5 on R3: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

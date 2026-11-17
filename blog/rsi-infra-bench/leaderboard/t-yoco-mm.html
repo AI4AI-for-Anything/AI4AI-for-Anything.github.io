@@ -1,0 +1,684 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · YOCO · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on YOCO: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="on">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="yoco.html">YOCO</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>1.59×</em></h1><p class="lede">Harness: Codex · switches: <code>YOCO_OPT_REPLICATED_ADAM=1</code> <code>YOCO_OPT_SKIP_MASTER_ZERO=1</code> <code>YOCO_OPT_FUSED_GRAD_SCALE=1</code> <code>YOCO_OPT_FUSED_WEIGHT_CAST=1</code> <code>YOCO_OPT_FUSED_ADAM=1</code> <code>YOCO_OPT_FAST_LINEAR=1</code> <code>YOCO_OPT_FAST_TRITON=1</code> <code>YOCO_OPT_GRAD_BUCKET_VIEW=1</code> <code>YOCO_OPT_TRITON_RMSNORM=1</code> <code>YOCO_OPT_CACHED_PTR_TABLE=1</code> <code>YOCO_OPT_DDP_BUCKET_MB=100</code> <code>YOCO_OPT_ADAM_BF16_GRAD=1</code> <code>YOCO_OPT_FUSED_L2NORM=1</code> <code>YOCO_OPT_ADAM_PLAN=1</code> <code>YOCO_OPT_FAST_ADAM=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.59×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.59×</dd></div><div class=""><dt>Rounds</dt><dd>29</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$6.03</dd></div><div class=""><dt>Input tokens · 96.4% cached</dt><dd>235 M</dd></div><div class=""><dt>Output tokens</dt><dd>2.3 M</dd></div><div class=""><dt>Requests</dt><dd>1,820</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-yoco-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.68×</small></a><a class="chip" data-k="sonnet" href="t-yoco-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.26×</small></a><a class="chip" data-k="astra" href="t-yoco-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.79×</small></a><a class="chip" data-k="haiku" href="t-yoco-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.70×</small></a><a class="chip" data-k="glm" href="t-yoco-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.60×</small></a><a class="chip self" data-k="mm" href="t-yoco-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.59×</small></a><a class="chip" data-k="ds" href="t-yoco-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.55×</small></a><a class="chip" data-k="kimi" href="t-yoco-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.37×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Cross-GPU exchange via CUDA IPC + copy engine (no SMs)</dt><dd>✗ no exchange: <code>YOCO_OPT_REPLICATED_ADAM</code> has both ranks run Adam on all params (1.00× → 1.11×); grad all-reduce still NCCL</dd><dt>Forward / backward CUDA graph</dt><dd>✗ judged infeasible, no measurement in the log</dd><dt>Newer cuBLAS</dt><dd>✗</dd><dt>Retention / attention kernel swap</dt><dd>✗ only rotary and recurrence kernels switched to direct launch (1.41× → 1.45×)</dd><dt>Other main levers</dt><dd>Triton fused "cast + scale" 1.18× → 1.30×; Triton Adam also writing bf16 weights 1.34× → 1.40×; Triton RMSNorm with two-level reduction 1.48× → 1.53×</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>31 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 — baseline profile (unchanged reference tree)</span></summary><pre>Start 2026-11-07 05:24, end 05:27.
+
+<code>bench.py profile --tree /submission/yoco --config /submission/switches.json --out /tmp/r1/profile</code>
+(0.2891 s/update under the profiler; the reference itself is 0.2336).
+
+Kernel time by category, rank 0, 5 updates (profile.md):
+
+| category | ms | ms/update |
+|---|---|---|
+| nccl | 435.7 | 87.1 |
+| gemm | 330.8 | 66.2 |
+| memcpy/cast | 219.2 | 43.8 |
+| elementwise | 153.8 | 30.8 |
+| optimizer (apex fused adam) | 91.4 | 18.3 |
+| flash-attention | 29.8 | 6.0 |
+| reduce | 19.2 | 3.8 |
+| triton (rotary/recurrence/inductor) | 13.9 | 2.8 |
+| jiterator (swiglu) | 11.1 | 2.2 |
+
+Findings (from the Chrome trace, one update = 266 ms under the profiler):
+
+* The GPU is essentially never idle (largest gap 2.2 ms) -&gt; the update is GPU-bound, not
+  data- or launch-bound.
+* <b>NCCL is 41% of the kernel time.</b> 595 <code>AllReduce_Sum_bf16</code> (DDP gradient all-reduce,
+  119 calls/update, 47.5 ms/update) and 10 <code>Broadcast_RING_LL</code> (fairscale ZeRO-1 master-weight
+  broadcast, 2 calls/update, 191.7 ms total = 38.3 ms/update).
+* The ZeRO-1 broadcast is fully serial: <code>fairscale::oss::refresh_trainable</code> (23.5 ms/update) is
+  preceded by a <code>cudaDeviceSynchronize</code> (23.3 ms) and is followed by a 44.7 ms
+  <code>cudaStreamSynchronize</code> at the end of the update -&gt; the broadcast is on the critical path.
+* The copy traffic of the fp32 master weights: memset of the master grads (13.8 GiB), bf16-&gt;fp32
+  grad copy (20.7 GiB), clip-coefficient multiply of the master grads (27.6 GiB), fp32-&gt;bf16
+  weight copy (20.7 GiB) = ~83 GiB of memory traffic per update, all of it avoidable or fusable.
+* The GEMMs run at ~575 TFLOP/s (the output projection at 787 TFLOP/s) -&gt; there is little to win
+  in the model&#x27;s matmuls.
+* <code>aten::item</code> syncs: 4 per update, all of them waiting for the GPU (the longest is the 44.7 ms
+  one at the end of the update).
+
+Conclusion: attack (1) the optimizer&#x27;s inter-rank communication, (2) the master-weight copy
+traffic, (3) the gradient all-reduce&#x27;s efficiency. The model&#x27;s matmuls and attention are fine.</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 — replicated Adam (no ZeRO-1 broadcast)</span></summary><pre><code>yoco/models/optim_overrides.py</code> (new, imported by <code>models/__init__.py</code>), three switches, all off
+by default:
+
+* <code>YOCO_OPT_REPLICATED_ADAM=1</code>: replaces fairscale&#x27;s ZeRO-1 wrapper with a variant that keeps the
+  Adam state of every parameter on every rank and drops the per-step broadcast (and the device
+  synchronize in front of it). DDP has already reduced the gradients, so both ranks compute the
+  same update from the same inputs; the per-parameter arithmetic (apex fused Adam, fp32 master
+  weights, fp32 gradients) is unchanged. Tier N0.
+* <code>YOCO_OPT_DDP_BUCKET_MB=&lt;int&gt;</code>: DDP gradient bucket size (torch&#x27;s default is 25 MiB).
+* <code>YOCO_OPT_SKIP_MASTER_ZERO=1</code>: skip the memset of the fp32 master gradients (the copy that
+  follows overwrites them completely). Tier N0.
+
+Results (judge <code>time</code>, 2 x Hopper, each run ~1.5 min):
+
+| configuration | s/update | speedup vs frozen reference | peak mem |
+|---|---|---|---|
+| reference (frozen) | 0.2336 | 1.000 | 61.75 GiB |
+| <code>YOCO_OPT_REPLICATED_ADAM=1</code> | 0.2106 | <b>1.1092</b> | 74.51 GiB |
+| <code>YOCO_OPT_REPLICATED_ADAM=1</code> + <code>YOCO_OPT_SKIP_MASTER_ZERO=1</code> | 0.2097 | <b>1.1140</b> | 74.51 GiB |
+| <code>..._REPLICATED_ADAM</code> + <code>YOCO_OPT_DDP_BUCKET_MB=256</code> | 0.2107 | 1.1087 | 74.51 GiB |
+
+<code>check --quick</code> (gates 0+2, <code>/tmp/r3/quick/check.json</code>): <b>PASS</b> -&gt; the change is bitwise identical to the
+reference (tier N0). The DDP bucket size has no effect (torch&#x27;s bucket is already large enough / the
+all-reduce is bandwidth bound, not latency bound) -&gt; drop it.
+
+Kept in <code>/submission/switches.json</code>: <code>YOCO_OPT_REPLICATED_ADAM=1</code>, <code>YOCO_OPT_SKIP_MASTER_ZERO=1</code>
+(1.114x). Cost: +12.8 GiB of Adam state per rank (replicated instead of sharded); the machine has
+139.8 GiB per GPU, so there is room, but the headroom is smaller than the reference&#x27;s.
+
+Commit: b264b25 &quot;Add environment-switched overrides for the fp32 optimizer step and DDP buckets (N0, off by default)&quot;.</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 — screening the remaining stages (`/tmp/r5`, `/tmp/r6`)</span></summary><pre>The profile of the current best (<code>/tmp/r4/profile</code>) showed (5 updates, profiler inflated, rank 0):
+gemm 67 ms/update, nccl 58, memcpy/cast 44, optimizer 33, elementwise 26, flash 6, triton 14.
+Two findings from the trace: the GPU is idle 24 % of the window (the CPU cannot keep 6200
+kernel launches/update fed) and the NCCL work is 58 ms of kernel time but only ~17 ms of it
+is not already overlapped with compute.
+
+Screening runs (judge <code>time</code>, one run each; these switches *change what is computed*, they only
+size the opportunities):
+
+| screen | s/update | speedup | what it measures |
+|---|---|---|---|
+| base (round 2) | 0.2095 | 1.115 | - |
+| <code>YOCO_SCREEN_NO_MASTER2BF16=1</code> | 0.1996 | 1.170 | the fp32 master -&gt; bf16 weight copy costs 9.9 ms |
+| <code>YOCO_SCREEN_NO_ADAM=1</code> | 0.1814 | 1.288 | apex&#x27;s fused Adam costs 28.1 ms |
+| <code>YOCO_SCREEN_NO_ALLREDUCE=1</code> | 0.1874 | 1.247 | DDP&#x27;s gradient all-reduce costs 22.1 ms on the critical path |
+| <code>YOCO_OPT_FOREACH_OPS=1</code> | 0.2319 | 1.007 | <b>regression</b>: torch&#x27;s <code>_foreach_copy_</code> has no fast path for mixed dtypes and falls back to a per-tensor loop -&gt; reverted |
+
+Failed direction: <code>gradient_as_bucket_view=True</code> for DDP (would have removed DDP&#x27;s 240
+<code>copy_bucket_to_grad</code> copies) <b>hangs</b> with fairseq, because <code>FP16Optimizer.zero_grad</code> sets
+<code>p.grad = None</code> and the reducer then waits for gradients that never arrive. Abandoned.
+
+Also checked and rejected: the two <code>state[&quot;exp_avg&quot;].to(...)</code> calls per parameter in apex&#x27;s
+<code>FusedAdamV2.step</code> are *not* copies (verified with a standalone probe: the state tensors keep
+their data pointer), so there is nothing to win there.</pre></details><details><summary><em class="">0.9 h</em><span>Round 4 — fused RMSNorm (`torch.compile`), N1</span></summary><pre><code>yoco/models/decoder/rms_norm.py</code>: the eager normalization materializes three full-size fp32
+temporaries per call (<code>x.float()</code>, <code>x.pow(2)</code>, the fp32 product) and the model calls it ~130
+times per update.  With <code>YOCO_OPT_COMPILE_RMSNORM=1</code> the same arithmetic is compiled into one
+kernel per shape.  The reduction order of the mean of squares changes -&gt; tier N1.
+
+* <code>time</code> (<code>/tmp/r7/time_compile</code>): <b>0.1987 s/update, speedup 1.1756</b> (from 1.115).
+* <code>check --n1</code> (<code>/tmp/r7/n1/check.json</code>): <b>PASS</b>, gate 3 &quot;equivalent&quot;; every one of the six
+  endpoints is within 0.81 sigma of the reference (the bound is 3 sigma).
+* No <code>torch.compile</code> recompile-limit hit and no &quot;skipping cudagraphs&quot; message in the run log;
+  the compilation happens before the first update (startup 66 s, same as the reference&#x27;s).</pre></details><details><summary><em class="">1.4 h</em><span>Round 5 — fused gradient cast-and-scale (Triton), N0</span></summary><pre>Profile of the current best (<code>/tmp/r8/profile</code>, 1.1756x) put the two memory-bound
+optimizer kernels at the top of the update:
+
+| kernel | calls | ms/update |
+|---|---|---|
+| <code>unrolled_elementwise_kernel&lt;direct_copy&gt;</code> (bf16 grad -&gt; fp32 master grad) | 1200 | 12.9 |
+| <code>elementwise_kernel&lt;BinaryFunctor&lt;float&gt;&gt;</code> (master grad *= scale) | 1200 | 12.3 |
+| <code>multi_tensor_apply&lt;AdamFunctor&gt;</code> (apex Adam) | 825 | 28.7 |
+| <code>ncclDevKernel_AllReduce_Sum_bf16</code> | 595 | 60.9 (mostly overlapped) |
+
+The cast reads 2 bytes and writes 4 bytes per element, the scale reads 4 and writes
+4: 40.6 GB of HBM traffic per update for two passes over the model, in 480 small
+kernels (one per parameter) that reach only ~1.0-1.9 TB/s.
+
+<code>yoco/models/fused_grad.py</code> (<code>YOCO_OPT_FUSED_GRAD_SCALE=1</code>) does both in one Triton
+kernel: it reads the bf16 gradient, converts it to fp32, multiplies it by the scale
+and writes the fp32 master gradient.  All the parameters are handled by **one
+launch** (the kernel walks a table of the parameter addresses, built once from the
+shapes), so the launch overhead is one kernel per update instead of 480.
+
+The scale (the data-parallel size over the sample size, times the clipping
+coefficient) is only known after the gradient norm, so the norm is computed from the
+bf16 gradients instead of from the fp32 master gradients.  apex&#x27;s fused L2 norm was
+probed to return the *same* value for a bf16 tensor and for its fp32 image
+(<code>/tmp/probe_l2.py</code>, bitwise equal on four tensor lists), so the clipping
+coefficient is unchanged.  The cast-and-scale is bitwise equal to
+<code>copy_</code> + <code>mul_</code> (probed on four tensor sizes, <code>/tmp/probe_engine.py</code>).
+
+* <code>time</code> (<code>/tmp/r5/time_fused</code>): <b>0.1803 s/update, speedup 1.2956</b> (from 1.1756).
+* <code>check --quick</code> with the same switches but without the RMSNorm compile
+  (<code>/tmp/r5/quick_nofuse</code>): <b>PASS</b>, tier <b>N0</b> - 9616 recorded tensors bitwise
+  identical to the reference, 0 exact failures.  So this change is bitwise
+  neutral; the only non-bitwise change in the tree is the compiled RMSNorm (N1,
+  already validated by <code>check --n1</code>).</pre></details><details><summary><em class="">2.3 h</em><span>Round 6 — fused fp32-master -&gt; bf16-weight copy (Triton), N0</span></summary><pre>The fp32 master weights have to be copied into the bf16 model parameters after every
+optimizer step: 12.6 GiB read + 6.3 GiB written per update, in 240 kernels that
+reach only about 2 TB/s.  <code>yoco/models/fused_grad.py</code> (<code>YOCO_OPT_FUSED_WEIGHT_CAST=1</code>)
+does the copy for every parameter in <b>one</b> Triton launch (the kernel walks a table
+of the parameter addresses, built once from the shapes).
+
+* <code>time</code> (<code>/tmp/r6/time_wc</code>): <b>0.1747 s/update, speedup 1.3371</b> (from 1.2956).
+* <code>check --quick</code> (<code>/tmp/r6/quick_n0</code>): <b>PASS</b>, tier <b>N0</b> (9616 tensors bitwise).</pre></details><details><summary><em class="">2.3 h</em><span>Round 7 — fused Adam (Triton), N0</span></summary><pre>The apex fused Adam was the largest single kernel of the update: 825
+<code>multi_tensor_apply</code> launches per update, 28.7 ms of kernel time at about 2.8 TB/s.
+apex&#x27;s <code>FusedAdamV2</code> runs in <code>ADAM_MODE_1</code> (decoupled weight decay):
+
+    m = beta1*m + (1-beta1)*g ; v = beta2*v + (1-beta2)*g*g
+    m_hat = m/bc1 ; v_hat = v/bc2 ; denom = sqrt(v_hat) + eps
+    update = m_hat/denom + decay*p ; p = p - lr*update
+
+with <code>bc = 1 - pow((double)float(beta), step)</code> — the beta is <b>rounded to fp32 first</b>,
+which is what apex does (<code>float beta = ...</code> then <code>std::pow((double)float_beta, step)</code>);
+using the Python double beta gives a different bias correction and a different result.
+
+<code>yoco/models/fused_grad.py</code> (<code>YOCO_OPT_FUSED_ADAM=1</code>) replaces
+<code>fairseq.optim.fused_adam.FusedAdamV2.step</code> with one Triton launch for all the
+parameters (4.1 TB/s, measured over 26 M elements).  The kernel uses
+<code>tl.math.fma(beta1, m, (1-beta1)*g)</code> (nvcc contracts the same way), plain division
+and <code>tl.sqrt</code> (not <code>div_rn</code>/<code>sqrt_rn</code>), and it writes the **bf16 model weights in the
+same pass**, so the separate master -&gt; model copy of round 6 is no longer needed
+(the weight-cast override then skips its copy).
+
+* <code>time</code> (<code>/tmp/r8/time_adam</code>): <b>0.1667 s/update, speedup 1.4013</b> (from 1.3371).
+* <code>check --quick</code> without the RMSNorm compile (<code>/tmp/r10/quick_n0</code>): <b>PASS</b>, tier
+  <b>N0</b> — 9616 recorded tensors bitwise identical to the reference, 0 exact failures.
+* Full <code>check</code> with the submitted switch file (<code>/tmp/r11/check</code>): <b>PASS</b>,
+  <b>speedup 1.4013</b>, tier <b>N1</b> (the only non-bitwise change is the compiled
+  RMSNorm); gate 3: every one of the six endpoints within 0.81 sigma (bound 3 sigma).</pre></details><details><summary><em class="">2.3 h</em><span>Round 8 — where the time goes now (profile of the current best)</span></summary><pre>The trace of the reference (<code>/tmp/r8/profile</code>) says the update is **launch bound in
+the forward pass**: per update the GPU is busy 175 ms (profiled) out of a 225 ms
+window and <b>idle 50-67 ms</b>, and most of that idle is inside the model forward
+(<code>## self.mixer</code> 19 ms/update, <code>self_decoder</code> 3.8, <code>cross_decoder</code> 3.2).  The
+backward is GPU bound (its compute is longer than the CPU work that drives it).
+
+Two causes:
+
+* the forward issues about 3300 kernels per update (780 of them GEMMs) and the
+  Python overhead of megatron&#x27;s parallel linear layers (two <code>autograd.Function</code>
+  nodes per layer and per direction, for a copy/reduce that is the identity with
+  one model-parallel rank) leaves the GPU waiting;
+* 119 NCCL all-reduce calls per update (the DDP buckets are 25 MiB, but a single
+  FFN weight is 50 MB, so every bucket holds about one FFN weight): 59 ms of
+  NCCL kernel time at about 200 GB/s, well below the NVLink bandwidth.</pre></details><details><summary><em class="">1.4 h</em><span>Round 5b — failed direction: flat parameter layout</span></summary><pre><code>yoco/models/flat_layout.py</code> (now removed) laid the model parameters, the fp32
+master weights and the master gradients out in one buffer each, so that the
+master -&gt; bf16 copy and the gradient scaling became single kernels.  Measured
+0.2180 s/update (a regression of 19 ms).  The profile of that run
+(<code>/tmp/r9/profile</code>) explains why: the optimizer phase ran <b>720</b> gradient copies
+per update instead of 240 (the extra ones are in the <code>optimizer</code> range, i.e. in
+the master -&gt; bf16 copy, and their source was not identified), which cost more
+than the fused kernels saved.  The same run showed the DDP all-reduce kernel time
+dropping from 61 to 36 ms/update, which is not explained either; the effect could
+not be separated from the regression, so the direction was dropped.  The file is
+kept at /tmp/flat_layout.py.bak in case it is worth revisiting.</pre></details><details><summary><em class="">3.1 h</em><span>Round 9 — plain `F.linear` for the megatron parallel layers (N0)</span></summary><pre>Profile of round 8 (<code>/tmp/r8/profile</code>): the forward of the model issues about 3300
+kernels per update and the CPU (the python overhead of the megatron linear layers)
+is the bottleneck — the forward&#x27;s wall time is 50.9 ms against about 35 ms of GPU
+work.  Every linear layer of the model is a <code>ColumnParallelLinear</code> or a
+<code>RowParallelLinear</code>; with <code>--model-parallel-size 1</code> their copy/reduce is the
+identity, but the code still goes through two <code>autograd.Function</code> nodes per layer
+and per direction, plus the <code>reduce</code>/<code>copy</code> plumbing.
+
+<code>yoco/models/fast_layers.py</code> (<code>YOCO_OPT_FAST_LINEAR=1</code>) patches
+<code>ColumnParallelLinear.forward</code> and <code>RowParallelLinear.forward</code> to a plain
+<code>F.linear</code> when the model-parallel world size is 1.  The bias is still added
+separately (not fused into the GEMM) so that the accumulation order of the
+addition is unchanged — bitwise identical results.
+
+* <code>time</code> (<code>/tmp/r14/time</code>): <b>0.1653 s/update, speedup 1.4132</b> (from 1.4013).</pre></details><details><summary><em class="">3.1 h</em><span>Round 10 — direct launch of the rotary Triton kernel (N0)</span></summary><pre>Triton&#x27;s python launcher costs about 105 us per launch for the rotary kernel
+(20 arguments); the kernel itself is about 20 us.  <code>yoco/models/fast_triton.py</code>
+(<code>YOCO_OPT_FAST_TRITON=1</code>) keeps the <code>CompiledKernel</code> object and calls it
+directly (<code>compiled.run(...)</code>), skipping the JIT bookkeeping, the argument
+specialization and the cache lookup on every call.  The launch key contains the
+constexpr values, the dtypes, the alignment of the pointers, the exact values of
+the integer arguments and <code>(num_warps, num_stages)</code>.
+
+Used by <code>decoder/kernel/rotary.py</code>; the kernel is verified bitwise equal to the
+reference launch by a probe.
+
+* <code>time</code> (<code>/tmp/r15/time</code>): <b>0.1631 s/update, speedup 1.4323</b> (from 1.4132).</pre></details><details><summary><em class="">3.1 h</em><span>Round 11 — direct launch of the chunked-retention kernels (N0)</span></summary><pre>The same treatment for <code>decoder/kernel/gate_recurrent.py</code> (the chunked
+recurrence of the gated retention): about 90 us of launch overhead per call for a
+kernel of a few tens of microseconds.
+
+* <code>time</code> (<code>/tmp/r16/time_rec</code>): <b>0.1611 s/update, speedup 1.4500</b> (from 1.4323).
+* <code>check --quick</code> (<code>/tmp/r15/quick</code>): <b>PASS</b> (0 errors, 0 exact failures).</pre></details><details><summary><em class="">3.1 h</em><span>Round 12 — failed direction: a bigger DDP bucket</span></summary><pre>The DDP buckets are 25 MiB while a single FFN weight is 50 MB, so every bucket
+holds about one FFN weight and the all-reduce is issued 119 times per update at
+about 200 GB/s, well below the NVLink bandwidth.  Overriding the bucket size
+(<code>YOCO_OPT_DDP_BUCKET_MB=100</code>) was measured <b>worse</b>: 0.1638 s/update
+(1.4261), because the bigger buckets serialize the all-reduce against the
+gradient computation instead of overlapping it.  The switch stays off (the
+override itself was a no-op until commit a85d6ce, which fixed the bug but kept
+the default off).</pre></details><details><summary><em class="">3.1 h</em><span>Round 13 — profile of the current best (1.4500)</span></summary><pre><code>bench.py profile --tree /submission/yoco --config /submission/switches.json --out /tmp/r13/profile</code>
+
+Per update: the GPU is busy 142 ms of a 187 ms profiled window (about 25% idle,
+mostly in the model forward — the issue rate is CPU bound).  GEMM 67 ms, NCCL 32 ms
+(fully overlapped), the fused Adam 25 ms, the memcpy/cast 15 ms, triton 9 ms,
+elementwise 8 ms, flash 6 ms.  <code>aten::mm</code>/<code>linear</code>/<code>matmul</code> dispatch is about
+25 ms of profiled CPU, the compiled RMSNorm about 12 ms.  Five pageable HtoD
+copies per update cause about 2.2 ms of GPU idle; their source is not yet
+identified.</pre></details><details><summary><em class="">3.6 h</em><span>Round 14 — the gradient buckets: no copy back into the parameters (N0)</span></summary><pre>Profile of the current best (<code>/tmp/r17/profile</code>, 1.4500 tree): 34.9 GiB of
+device-to-device copies per 5 updates, i.e. <b>7 GiB per update</b>, in 240 copies of
+the size of the parameters.  The trace shows where they come from: right after the
+last <code>ncclDevKernel_AllReduce_Sum_bf16_RING_LL</code> of the backward there is a run of
+240 consecutive <code>Memcpy DtoD</code> kernels (6.89 GiB), one per trainable parameter.
+That is torch&#x27;s DDP copying the reduced buckets back into <code>param.grad</code>.
+
+<code>YOCO_OPT_GRAD_BUCKET_VIEW=1</code> sets <code>gradient_as_bucket_view=True</code> on the DDP
+(<code>yoco/models/optim_overrides.py</code>), so the gradient of a parameter *is* a view into
+the communication bucket: the reduced values are already where the parameter
+expects them and the copy disappears.  The reduced gradients are the same values
+(the sum over the two ranks does not depend on where the buffer lives).
+
+* <code>time</code> (<code>/tmp/r17/time_gbv</code>): <b>0.1577 s/update, speedup 1.4813</b> (from 1.4500).
+* The loss of the timing run is the reference&#x27;s: <code>loss=16.399</code> at update 10 and
+  <code>loss=14.135</code> at update 20 (reference: 16.399 / 14.135).
+* <code>check --quick</code> (<code>/tmp/r17/quick</code>): <b>PASS</b>, 0 errors, 0 exact failures.  The
+  1478 tensors that differ from the reference (the compiled RMSNorm) have exactly
+  the same relative errors as before the change (0 of 1478 changed), so this
+  change is numerically neutral.</pre></details><details><summary><em class="">4.3 h</em><span>Round 15 — a fused RMSNorm of our own, in Triton (N1)</span></summary><pre>The compiled RMSNorm cost about 320 us of CPU time per call (146 us forward,
+174 us backward) and is called 54 times per update: about 17 ms of the host
+time of an update, and the forward pass of the update is GPU bound, so the
+host time shows up directly in the wall clock.
+
+<code>YOCO_OPT_TRITON_RMSNORM=1</code> replaces it with one Triton kernel per direction
+(<code>yoco/models/triton_rmsnorm.py</code>), keeping the rounding of the reference: the
+normalized value is rounded to bf16 *before* it is multiplied by the weight,
+and the gradient of the weight is the sum of the bf16 products of the incoming
+gradient and the rounded normalized value.  Against the eager reference, 29 of
+6.29M elements of the output and 67 of 6.29M elements of the input gradient
+differ by one bf16 ulp, and 6 of 3072 elements of the weight gradient differ by
+one ulp — that is the order of the reduction of the mean of the squares, and
+nothing else.  This is *much* closer to the reference than the compiled
+version, which differed on almost every element.
+
+* <code>time</code> (<code>/tmp/r22/time_triton</code>): 0.1600 s/update, <b>1.4600</b> — *worse* than
+  the compiled version.  The profile (<code>/tmp/r22/profile</code>) showed why: the
+  gradient of the weight was reduced by three programs only, and that kernel
+  took 188 us per call (33 GB/s).  The host time did not change (0.171 s per
+  update): the GPU was the bottleneck, not the host.</pre></details><details><summary><em class="">4.3 h</em><span>Round 16 — the gradient of the weight, reduced in two stages (N1)</span></summary><pre>The gradient of the weight is the sum over the rows of the products, so it is
+reduced over 2048 rows.  The first version reduced it with one program per
+column block, of which there were only 48 for 3072 columns: 188 us per call.
+Now the rows are split in two stages (a partial sum per part, 16 parts, then the
+sum of the parts), which is 16 times more parallelism.
+
+* <code>time</code> (<code>/tmp/r23/time_triton</code>): 0.1528 s/update, <b>1.5288</b> (from 1.4813).
+* <code>check --quick</code> (<code>/tmp/r23/quick</code>): <b>PASS</b>, 0 errors, 0 exact failures.
+* The loss of the timing run is the reference&#x27;s, and the two windows are within
+  0.06 % of each other (<code>window_range</code> 0.0006).</pre></details><details><summary><em class="">4.9 h</em><span>Round 17 — the table of the addresses of the fused kernels (N0)</span></summary><pre>The profile of the current best (<code>/tmp/r24/profile</code>) shows where the update
+spends its time: the GPU is busy 136 ms of a 164 ms window (about 16 ms of
+idle), the kernels are 67 ms of GEMM (at 620 TFLOP/s, which is 85 % of the
+733 TFLOP/s a big square GEMM reaches on this machine), 32 ms of NCCL (87 %
+overlapped with the backward), 25 ms of the fused Adam (at 4.1 TB/s, which is
+95 % of the 4.3 TB/s a copy reaches) and 45 ms of everything else.
+
+The host side: the tail of the update costs 2.3 ms of host time in the fused
+Adam alone, and the profile attributes 1.7 ms of it to Python that is not a
+tensor operation: writing the addresses of the 165 parameters (five pointers
+each) into the table of the kernel, 825 assignments of a numpy buffer, every
+update.  The addresses do not move.
+
+<code>YOCO_OPT_CACHED_PTR_TABLE=1</code> writes the table only when an address changed.
+The values are the same, so this is N0.
+
+* <code>time</code> (<code>/tmp/r26/time</code>): 0.1540 s/update, <b>1.5169</b>.
+* <code>time</code> of the previous best right after (<code>/tmp/r26/time_prev</code>): 0.1529
+  s/update, <b>1.5278</b> — the previous best measured 1.5358 earlier, so the
+  run to run spread of the candidate runs is about 0.5 %, twice the spread of
+  the reference runs.  Changes of less than 1 % cannot be told apart from the
+  noise with a single run.</pre></details><details><summary><em class="">5.4 h</em><span>Round 18 — the size of the DDP gradient buckets (N0)</span></summary><pre>With 25 MiB buckets (torch&#x27;s default) the reduction of the 6.3 GiB of bf16
+gradients is 119 small NCCL calls per update; every one of them has a fixed
+cost and the two ranks have to meet at each of them.  <code>YOCO_OPT_DDP_BUCKET_MB</code>
+sets the size of the buckets (fairseq passes <code>bucket_cap_mb</code> to torch&#x27;s DDP
+explicitly, so the value has to be overridden, not defaulted — the first
+version of the switch did nothing, see the commit <code>a85d6ce</code>).
+
+* 50 MiB: 0.1508 s/update, 1.5491
+* 100 MiB: 0.1505 / 0.1506 s/update, <b>1.5522 / 1.5511</b>
+* 200 MiB: 0.1506 s/update, 1.5511
+
+The size is saturated between 100 and 200 MiB, so 100 MiB is kept.  The values
+of the reduced gradients do not depend on the size of the buckets, so this is
+N0.</pre></details><details><summary><em class="">5.4 h</em><span>Round 19 — the full check of the current tree (`/tmp/r29/check`)</span></summary><pre><code>check --tree /submission/yoco --config /submission/switches.json</code>:
+
+* <b>PASS</b>, <code>performance.speedup</code> = <b>1.5532</b>, tier <b>N1</b>.
+* Gate 2 (bitwise): 0 errors, 0 exact failures; 1271 of 9616 recorded tensors
+  are bitwise identical, the rest are the ones the compiled RMSNorm touches.
+* Gate 3 (statistical): all six endpoints within the bound, the worst one
+  (<code>loss_u050_100</code>) at 0.96 σ of the 3 σ limit.
+* The timing run of the check: 0.1505 s/update over the two windows.</pre></details><details><summary><em class="">6.2 h</em><span>Round 21 — the order of the gradient buckets (N0, no gain)</span></summary><pre><b>Profile.</b>  The trace of the last update of <code>/tmp/r24/profile</code> (164 ms profiled,
+150 ms real) gives the timeline of the update:
+
+| phase | window (ms) | note |
+|---|---|---|
+| forward | 2.8 – 38.9 | 835 kernels, the CPU issues them faster than the GPU runs them |
+| backward | 38.9 – 112.5 | the gradient reduction runs from 50 to 124 ms |
+| *gap* | 112.5 – 124.8 | <b>12.3 ms with nothing to do: the reduction of the last buckets</b> |
+| clip + cast | 124.8 – 135.1 | the L2 norm (3 ms) and the fused cast and scale (5.2 ms) |
+| Adam | 135.1 – 162 | the fused Adam, 25 ms, at 4.1 TB/s |
+| tail | 162 – 164.3 | the event based update timing of the bench |
+
+The 122 NCCL kernels of the reduction are 0.2-0.35 ms each (100 MiB at the full
+400 GB/s) with 0.2-1 ms gaps: the reduction is not bandwidth limited but *latency*
+limited, it waits for the gradients.  The gradients of the last 1.2 GiB (the output
+projection and the embedding) are only ready at the end of the backward, so their
+reduction is not hidden: 12.3 ms of the update are the reduction of gradients that
+were ready long before.
+
+<b>Change.</b>  torch&#x27;s DDP fills the buckets in the order of the registration of the
+parameters and then reverses the list of the buckets, so the bucket that is reduced
+first holds the gradients that the backward produces first.  The YOCO model
+registers its parameters in the order of the forward pass, so the gradient of the
+output projection -- the first one the backward produces -- is registered second
+and lands in one of the last buckets.  <code>YOCO_OPT_DDP_BUCKET_ORDER=1</code>
+(<code>yoco/models/optim_overrides.py</code>) moves the parameters of the output projection to
+the end of the list that the reducer sees, so that their gradient is reduced first.
+The reduced values do not depend on the grouping, so this is N0.
+
+* <code>time</code> (<code>/tmp/r21/time</code>): <b>0.1503 s/update, speedup 1.5542</b> (the current best is
+  0.1505 / 1.5532): <b>no gain</b>, the difference is inside the noise (0.5 %).
+* The switch stays <b>off</b>.
+
+So the 12.3 ms are not the order of the buckets: the reduction of the last buckets
+is exposed because it cannot start before the gradients are ready, and the
+gradients of the output projection are ready *late* in the backward as well (the
+wgrad of the output projection is the first GEMM of the backward, but the reduction
+of the buckets is a chain: a bucket is only reduced when the previous one is done).</pre></details><details><summary><em class="">6.7 h</em><span>Round 22 — where the time goes now (the profile of `/tmp/r24/profile`)</span></summary><pre><b>Profile.</b>  The trace of the last update of <code>/tmp/r24/profile</code> (164 ms profiled,
+150 ms real) gives the timeline of the update:
+
+| phase | window (ms) | note |
+|---|---|---|
+| forward | 2.8 – 38.9 | 835 kernels, the CPU issues them at the same rate as the GPU runs them |
+| backward | 38.9 – 112.5 | the reduction runs from 50 to 124 ms |
+| tail of the reduction | 112.5 – 124.8 | the last buckets of the reduction, overlapped with the backward |
+| clip + cast | 124.8 – 135.1 | the L2 norm (3 ms) and the fused cast and scale (5.2 ms) |
+| Adam | 135.1 – 162 | the fused Adam, 25 ms, at 4.1 TB/s |
+| tail | 162 – 164.3 | the event based update timing of the bench |
+
+The GPU is busy 136 ms of the 164 ms of the window: 28 ms of idle, in 2496 gaps
+(2394 of them shorter than 50 us).  Twelve of those milliseconds are in the
+forward, which is exactly at the limit of the host: 24.4 ms of host time for
+23.0 ms of GPU work.
+
+The kernels of the update (rank 0): 67 ms of GEMM (575 TFLOP/s, 78 % of the
+733 TFLOP/s a big square GEMM reaches on this machine), 34 ms of NCCL (the
+reduction of 6.9 GiB of bf16 gradients, 119 kernels of 0.2-0.35 ms, 87 %
+overlapped with the backward), 25 ms of the fused Adam, 15 ms of elementwise
+(411 multiplications, 268 copies, 231 additions), 5.6 ms of flash-attention,
+5.2 ms of the fused cast, 3 ms of the L2 norm of apex, 1.7 ms of softmax.
+
+The elementwise work is the largest remaining item that is not a GEMM: it is
+what the retention of the self decoder does with the (1, 24, 8, 256, 256)
+tensors (the mask of the gates), 13 times in the forward and 13 times in the
+backward of an update.
+
+* A diagnostic (<code>YOCO_SCREEN_PHASE_TIMING=1</code>, <code>yoco/models/screening.py</code>) prints
+  the host time of the forward of the criterion: 24.4 ms against 23.0 ms of GPU
+  work, so the forward is balanced and the 13 ms of idle that the profiler
+  shows there is an artefact of the profiler.</pre></details><details><summary><em class="">6.7 h</em><span>Round 23 — the fused Adam reads the bf16 gradients (N0, +1 %)</span></summary><pre><b>Change.</b>  The fused cast writes the master gradient as
+<code>float(bf16 gradient) * scale</code>, so the Adam can read the bf16 gradient and
+multiply it by the same scale inside its kernel: the value is the same, bit
+for bit, and the kernel reads two bytes per element instead of four (28 instead
+of 30 bytes per element, 96 instead of 103 GiB per update).
+
+* The kernel has a <code>BF16_GRAD</code> branch (<code>yoco/models/fused_grad.py</code>), the scale
+  is left in a device scalar by the fused cast and consumed by the Adam.
+* A unit test of the two paths of the kernel (<code>/tmp/t3/t_adam.py</code>) agrees bit
+  for bit on every parameter, moment and weight.
+* <code>time</code> (<code>/tmp/r32/time_bf16grad</code>): <b>0.1491 s/update, speedup 1.5667</b> (the
+  previous best was 0.1505 / 1.5532).  The same session&#x27;s run of the previous
+  best was noisy (0.1531, window range 2.9 %), its median was 0.1509.
+* <code>check</code> (<code>/tmp/r33/check</code>): <b>PASS</b>, speedup <b>1.5646</b>, tier N1 (the
+  trajectory&#x27;s worst endpoint is 0.09 sigma of the 3 sigma bound).
+
+The switch <code>YOCO_OPT_ADAM_BF16_GRAD=1</code> is now in <code>/submission/switches.json</code>.</pre></details><details><summary><em class="">6.7 h</em><span>Round 24 — no copy of the Adam states that do not move (N0, no gain)</span></summary><pre>The copy of apex (<code>state[&quot;exp_avg&quot;].to(device=..., dtype=...)</code>) returns the same
+tensor when the device and the dtype do not change, but its dispatch costs a
+few microseconds per parameter and per moment.  The check avoids it.
+
+* <code>time</code> (<code>/tmp/r32/time_bf16grad2</code>): 0.1493 s/update, speedup 1.5646: **no
+  measurable gain**.  The 2.2 ms of host time that the profile attributes to
+  the step of the optimizer is an artefact of the profiler (it inflates the
+  host time of every operation).
+
+The change is kept: it is bit for bit the same code path and it cannot hurt.</pre></details><details><summary><em class="">6.7 h</em><span>Current summary (after round 24)</span></summary><pre><b>Switch file</b> (<code>/submission/switches.json</code>):
+
+```json
+{&quot;environment&quot;: {&quot;YOCO_OPT_REPLICATED_ADAM&quot;: &quot;1&quot;, &quot;YOCO_OPT_SKIP_MASTER_ZERO&quot;: &quot;1&quot;,
+ &quot;YOCO_OPT_FUSED_GRAD_SCALE&quot;: &quot;1&quot;, &quot;YOCO_OPT_FUSED_WEIGHT_CAST&quot;: &quot;1&quot;,
+ &quot;YOCO_OPT_FUSED_ADAM&quot;: &quot;1&quot;, &quot;YOCO_OPT_FAST_LINEAR&quot;: &quot;1&quot;, &quot;YOCO_OPT_FAST_TRITON&quot;: &quot;1&quot;,
+ &quot;YOCO_OPT_GRAD_BUCKET_VIEW&quot;: &quot;1&quot;, &quot;YOCO_OPT_TRITON_RMSNORM&quot;: &quot;1&quot;,
+ &quot;YOCO_OPT_CACHED_PTR_TABLE&quot;: &quot;1&quot;, &quot;YOCO_OPT_DDP_BUCKET_MB&quot;: &quot;100&quot;,
+ &quot;YOCO_OPT_ADAM_BF16_GRAD&quot;: &quot;1&quot;}}
+```
+
+<b>Latest full check</b>: <code>/tmp/r33/check/check.json</code> — <b>PASS</b>, speedup
+<b>1.5646</b>, tier N1 (gate 3: the worst endpoint is 0.09 σ of the 3 σ bound).
+
+<b>Where the gain comes from</b> (frozen reference: 0.2336 s/update):
+
+| change | s/update | speedup | tier |
+|---|---|---|---|
+| reference | 0.2336 | 1.000 | – |
+| replicated Adam (no ZeRO broadcast) + no master zero | 0.2095 | 1.115 | N0 |
+| compiled RMSNorm | 0.1987 | 1.176 | N1 |
+| fused gradient cast and scale | 0.1803 | 1.296 | N0 |
+| fused master → bf16 weight copy | 0.1747 | 1.337 | N0 |
+| fused Adam (also writes the bf16 weights) | 0.1667 | 1.401 | N0 |
+| plain <code>F.linear</code> for the megatron linears | 0.1653 | 1.413 | N0 |
+| direct launch of the rotary kernel | 0.1631 | 1.432 | N0 |
+| direct launch of the recurrence kernels | 0.1611 | 1.450 | N0 |
+| DDP <code>gradient_as_bucket_view</code> | 0.1577 | 1.481 | N0 |
+| fused Triton RMSNorm | 0.1528 | 1.529 | N1 |
+| DDP buckets of 100 MiB | 0.1505 | 1.553 | N0 |
+| the fused Adam reads the bf16 gradients | 0.1491 | <b>1.567</b> | N0 |
+
+<b>Directions that did not work</b> (and why):
+
+* CUDA graphs: the DDP reducer&#x27;s host side logic and the autograd graph cannot
+  be captured; a graph of the forward only would keep the activations of the
+  previous iteration alive and the peak memory (73 GiB) is already close to
+  the limit.
+* A Triton flash kernel for <code>inner_chunk</code>: analysed, see round 20.
+* Eager instead of compiled <code>inner_chunk</code>: 228 us of GPU per call instead of
+  68 us.
+* <code>NCCL_BUFFSIZE=32 MB</code>: no gain (0.1531 s/update).
+* A bigger DDP bucket (200 MiB) or a smaller one (50 MiB): no gain.
+* The table of the addresses of the fused kernels (round 17): no measurable
+  gain, the run to run noise of the candidate (0.5 %) is larger than the
+  effect; the change is kept because it cannot hurt.
+* The order of the DDP gradient buckets (round 21): no gain.
+* The copy of the Adam states that do not move (round 24): no gain.
+
+<b>Where the time goes now</b> (profile <code>/tmp/r24/profile</code>, 5 updates, rank 0):
+GPU busy 136 ms of a 164 ms window — 28 ms of idle, mostly in the forward,
+which is exactly at the limit of the host (24.4 ms of host time for 23.0 ms of
+GPU work).  Kernels: 67 ms of GEMM (575 TFLOP/s, 78 % of the 733 TFLOP/s a
+big square GEMM reaches on this machine), 34 ms of NCCL (87 % overlapped with
+the backward), 25 ms of the fused Adam (4.1 TB/s, 95 % of the 4.3 TB/s a copy
+reaches), 15 ms of elementwise (the retention of the self decoder and its
+mask), 5.6 ms of flash-attention, 5.2 ms of the fused gradient cast, 3 ms of
+the L2 norm of apex, 1.7 ms of softmax.</pre></details><details><summary><em class="">7.6 h</em><span>Round 25 — where the time goes now, and three experiments that did not pay</span></summary><pre><b>Profile of the current best</b> (<code>/tmp/r35/profile</code>, 5 updates, rank 0). The
+main stream (the one the model runs on) has <b>128.2 ms of kernels</b> in a
+160.5 ms window; the update is therefore bound by the main stream and by the
+time the gradients are reduced:
+
+| phase | window | note |
+|---|---|---|
+| forward | 3.0 – 40.0 ms | 37 ms, the host is the limit here (24 ms of host time for 23 ms of GPU work) |
+| backward | 40.0 – 106.8 ms | 67 ms |
+| *idle* | 106.8 – 123.5 ms | <b>16.7 ms: the host waits for the reduction of the gradients</b> |
+| clip + cast | 123.5 – 133.6 ms | the L2 norm (3.0 ms) and the fused cast (5.2 ms) |
+| Adam | 133.6 – 160.3 ms | the fused Adam, 23.6 ms at 4.1 TB/s |
+
+The kernels of the main stream per update: 71.7 ms of GEMM (78 % of the peak),
+23.6 ms of fused Adam, 14.1 ms of elementwise (**4.7 ms of it is the division
+that DDP does on every gradient before the reduction**: <code>mul_out</code> is called
+240 times per update), 5.2 ms of fused cast, 3.0 ms of L2 norm, 2.8 ms of
+Triton, 2.1 ms of swiglu, 1.7 ms of softmax.
+
+The reduction of the gradients: 47 NCCL calls of 100 MiB, from 51.5 ms to
+122.7 ms.  The pure NCCL cost of the same reduction is 33 ms (measured with a
+standalone benchmark: 47 x 100 MiB, 296 GB/s), so the reduction is not
+bandwidth bound but *gated by the production of the gradients*: the last
+bucket (the embedding, 616 MiB) is only ready at the end of the backward, and
+the chain of the buckets that follows it adds 16 ms to the update.
+
+<b>Experiment 1: <code>YOCO_OPT_NO_SETITEM_SYNC=1</code> (N0, no gain).</b>  The backward of
+the chunked recurrence writes two slices with <code>DI[:, :, -1] = 0</code>, which goes
+through <code>index_put_</code> and reads the value of the mask from the device: a
+synchronization, twice per decoder layer.  The switch (already in the tree,
+committed in <code>b6cce5c</code>) replaces them with <code>zero_()</code>.
+
+* <code>time</code> (<code>/tmp/r36/time_setitem</code>): <b>0.1494 s/update, 1.5636</b> — the same as
+  the previous best (0.1491 / 1.5667).  The switch stays <b>off</b>.
+
+<b>Experiment 2: <code>YOCO_OPT_FAST_EMBEDDING=1</code> (N0, no gain).</b>  fairseq&#x27;s
+megatron <code>VocabParallelEmbedding.forward</code> masks the tokens with
+<code>masked_input[input_mask] = 0</code>, and <code>index_put_</code> reads the value of the mask
+from the device: a synchronization in the middle of the forward pass.  The new
+module (<code>yoco/models/fast_embedding.py</code>) writes the same zeros with
+<code>masked_fill_</code>, which is what <code>index_put_</code> does internally, without the
+synchronization (a unit test: the values and the gradients are bit for bit the
+same).
+
+* <code>time</code> (<code>/tmp/r36/time_emb</code>): <b>0.1495 s/update, 1.5625</b> — no gain.  The
+  switch stays <b>off</b>.
+
+<b>Experiment 3: the Triton inner chunk</b> (already in the tree, <code>c68fe59</code>).
+The profile with <code>YOCO_OPT_TRITON_INNER_CHUNK=1</code> (<code>/tmp/r36/profile_inner</code>)
+shows that the elementwise work of the update does <b>not</b> change (14.1 ms -&gt;
+15.1 ms): the mask of the gates is not what the elementwise kernels do.  The
+triton category shrinks by 0.4 ms (the compiled inner chunk is replaced by the
+Triton one) and the window by 3 ms, but the measured time does not move.</pre></details><details><summary><em class="">7.6 h</em><span>Round 26 — the fused Adam writes the master gradients (N0, +1.4 %)</span></summary><pre><b>Change.</b>  The fused cast writes the master gradient of every parameter as
+<code>float(bf16 gradient) * scale</code>, and the fused Adam reads the bf16 gradient and
+multiplies it by the same scale, so the master gradient is written but never
+read: 12.4 GiB of writes and 6.9 GiB of reads that the update does not need.
+
+<code>YOCO_OPT_FUSED_MASTER_GRAD=1</code> lets the fused Adam write the master gradient
+itself, in the same kernel that reads the bf16 gradient: the gradients are
+read once instead of twice, and the master gradient is written once.  The
+value is the same expression (<code>float(bf16 gradient) * scale</code>, in fp32, with
+the same device scalar), so it is bit for bit the value the fused cast wrote.
+
+* A unit test (<code>/tmp/t9/t_fused.py</code>) compares the two paths on random
+  gradients: the master gradients, the master weights, the two moments and the
+  bf16 weights are all bit for bit equal.
+* <code>time</code> (<code>/tmp/r37/time_mastergrad2</code>): <b>0.1471 s/update, 1.5880</b> (the
+  previous best was 0.1491 / 1.5667).  The first run of the same tree
+  (<code>/tmp/r37/time_mastergrad</code>) gave 0.1502 / 1.5553, but its two windows
+  differ by 2.8 %, so it is not a valid measurement.
+* The profile (<code>/tmp/r37/profile</code>) shows what the change does: the fused cast
+  is gone (5.24 ms), the fused Adam grows from 23.61 ms to 27.13 ms (it writes
+  the 12.4 GiB of master gradients), and the main stream has 126.2 ms of
+  kernels instead of 128.2 ms.
+
+* <b>Result: INCORRECT</b> (<code>check --quick</code>, <code>/tmp/r37/quick/check.json</code>).  The
+  judge records the fp32 master gradient *before* <code>optimizer.step()</code>, so a
+  master gradient that is only written inside the Adam kernel is never seen:
+  every <code>grad/adam#0/master.*</code> tensor had a relative error of about 1.0 and
+  the <code>cross_rank_pattern</code> exact item failed (the reference&#x27;s master
+  gradients are rank-local slices of the flat fp32 buffer, the candidate&#x27;s
+  became replicated zeros).  **Lesson: the fp32 master gradient has to be
+  materialized before the optimizer step.**  The change was reverted
+  (<code>bb9e076</code> is the last commit that does not contain it).</pre></details><details><summary><em class="">8.2 h</em><span>Round 27 — the gradient norm in one kernel (N1, +0.5 %)</span></summary><pre><b>Change.</b>  <code>clip_grad_norm</code> asked apex for the norm of the 240 gradients
+with <code>multi_tensor_total_norm</code>, which is 165 launches of a small kernel (3.0
+ms of GPU time per update) and a lot of host time in the middle of the update.
+
+<code>YOCO_OPT_FUSED_L2NORM=1</code> computes the norm with the table of the addresses
+that the fused cast already keeps: one Triton kernel sums the squares of every
+chunk of every gradient into a partial sum and a second one sums the partials
+(two launches for the whole model).
+
+The sum is accumulated in a different order than apex&#x27;s, so the norm differs
+in the last bits of the fp32 mantissa and so does the clipping coefficient:
+the tier is <b>N1</b> (the deviation is about 1e-7 relative, against the 1e-2 of
+the Triton RMSNorm that the tree already has).
+
+* A unit test (<code>/tmp/t10/t_l2.py</code>) compares the norm with apex&#x27;s on random
+  gradients and with the real ones: the values are bit for bit equal in the
+  test, and the cast that shares the table is unchanged.
+* <code>time</code> (<code>/tmp/r38/time_l2</code>): <b>0.1481 s/update, 1.5773</b>; the same tree
+  without the switch (<code>/tmp/r38/time_base</code>): <b>0.1488 s/update, 1.5699</b>.
+* <code>check --quick</code> (<code>/tmp/r39/quick/check.json</code>): <b>PASS</b>, tier N1, no exact
+  failure (1478 tensors beyond the per-tensor tolerances, which are
+  diagnostic only).</pre></details><details><summary><em class="">8.5 h</em><span>Round 28 — the plan of the Adam update is kept between the updates (N0, +1.7 %)</span></summary><pre><b>Profile.</b>  The profile of the current tree (<code>/tmp/r37/profile</code>) shows that the
+gap between the end of the backward and the start of the Adam kernel is pure
+Python: the fused Adam rebuilt, at every update, five lists of 240 tensors,
+collected 1200 addresses with <code>data_ptr()</code>, rebuilt the chunk table of the
+parameters and went through the bookkeeping of the Triton JIT (which re-binds
+the arguments and rebuilds the specialization key at every call).  The host is
+the critical path there: the GPU waits for the plan before it can run the
+kernel.
+
+<b>Change.</b>  The plan (the tensors, the table of their addresses, the chunk
+table) is built once and reused as long as the gradients and the Adam states
+keep their buffers; the kernel is launched directly, without the JIT
+bookkeeping.  Triton does not specialize on the value of a floating point
+argument, so the compiled kernel is the same even though the learning rate and
+the bias corrections change at every update.
+
+* A unit test (<code>/tmp/t11/t_plan.py</code>) compares the rebuild and the cached plan
+  over five updates: the weights, the gradients, the two moments and the bf16
+  weights are bit for bit equal.  The plan is rebuilt when a gradient or an
+  Adam state moves.
+* <code>check --quick</code> (<code>/tmp/r41/quick/check.json</code>): <b>PASS</b>, and the summary of
+  the numerics is *identical* to the one of the run without the change
+  (9616 tensors checked, 1272 bitwise identical, 1478 beyond the per-tensor
+  tolerances, 0 exact failure): the change is bitwise neutral.
+* <code>time</code> (<code>/tmp/r40/time_new</code>): <b>0.1468 s/update, 1.5913</b>; the same tree
+  without the three switches (<code>/tmp/r40/time_base2</code>): <b>0.1493 / 1.5646</b>.
+
+<b>A trap.</b>  The first version of the change rebuilt the chunk table at every
+update.  The table is uploaded with a pageable buffer, so the copy blocks the
+host until the stream has caught up: the update went from 0.1493 to 0.1682
+s/update.  The chunk table is now built once, with the plan.
+
+* <code>check</code> (full, <code>/tmp/r42/check/check.json</code>): <b>PASS</b>, speedup <b>1.5491</b>
+  (the candidate run of the check measured 0.1508 s/update), tier N1.
+
+<b>The switch file of the submission</b> now has the fifteen switches of the
+tree (the twelve of the previous rounds plus <code>YOCO_OPT_FUSED_L2NORM</code>,
+<code>YOCO_OPT_ADAM_PLAN</code> and <code>YOCO_OPT_FAST_ADAM</code>).</pre></details><details><summary><em class="">8.9 h</em><span>Round 29 — the statistics of the update, without reading them back (N0, no gain)</span></summary><pre><b>Profile</b> (<code>/tmp/r43/profile</code>, the current tree, 5 updates, 187 ms/update under the
+profiler): the GPU is busy 133 ms of the 160 ms of the update; 160 ms of kernels
+run in that window, so 27 ms of the NCCL reduction is hidden behind the
+computation and about 14 ms of the update (in the unprofiled run) is GPU idle.
+The end of the update holds a burst of <b>16 device-to-host copies</b>: the meters of
+the statistics are accumulated on the device and read back on the host, once per
+meter, at the end of every update (<code>AverageMeter.smoothed_value</code> rounds the value
+on the host; the average of the meter that is weighted by the number of tokens
+tests its count on the host; <code>torch.isfinite(grad_norm)</code> reads the norm).
+
+<b>Change</b> (<code>yoco/models/fast_metrics.py</code>, <code>YOCO_OPT_FAST_METRICS=1</code>): the values
+of the meters stay on the device.  The average of a meter is selected on the
+device (<code>torch.where(count &gt; 0, sum / count, val)</code>) instead of testing the count
+on the host -- the value is the same tensor as fairseq&#x27;s -- and the logging
+output holds the values as they are on the device.  The training loop only tests
+that the output is not None; the numbers that are written to the log every
+<code>log_interval</code> updates come from the &quot;train_inner&quot; aggregator, whose meters are
+accumulated exactly as before (the logged loss and perplexity of a run are the
+same as the reference&#x27;s, up to the run-to-run noise of the loss itself).
+
+* <code>time</code> (<code>/tmp/r43/time_fast</code>): <b>0.1471 s/update, speedup 1.5880</b>; the same
+  tree without the switch measured 0.1468 / 1.5913 in the same session
+  (<code>/tmp/r40/time_new</code>) and 0.1508 / 1.5491 in the last full check.  <b>No gain</b>:
+  the syncs of the statistics are not on the critical path, the host has work to
+  do while the device finishes the Adam anyway.
+* A unit test (<code>/tmp/t_fastmetrics.py</code>): the average of a meter is the same
+  tensor as fairseq&#x27;s, and taking it does not synchronize the device
+  (<code>torch.cuda.set_sync_debug_mode(&quot;error&quot;)</code>).
+
+<b>Conclusion.</b>  The 2.7 ms that the screening switch <code>YOCO_SCREEN_NO_METRICS=1</code>
+showed in round 40 was the noise of the run, not the cost of the statistics: with
+the syncs removed and the accumulation kept, the update time does not move.  The
+change is kept in the tree, <b>off by default</b> (it is bitwise neutral and cannot
+hurt, but it buys nothing).</pre></details><details><summary><em class="">9.3 h</em><span>Round 30 — the batch of the loader in pinned memory (N0, no gain) and the phases of the update</span></summary><pre><b>Profile</b> (<code>/tmp/r43/profile</code>, the current tree): 128.5 ms of kernels on the
+compute stream in an update of 146.7 ms: 66 ms of GEMM, 31.5 ms of NCCL (86 %
+overlapped), 23.6 ms of the fused Adam (at the memory roofline), 15 ms of
+elementwise (about 1500 launches), 6.4 ms of flash attention, 5.2 ms of the
+fused cast of the master gradients, 2.8 ms of Triton, 2.1 ms of the L2 norm,
+2.1 ms of SwiGLU and 1.8 ms of the loss.
+
+<b>Change 1</b> (<code>yoco/tasks/data/basic_loader.py</code>, <code>YOCO_OPT_PINNED_BATCH=1</code>):
+the tensors of the batch are allocated in pinned host memory, so the copy of
+the sample to the device (<code>non_blocking=True</code>) does not make the host wait for
+the device.  The bytes are the same, so the data of the run is the same.
+
+* <code>time</code> (<code>/tmp/r44/time_pin</code>): <b>0.1471 s/update, 1.5880</b>; the same tree
+  without the switch in the same session (<code>/tmp/r44/time_base</code>): **0.1466 /
+  1.5935<b>.  </b>No gain**: the copy is already hidden behind the work of the
+  device.
+
+<b>Change 2</b> (<code>yoco/models/screening.py</code>): the diagnostic
+<code>YOCO_SCREEN_PHASE_TIMING=1</code> now prints the host time of the phases of the
+update (train_step, prepare, forward, backward, optimizer, statistics) and the
+new <code>YOCO_SCREEN_TRACE_EVENTS=1</code> prints a Python stack for every
+<code>torch.cuda.Event.elapsed_time</code> call.
+
+* The phases of an update (host, <code>YOCO_SCREEN_PHASE_TIMING=1</code>):
+  `train_step 146.67 ms = prepare 0.21 + forward 22.6 + backward 59.3 +
+  optim 0.72 + stats 23.9` and about 40 ms of waiting for the device (the tail
+  of the reduction, the clip, the norm and the cast of the master gradients).
+* The trace of the events (<code>/tmp/r44/time_events</code>): the 9387 calls of
+  <code>cudaEventElapsedTime</code> all come from the autotuning of inductor
+  (<code>torch/_inductor/triton_heuristics.py:benchmark_all_configs</code>) during the
+  compilation, not from the update.  The 3.4-5.6 ms gaps that the profile
+  shows between the kernels are therefore artefacts of the profiler and of the
+  compilation, <b>not</b> stalls of the steady state.
+
+<b>Conclusion.</b>  Two directions closed: the pinned memory of the loader buys
+nothing, and the &quot;gaps&quot; of the profile are not worth chasing.  The pinned
+loader is kept in the tree, <b>off by default</b>.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-yoco-glm.html"><small>← 1.60×</small><strong>GLM-5.3</strong></a><a class="up" href="yoco.html">↑ YOCO</a><a class="next" href="t-yoco-ds.html"><small>1.55× →</small><strong>DeepSeek V4.1 Flash-1017</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-yoco-opus.html", "pts": [[0.491, 1.524, 2], [1.129, 2.08, 4], [1.646, 2.439, 5], [2.109, 2.502, 6], [2.833, 2.567, 7], [3.079, 2.628, 8], [3.482, 2.646, 9], [5.413, 2.682, 12]], "end": 10.002, "final": 2.6793}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-yoco-sonnet.html", "pts": [], "end": 10.003, "final": 2.2623}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-yoco-haiku.html", "pts": [[0.287, 1.22, 1], [0.877, 1.239, 3], [1.431, 1.311, 4], [1.844, 1.376, 5], [2.064, 1.51, 7], [2.127, 1.51, 8], [2.629, 1.51, 9], [2.702, 1.51, 10], [3.221, 1.528, 11], [3.996, 1.547, 12], [4.638, 1.578, 14], [5.435, 1.587, 17], [6.321, 1.637, 18], [6.755, 1.637, 19], [8.068, 1.662, 20], [8.068, 1.671, 21], [9.364, 1.712, 24]], "end": 10.003, "final": 1.7033}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-yoco-astra.html", "pts": [[0.682, 1.066, 3], [0.834, 1.112, 4], [1.633, 1.228, 5], [1.77, 1.233, 6], [2.246, 1.308, 7], [2.406, 1.345, 8], [2.759, 1.345, 9], [2.995, 1.362, 10], [3.321, 1.381, 11], [4.004, 1.399, 12], [4.104, 1.421, 13], [4.81, 1.498, 14], [4.972, 1.498, 15], [5.39, 1.507, 16], [5.677, 1.523, 17], [6.014, 1.647, 18], [6.612, 1.69, 19], [7.222, 1.721, 20], [7.558, 1.778, 21], [8.445, 1.79, 22], [8.822, 1.79, 23], [9.321, 1.793, 24], [9.835, 1.793, 25]], "end": 10.003, "final": 1.7905}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-yoco-glm.html", "pts": [[0.89, 1.085, 1], [1.57, 1.104, 2], [1.955, 1.144, 3], [3.23, 1.207, 5], [5.059, 1.257, 8], [5.059, 1.598, 22]], "end": 10.002, "final": 1.5959}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-yoco-kimi.html", "pts": [[0.68, 1.013, 3], [0.886, 1.03, 4], [1.164, 1.091, 5], [1.47, 1.091, 6], [1.757, 1.184, 7], [2.105, 1.198, 8], [2.231, 1.198, 9], [2.601, 1.201, 10], [2.778, 1.204, 11], [3.118, 1.218, 12], [3.372, 1.218, 13], [3.536, 1.218, 14], [3.717, 1.218, 15], [4.456, 1.22, 16], [4.772, 1.236, 17], [4.912, 1.236, 18], [5.241, 1.237, 19], [5.479, 1.237, 20], [5.769, 1.237, 21], [6.278, 1.244, 22], [6.454, 1.244, 23], [6.853, 1.244, 24], [6.969, 1.244, 25], [7.355, 1.261, 26], [7.768, 1.293, 27], [8.078, 1.296, 28], [8.287, 1.296, 29], [8.648, 1.312, 30], [8.906, 1.318, 31], [9.426, 1.375, 32], [9.798, 1.375, 33]], "end": 10.001, "final": 1.3683}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-yoco-ds.html", "pts": [[0.229, 1.115, 1], [0.69, 1.15, 2], [1.051, 1.188, 4], [1.606, 1.206, 5], [1.883, 1.288, 6], [2.17, 1.351, 7], [2.564, 1.47, 8], [2.713, 1.47, 9], [2.863, 1.482, 11], [3.311, 1.533, 13], [3.505, 1.533, 14], [3.885, 1.534, 17], [4.352, 1.534, 23], [4.581, 1.535, 29], [4.843, 1.565, 30], [5.467, 1.566, 34], [5.712, 1.566, 35], [5.74, 1.566, 36], [5.803, 1.566, 38], [5.866, 1.68, 41], [5.884, 1.68, 42], [5.986, 1.68, 43], [6.13, 1.68, 44], [6.187, 1.68, 45], [6.194, 1.68, 46], [6.569, 1.68, 47], [6.675, 1.68, 49], [6.86, 1.68, 51], [7.094, 1.68, 54], [7.259, 1.68, 56], [7.266, 1.68, 57], [7.281, 1.68, 58], [7.285, 1.68, 59], [7.306, 1.68, 61], [7.336, 1.68, 62], [7.475, 1.68, 63], [7.528, 1.68, 65], [7.665, 1.68, 66], [7.696, 1.68, 67], [7.706, 1.68, 69], [7.779, 1.68, 72], [7.829, 1.68, 73], [7.832, 1.68, 74], [7.837, 1.68, 75], [7.853, 1.68, 76], [7.879, 1.68, 77], [7.891, 1.68, 80]], "end": 7.897, "final": 1.5531}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-yoco-mm.html", "pts": [[0.404, 1.114, 2], [0.869, 1.176, 4], [1.354, 1.296, 5], [2.286, 1.337, 6], [2.286, 1.401, 7], [3.126, 1.413, 9], [3.126, 1.432, 10], [3.126, 1.45, 11], [3.569, 1.481, 14], [5.415, 1.553, 19], [6.204, 1.554, 21], [6.743, 1.567, 23], [6.743, 1.567, 24], [8.49, 1.567, 28], [8.886, 1.588, 29]], "end": 10.002, "final": 1.5872}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on YOCO: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

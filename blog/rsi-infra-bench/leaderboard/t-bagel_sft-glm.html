@@ -1,0 +1,210 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLM-5.3 · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="GLM-5.3 on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>GLM-5.3</b></nav><h1>GLM-5.3 <em>1.49×</em></h1><p class="lede">Harness: Claude Code · switches: <code>BAGEL_AC_MODE=mlp</code> <code>BAGEL_MASK_BF16=1</code> <code>BAGEL_MOT_QKV=1</code> <code>BAGEL_LOG_FAST=1</code> <code>BAGEL_FLEX_ATTN=1</code> <code>BAGEL_FLEX_LEN=11520</code> <code>BAGEL_EARLY_ROOT_AG=1</code> <code>BAGEL_ADAM_ONEPASS=1</code> <code>BAGEL_EMA_ONEPASS=1</code> <code>BAGEL_MOT_ROUTING=1</code> <code>BAGEL_NORM_FUSE=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.49×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.49×</dd></div><div class=""><dt>Rounds</dt><dd>10</dd></div><div class=""><dt>Hours</dt><dd>10.1</dd></div><div class=""><dt>API cost</dt><dd>$39.2</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>132 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.9 M</dd></div><div class=""><dt>Requests</dt><dd>993</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip self" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Attention kernel swap (split by mask structure)</dt><dd>✓ <code>BAGEL_FLEX_ATTN</code>: block-sparse FlexAttention with fixed padding to 11520, 1.21 → 1.36×; flex kernel still 327 ms/step afterwards</dd><dt>Drop activation recompute (28 decoder layers)</dt><dd>partial: <code>BAGEL_AC_MODE=mlp</code>, recompute only MLP sublayers (1.19× together with mask conversion). Removing all: OOM (134.5 GiB); recomputing 10–16 fewer layers was slower</dd><dt>Intra-layer MoT fusion (routing / RMSNorm / RoPE / SwiGLU)</dt><dd>✓ <code>BAGEL_MOT_QKV</code> (bitwise), <code>BAGEL_MOT_ROUTING</code> (1.407 → 1.425×), <code>BAGEL_NORM_FUSE</code> (→ 1.492×)</dd><dt>Optimizer, EMA, step start / end</dt><dd>single-pass AdamW + single-pass EMA (1.365 → 1.407×). EMA via lerp blocked by gate 3</dd><dt>Other main levers</dt><dd>merged log reductions, root-unit all-gather moved earlier</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>12 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 (2026-11-10 01:35-01:55) — profile the unchanged reference</span></summary><pre>- <code>profile --tree /submission/bagel_sft --out /tmp/r1/profile</code> (steps 8-9, rank 0). Step span in the
+  profile 2967 ms (profiler overhead ~14% over the 2600 ms real step); GPU idle only 5.9%.
+- Per-step kernel accounting (one step, rank 0, from the Chrome trace):
+  - attention (SDPA mem-efficient, per-sample loop, dense additive masks): fwd 371 ms (224 calls)
+    + bwd 506 ms (112 calls) = <b>877 ms, 30% of the step</b>. 224 fwd vs 112 bwd calls =&gt; the decoder
+    forward runs TWICE: activation checkpointing recompute (checkpoint_wrapper is applied inside every
+    FSDP unit: <code>layers.N._fsdp_wrapped_module._checkpoint_wrapped_module</code>).
+  - GEMM (sm90 bf16): <b>~810 ms, 27%</b> (MLP gate/up/down of both MoT experts, q/k/v/o, lm_head, ViT).
+  - elementwise/copy/index/cat/fill: <b>843 ms, 28%</b>, 16848 kernel launches per step (the MoT
+    gather/scatter/zero plumbing: index_put 180 ms, direct_copy 190 ms, cat 56 ms, fill 43 ms, ...).
+  - NCCL: 445 ms busy, only <b>130 ms exposed</b> (4.4%) - FSDP comm overlaps compute well. All collectives
+    run RING_LL (NCCL chose the LL protocol even for the 2.2 GB root-unit all-gather, 152 ms).
+  - optimizer (AdamW foreach) + EMA ~70 ms; per-step logging block ~10 tiny all_reduce (33 ms/step
+    incl. waits) + <code>.item()</code> syncs.
+- 60 FSDP units per rank (root unit = embed_tokens+lm_head = 1.09B params; 28 MoT decoder layers of
+  466M; ViT + connector units). Rank shards from bench/records/ref.json.
+- Batches on the interleave timing data: ~4 samples/rank, ~10k tokens (9682/9187/10059/10228 seen in
+  the log).
+- Chosen hotspot for round 2: **activation checkpointing recompute (~20% of the step: half the
+  attention fwd, a quarter of the GEMM and elementwise time)**. Peak memory is 82.14 GiB of 140 GiB,
+  so there is headroom to trade memory for compute (L0 &quot;turn off memory-saving switches&quot;, N0).
+- No code change; nothing committed. Profile artifacts: /tmp/r1/profile (deleted later).</pre></details><details><summary><em class="">0.5 h</em><span>Round 2 (2026-11-10 01:52-01:58) — activation checkpointing: mlp-only (L0 switch, N0)</span></summary><pre>- Change 1, <code>BAGEL_AC_MODE</code> (train/pretrain_unified_navit.py): upstream wraps every decoder/ViT
+  block in checkpoint_wrapper (recompute of the whole block in backward). New mode <code>mlp</code> checkpoints
+  only Qwen2MLP/SiglipMLP sublayers: recompute is the two MLP GEMMs, the attention side keeps its
+  activations. Default <code>full</code> = upstream, unchanged.
+- <code>BAGEL_AC_MODE=none</code> (full off) was timed first: OOM at step 0 at 134.35 GiB (would risk the final
+  evaluation on another data seed) -&gt; rejected, kept <code>mlp</code> (peak 103.8 GiB).
+- Change 2, <code>BAGEL_MASK_BF16</code> (modeling/bagel/bagel.py): cast the packed masks to bf16 once in
+  Bagel.forward so the per-layer <code>.to(bfloat16)</code> (upstream, inside every layer) becomes a no-op and
+  layers share one mask tensor. 0/-inf are exact in bf16, bit for bit identical values.
+- Time (<code>/tmp/r2/time2</code>, AC=mlp + MASK_BF16): 2.1833 s/step, windows 2.1802/2.1864, peak 103.81 GiB,
+  <b>speedup 1.1924</b> (frozen ref 2.6034). Bitwise-identity argument: same kernels on same inputs in
+  deterministic mode; <code>check --quick</code> queued for the full stack (round 5).
+- Commits 3fe57f4 (AC_MODE) and 0522a52 (MASK_BF16).</pre></details><details><summary><em class="">0.5 h</em><span>Round 3 (01:55-02:00) — MoT attention qkv on compacted token subsets (N0)</span></summary><pre>- <code>BAGEL_MOT_QKV</code> (modeling/bagel/qwen2_navit.py, default off): in PackedAttentionMoT.forward_train,
+  upstream projects q/k/v for the FULL packed sequence separately for the und and gen experts, then
+  scatters each expert&#x27;s rows into a zero tensor (over half of each of the 4 q/k/v GEMMs is discarded).
+  The new path gathers each expert&#x27;s token subset (packed_und_token_indexes /
+  packed_gen_token_indexes), projects, q/k-norms and RoPEs it on the subset, and scatters back into
+  the same full-layout zero tensors. Same GEMM rows / norm / RoPE inputs per token, und+gen partition
+  the sequence, zeros stay zeros -&gt; bit for bit the same q/k/v. o_proj, GQA repeat, the per-sample
+  SDPA loop untouched.
+- Time: as part of the 4-switch stack in <code>/tmp/r3/time</code> (below).
+- Commit 5363eb6.</pre></details><details><summary><em class="">0.5 h</em><span>Round 4 (01:57-02:01) — batched logging collectives (N0)</span></summary><pre>- <code>BAGEL_LOG_FAST</code> (train/pretrain_unified_navit.py, default off): the loop logs every step; upstream
+  runs ~10 small all_reduces + ~10 blocking <code>.item()</code> reads per step, plus 2 collectives (tokens,
+  sum of squared sample lens) before every forward. New path keeps the two window counters local
+  (Python floats), stacks the per-step log quantities into one SUM all_reduce + one MAX all_reduce,
+  and reads everything back with a single <code>.item()</code>. Same reduced values, only scheduling changes.
+- Time: as part of the 4-switch stack in <code>/tmp/r3/time</code> (below).
+- Commit b7c8732.</pre></details><details><summary><em class="">0.5 h</em><span>Round 5 (02:00-...) — stack timing + quick check</span></summary><pre>- Switch file (all four on):
+  {&quot;environment&quot;: {&quot;BAGEL_AC_MODE&quot;: &quot;mlp&quot;, &quot;BAGEL_MASK_BF16&quot;: &quot;1&quot;, &quot;BAGEL_MOT_QKV&quot;: &quot;1&quot;,
+   &quot;BAGEL_LOG_FAST&quot;: &quot;1&quot;}}
+- <code>time</code> -&gt; /tmp/r3/time: see summary.</pre></details><details><summary><em class="">0.5 h</em><span>Round 5 result (02:00-02:14) — stack timing + quick check</span></summary><pre>- <code>time</code> (/tmp/r3/time): <b>2.1457 s/step, speedup 1.2133</b>, windows 2.1515/2.1399 (range 0.54%),
+  peak 103.98 GiB. Gains over AC+MASK alone (2.1833): +38 ms from MOT_QKV + LOG_FAST.
+- <code>check --quick</code> (/tmp/r5/quick/check.json): <b>status PASS, tier N0</b> — the full 4-switch stack is
+  bitwise identical to the frozen reference record (exact items + all SHA-256s).
+- Current switch file (the submission state): AC_MODE=mlp, MASK_BF16=1, MOT_QKV=1, LOG_FAST=1.</pre></details><details><summary><em class="">0.8 h</em><span>Round 6 (02:14-02:20) — NCCL_PROTO=^LL: no gain, dropped</span></summary><pre>- Motivation: the profile shows all NCCL collectives on RING_LL (decoder-unit reduce-scatters
+  ~54 ms each for 233 MB, root-unit all-gather 152 ms for 2.2 GB ≈ 15-17 GB/s), and NCCL busy is
+  ~1.3 s/step (mostly overlapped; ~130 ms exposed).
+- <code>time</code> with NCCL_PROTO=^LL added (/tmp/r6/time): 2.1947 s/step, **speedup 1.1862 — worse than
+  without it** (windows 2.1666/2.2227, range 2.6%). Simple kernels presumably contend for SMs with
+  compute and cost more launch latency on the many medium FSDP collectives; LL was already right.
+- No code change; switches.json left without NCCL_PROTO. Not retried with LL128 yet (possible
+  later cheap follow-up to combine with another round&#x27;s switch).</pre></details><details><summary><em class="">1.1 h</em><span>Round 7 (02:25-...) — BAGEL_FLEX_ATTN: block-sparse flex_attention for the decoder (N1)</span></summary><pre>- Motivation: attention is ~690 ms of the 2146 ms step (32%): a per-sample SDPA loop with dense
+  additive masks (mem-efficient kernel, ~55 TFLOPS effective) over the full L^2 of every sample,
+  plus a 7x GQA materialization per layer. The packed batches visit only ~20% of the block pairs
+  (cross-sample blocks all masked, cross-split upper blocks masked), so a block-sparse kernel
+  should do a fraction of the work.
+- The upstream tree already has the whole flex path: the decoder&#x27;s non-List mask branch runs one
+  flex_attention call with enable_gqa over the packed sequence, and Bagel.forward has the
+  create_sparse_mask + create_block_mask machinery. It is dead code in this recipe because the
+  batch carries dense masks (use_flex=False) and the batch fields are frozen (gate 2 digest).
+- New code (behind BAGEL_FLEX_ATTN, default off):
+  - <code>_derive_packed_splits</code> (bagel.py): reconstructs each sample&#x27;s (split_lens, attn_modes) from
+    the batch&#x27;s token layout (vit runs + vit_token_seqlens, vae runs + latent shapes + mse
+    positions; text splits are the gaps; a vae span with loss is &#x27;noise&#x27;). Verified element-wise:
+    reproduces the dataset&#x27;s dense masks exactly on 92 samples of both data configs, and
+    create_sparse_mask over the derived splits equals the dense masks element-wise on 53 more.
+  - <code>_build_packed_block_mask</code> (bagel.py): builds the BlockMask directly from the split structure
+    in O(seq_len) instead of evaluating the mask over the L^2 grid (upstream&#x27;s create_block_mask
+    compiles a static shape per step with dynamic=False -&gt; one recompile per distinct length; its
+    eager path materializes a (1, 32, L, L) bool mask). Visited blocks over-approximate and full
+    blocks under-approximate the true visibility (exactly what the flex kernel requires); verified
+    against brute-force block truth from the dense masks on 75 samples: 0 missed visible pairs,
+    0 wrongly-full pairs, and the persistent mask_mod equals create_sparse_mask element-wise.
+  - The mask_mod closes over persistent buffers (allocated once, refilled per step): new tensors
+    every step would recompile the flex kernel on their dynamo guards.
+  - Fixed padding: torch 2.5&#x27;s flex template autotuner finds no candidates for symbolic shapes
+    (NoValidChoicesError), so the mask and q/k/v are padded to one fixed length, BAGEL_FLEX_LEN
+    (default 11520 = the recipe&#x27;s max_num_tokens, exactly what upstream&#x27;s data-side flex path
+    pads to). The padding sample is causal and isolated, as upstream&#x27;s pad split.
+  - qwen2_navit.py: the MoT flex branch pads to the mask&#x27;s length (upstream&#x27;s pad_sequence), and
+    BAGEL_FLEX_AUTOTUNE=1 compiles flex_attention with max-autotune-no-cudagraphs.
+- GPU smoke test (1 MoT layer, real interleave batch, 28/4 heads): flex output vs SDPA max abs
+  diff 1.2e-4 (rel ~5e-3, bf16 kernel difference); backward fine; rerun-identical including in
+  deterministic mode (no exception); layer fwd+bwd 27.6 -&gt; 20.2 ms on one batch (flex visits 22%
+  of block pairs; full-block fraction 73% after marking noise-span-internal pairs full).
+- Judge runs in flight: time (/tmp/r7/time) and check --quick (/tmp/r7/quick) on
+  /tmp/switches_flex.json (the 4-switch stack + BAGEL_FLEX_ATTN=1 + BAGEL_FLEX_LEN=11520).
+  /submission/switches.json is unchanged (the validated 1.2133 stack) until flex is evidenced.
+- Tier: N1 (attention kernel change; not bitwise). Gates 2b + 3 will decide.
+- <code>time</code> on the flex config (/tmp/r7/time): <b>1.9127 s/step, speedup 1.3611</b> (from 1.2133),
+  windows 1.9203/1.9051 (range 0.79%), peak memory 97.18 GiB (down from 103.98: flex frees the
+  per-layer mask memory). Note this run&#x27;s tree copy predates the dense-mask H2D skip below.
+- Dropped: max-autotune for flex. The autotuner&#x27;s winning forward config (BLOCK_M=128, BLOCK_N=64,
+  warps=8, stages=3) IS torch 2.5&#x27;s <code>_h100_default_config[(bfloat16,128)]</code> default, so the default
+  compile already picks it (verified from an autotune log: default 3.76 ms vs the other candidates
+  9.0 ms); the backward autotune precompiles for ~20+ minutes, TORCHINDUCTOR_CACHE_DIR/TRITON_CACHE_DIR
+  are reserved (cold cache every judge run), so autotune is not viable under the judge.
+- Extra change (part of round 7, after the timing run): with flex on, SimpleCustomBatch no longer
+  pins/uploads the dense masks (the judge hashes the batch on the host before the move; the masks
+  are never read on the GPU). Saves ~100+ MB of pinned H2D per rank per step.
+- <code>check --quick</code> on the flex config (/tmp/r7/quick/check.json): <b>NOT_BITWISE</b> — every exact item
+  passes (steps, optimizer hyper-parameters, batch digests, parameter names/shapes/dtypes,
+  optimizer-state dtypes); the parameter/gradient/optimizer/EMA hashes differ, as expected for an
+  attention kernel change. Tier N1; gates 2b (conformance on interleaved layouts) and 3
+  (statistical) decide in the full check.
+- switches.json updated to the flex stack (AC=mlp + MASK_BF16 + MOT_QKV + LOG_FAST + FLEX_ATTN +
+  FLEX_LEN=11520), the best evidenced state: speedup 1.3611, exact items all pass. Committed
+  (f497500).</pre></details><details><summary><em class="">1.3 h</em><span>Round 8 (02:50-...) — less activation checkpointing + expandable segments (N0)</span></summary><pre>- Motivation: AC=mlp still recomputes both experts&#x27; MLP GEMMs in backward (~117 TFLOP/step
+  ≈ 170-190 ms). AC=none OOM&#x27;d at 134.35 GiB allocated pre-flex, but flex freed 6.8 GiB (peak
+  97.18), and reserved runs at ~134 GiB of 140.4 for only 97 allocated — a fragmentation gap
+  from the per-step-varying shapes. PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True (allowed:
+  not reserved) should close most of that gap.
+- <code>time</code> with AC=none + expandable_segments on the flex stack -&gt; /tmp/r8/time (in flight).</pre></details><details><summary><em class="">1.3 h</em><span>Round 8 — activation-checkpointing / memory trade (no gain; direction closed)</span></summary><pre>Start 02:35, end 03:25. Hotspot: the MLP recompute that BAGEL_AC_MODE=mlp still pays
+(~108 TFLOP/step of GEMM recompute ≈ 155 ms estimated). AC=none would remove it but needs
+more activation memory than AC=mlp keeps freed (measured delta 37.3 GiB).
+
+Probes (judge <code>time</code>, all on the current stack flex+motqkv+logfast):
+- AC=none + expandable_segments → <b>ERROR, real OOM</b>: 134.54 GiB allocated (only 308 MiB
+  reserved-unallocated, so not fragmentation — genuine capacity). Matches the linear model
+  97.18 + 37.3 = 134.5. (/tmp/r8/time)
+- AC=mlp:10 (new knob: checkpoint the MLPs of only the first N decoder layers) → 2.3256 s/step
+  (1.1194×), peak 125.25 GiB. LESS recompute but SLOWER: per-step times bimodal (1.6–5.3 s) —
+  caching-allocator thrash (only ~10 GiB slack under the peak, forced cache releases every step).
+  (/tmp/r8b/time)
+- AC=mlp:10 + PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True → 2.7818 s/step (0.9359×): ES is
+  *worse* here (map/unmap churn, steps 5.4/6.1/6.6 s). (/tmp/r8c/time)
+- AC=mlp:16 → 2.0619 s/step (1.2626×), peak 115.55 GiB, steps still spiky (max 4.07 s). (/tmp/r8d/time)
+
+Conclusion: the allocator-pressure knee is below ~110 GiB, where the recompute saving
+(≤ 60 ms at mlp:16, ≤ 36 ms at mlp:20) is already eaten by the thrash tax. AC=mlp (all 26
+layers) stays. The mlp:&lt;N&gt; knob is kept in the code, default unchanged (&quot;full&quot; = upstream);
+submission switches unchanged (AC_MODE=mlp).
+
+Lesson recorded: on this 139.8 GiB GPU with per-step-varying batch shapes, any change that
+raises peak allocated above ~110 GiB costs hundreds of ms in allocator churn. Memory headroom
+is a performance resource; AC=none-style levers are dead on this machine.</pre></details><details><summary><em class="">2.2 h</em><span>Round 9 — profile of the flex tree; FSDP root split + forward prefetch (no gain; closed)</span></summary><pre>Start 03:25, end 03:55. Profile first (/tmp/r9/profile, steps 8-9, rank 0):
+- per step: gemm 688 ms busy, elementwise ~495 ms over ~12.7k launches (aten::mul 106 ms,
+  copy_ 148 ms incl. FSDP&#x27;s fp32-&gt;bf16 shard casts, index/cat ~110 ms), flex triton 327 ms
+  (84 kernels = 26 layers x fwd+2 bwd), optimizer+EMA ~90 ms.
+- NCCL: 905 ms busy but union-exposure ~234 ms/step (reference was 109): the root unit&#x27;s
+  all-gather (embed+lm_head+norms, 1.09B params, bf16) runs at forward entry on an otherwise
+  idle GPU (~91 ms segment seen in the 2-step window), plus a ~50 ms u64 token-count
+  all-reduce that is mostly rank-skew spin. FSDP1 already all-gathers in bf16 (it casts the
+  fp32 shard first: <code>_use_low_precision_shard</code>), so there is no dtype lever.
+
+Change (BAGEL_FSDP_SPLIT + BAGEL_FSDP_PREFETCH, default off): custom wrap policy that also
+wraps language_model.model.embed_tokens and language_model.lm_head as their own FSDP units
+(root unit 1.09B -&gt; ~20M), plus FSDP forward_prefetch=True so each unit&#x27;s all-gather is
+issued one unit early. Judge-verified safe for gate 2&#x27;s exact items: the judge records the
+original parameter fqns inside each flat param (layout-independent); only the flat-shard
+SHA grouping changes (N1, like flex). fsdp_ema_update&#x27;s handle-count assert still holds
+(both models get the same policy).
+
+Result: split+prefetch = 1.9383 s/step (1.3431x) vs 1.9127 baseline — 26 ms SLOWER
+(/tmp/r9c/time; first attempt crashed on isinstance(set), fixed with tuple()).
+Peak memory 95.94 GiB (slightly lower). Conclusion: the ~45 ms/step average exposure saved is
+eaten by forward_prefetch&#x27;s rate-limiter CPU syncs and two extra units&#x27; fixed overhead
+(shard casts, hooks, extra collectives). Direction closed; code kept, default off.
+
+Next: full check on the 1.9127 config (flex stack has never run gates 2b/3 — the priority),
+then fused AdamW / elementwise fusion rounds.</pre></details><details><summary><em class="">8.6 h</em><span>Current summary (updated after round 19, 10:50)</span></summary><pre>- **Submission switches (/submission/switches.json): AC_MODE=mlp, MASK_BF16=1, MOT_QKV=1,
+  LOG_FAST=1, FLEX_ATTN=1, FLEX_LEN=11520, EARLY_ROOT_AG=1, ADAM_ONEPASS=1, EMA_ONEPASS=1,
+  MOT_ROUTING=1, NORM_FUSE=1 — validated by the full check /tmp/r19/check: PASS, tier N1,
+  speedup 1.4927** (the judge&#x27;s <code>time</code>: 1.7445 s/step = 1.4923x, /tmp/r19/time; frozen
+  reference 2.6034 s/step).
+- Committed in the tree, default off: FLEX_STAGE=1 (rejected), FLEX_STAGE=2 (no gain),
+  EMA_LERP (gate 3 rejects), FUSED_ADAM (sigma margin), FSDP_SPLIT/FSDP_PREFETCH (no
+  gain), AC_MODE=mlp:&lt;N&gt; (allocator thrash), EARLY_TOKEN_AR (r14), EMA_SIDE (r15).
+- Full-check history: check-full-1 PASS (1.3329); check-full-2 INCORRECT (EMA lerp,
+  -53 sigma); check-full-3 PASS (1.3888); r12 PASS (1.365); r13 PASS (1.4059);
+  r16 INCORRECT (FLEX_STAGE v1, gate 3, -3.40 sigma — root cause: strided flex input =
+  a different compiled kernel = a real value shift, not bitwise-neutral); r17 PASS
+  (1.4302, +MOT_ROUTING); **r19 PASS (1.4927, +NORM_FUSE) — the submitted config&#x27;s
+  verdict**.
+- Gains by change (cumulative <code>time</code> speedups): LOG_FAST ~1.02x; MASK_BF16 small;
+  MOT_QKV ~1.05x; FLEX_ATTN 1.3611x; mask-skip + EARLY_ROOT_AG 1.3645x (r12);
+  ADAM_ONEPASS + EMA_ONEPASS 1.4068x (r13, PASS); MOT_ROUTING 1.4249x (r17, PASS);
+  NORM_FUSE 1.4923x (r19, PASS).
+- The working method that produced the last three rounds: (1) change only what moves
+  the same values through the same or replicated rounding sequences — elementwise
+  fusions are bitwise, reductions never move out of torch; (2) prove it standalone
+  (probe, deterministic mode, forward AND backward, real shapes); (3) prove it in situ
+  (quick check record compared against r13&#x27;s shard for shard — 0 diffs required);
+  (4) full check; (5) adopt on PASS. FMA contraction (enable_fp_fusion=False) and
+  dynamo stride guards (the flex staging lesson) are the two traps the probes caught.
+- Dead ends (measured, closed): NCCL_PROTO=^LL; AC=none (OOM); AC=mlp:10/16; FSDP split
+  + forward_prefetch; max-autotune flex; EMA lerp (gate 3); fused AdamW (sigma margin);
+  EARLY_TOKEN_AR (r14); EMA_SIDE (r15); head-major staging dim-1 puts (r16);
+  FLEX_STAGE=1 (kernel-changing value shift, gate 3); FLEX_STAGE=2 (puts cost what the
+  cat saves); torch.compile of the model (dynamic shapes, FSDP fragility);
+  cudnn.benchmark (autotune inside timing windows).
+- Remaining measured pools (r19 trace, per step): GEMMs ~690 ms (untouchable without
+  precision changes); flex triton 328 ms; routing index ops ~50 ms (gathers 28 +
+  scatters 21.5 — phase-3 split residuals could remove ~8 ops/layer, est. ~15-25 ms,
+  big blast radius, needs its own full check); residual adds ~2 ms; ViT LayerNorm
+  ~10 ms; remaining fills ~2 ms (q/k/v targets provably fully overwritten — too small
+  to bother); NCCL busy 877 ms (exposure only, rounds 14-15 closed the scheduling
+  tricks). Next round: phase-3 split residual stream, only if developed carefully
+  with the probe/quick/full-check ladder.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-mm.html"><small>← 1.49×</small><strong>MiniMax M3.1 Flash</strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-kimi.html"><small>1.42× →</small><strong>Kimi k3.1</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[1.344, 1.067, 7], [2.899, 1.227, 10], [7.008, 1.227, 19], [8.229, 1.227, 20], [8.727, 1.227, 22], [9.438, 1.227, 24]], "end": 10.0, "final": 1.1469}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935}], "focus": "glm", "xmax": 10.5, "aria": "GLM-5.3 on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

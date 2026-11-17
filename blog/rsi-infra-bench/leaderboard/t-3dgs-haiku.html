@@ -1,0 +1,610 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Haiku 5.5 · 3DGS · RSI-Infra Bench</title><meta name="description" content="Claude Haiku 5.5 on 3DGS: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="on">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="3dgs.html">3DGS</a><span>/</span><b>Claude Haiku 5.5</b></nav><h1>Claude Haiku 5.5 <em>2.35×</em></h1><p class="lede">Harness: Claude Code · switches: <code>GS_DENSE_ADAM=1</code> <code>GS_FUSED_NORMALIZE=1</code> <code>GS_FUSED_REST_ADAM=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.35×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.34×</dd></div><div class=""><dt>Rounds</dt><dd>39</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$58.8</dd></div><div class=""><dt>Input tokens · 99.7% cached</dt><dd>1026 M</dd></div><div class=""><dt>Output tokens</dt><dd>2.1 M</dd></div><div class=""><dt>Requests</dt><dd>1,805</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-3dgs-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>5.82×</small></a><a class="chip" data-k="sonnet" href="t-3dgs-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>4.44×</small></a><a class="chip" data-k="mm" href="t-3dgs-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.54×</small></a><a class="chip self" data-k="haiku" href="t-3dgs-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.35×</small></a><a class="chip" data-k="astra" href="t-3dgs-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>2.04×</small></a><a class="chip" data-k="glm" href="t-3dgs-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.76×</small></a><a class="chip" data-k="ds" href="t-3dgs-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.71×</small></a><a class="chip" data-k="kimi" href="t-3dgs-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.68×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Smaller tiles + rewritten binning</dt><dd>✗ stays 16×16; instead warp-level culling in forward (1.92 → 2.08), binning with one thread per (Gaussian, tile) slot (1.73 → 1.86)</dd><dt>Bypass autograd, activations folded into raster kernel</dt><dd>✗ only normalization made into one kernel <code>GS_FUSED_NORMALIZE=1</code> (1.55 → 1.63)</dd><dt>Lazy Adam (update only visible Gaussians)</dt><dd>✗ dense; rest-SH Adam folded into backward preprocess <code>GS_FUSED_REST_ADAM=1</code> (1.86 → 1.91)</dd><dt>Fused loss / SSIM</dt><dd>two SSIM kernel attempts (16×16 blocks, redundant flushes removed), both within noise, not committed</dd><dt>Other main levers</dt><dd><code>--use_fast_math</code> (1.35 → 1.43), custom dense Adam, coalesced SH grad writes (1.63 → 1.73), forward color and inverse depth in shared memory (+5.2%), backward visits only possibly contributing pixels, tiles launched in descending length order</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>43 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1: profile of the unchanged reference (14:00-14:02 UTC)</span></summary><pre>Profile: <code>bench.py profile</code> (steps 7000..7019, torch.profiler; <code>/tmp/r1/profile</code>). GPU kernel time per step ~9.4 ms,
+kernels busy 85% of the GPU span. Shares of kernel time:
+
+| Hotspot | share | per step |
+|---|---|---|
+| <code>PerGaussianRenderCUDA</code> (rasterizer backward, one warp per 32-splat bucket) | 27.9% | 2.63 ms |
+| Adam: foreach <code>multi_tensor_apply</code> (about 10 foreach ops x 6 groups) | 23.5% | 2.22 ms |
+| <code>renderCUDA</code> (rasterizer forward blend) | 17.3% | 1.63 ms |
+| <code>preprocessCUDA</code> (forward projection and SH) | 5.2% | 0.49 ms |
+| <code>duplicateWithKeys</code> (tile key generation) | 5.2% | 0.49 ms |
+| gathers / index (densification, visibility masks) | 3.3% + 2.3% | 0.31 + 0.22 ms |
+| radix sort | 2.4% | 0.23 ms |
+| fill / zero | 1.7% | 0.16 ms |
+
+Host syncs per step (runtime trace): <code>nonzero</code> for <code>visibility_filter</code>, <code>loss.item()</code>, <code>elapsed_time</code> of the
+iteration events, and two <code>cudaMemcpy</code> device-to-host reads in the rasterizer (<code>num_rendered</code>, <code>bucket_sum</code>).</pre></details><details><summary><em class="">0.2 h</em><span>Round 1 result: fused Adam (switch `GS_FUSED_ADAM=1`, N1) — commit `3f921e0`</span></summary><pre>- Change: <code>torch.optim.Adam(..., fused=True)</code> for the Gaussian optimizer, behind the switch. Same update rule, different
+  operation grouping (the fused kernel computes lerp / addcmul / sqrt / addcdiv in one pass per group).
+- <code>time</code> (<code>/tmp/r2/time</code>): total 263.0 s vs frozen reference 305.4 s, <b>speedup_vs_frozen_reference 1.161</b>; windows
+  73.8 / 96.1 / 93.1 s.
+- <code>check --quick</code> (<code>/tmp/r2/quick</code>): PASS, exact_items_pass (3000 steps, final count 1,087,587).
+- Full check: not run yet (gate 3, N1, pending).
+- <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {&quot;GS_FUSED_ADAM&quot;: &quot;1&quot;}}</code>.</pre></details><details><summary><em class="">0.2 h</em><span>Round 2: remove per-step host syncs (N0, unconditional; `/tmp/dev`, not yet committed)</span></summary><pre>- <code>visibility_filter</code> is now the boolean mask <code>radii &gt; 0</code> (was <code>nonzero()</code>, a host sync per step). The max-radii and
+  densification-statistics updates are masked (<code>torch.where</code>) and produce the same values as the indexed updates.
+- The loss EMA is kept on the GPU and read back only when the progress bar updates (was <code>loss.item()</code> per step).
+- <code>iter_start.elapsed_time(iter_end)</code> is evaluated only when a TensorBoard writer exists (it synchronizes the device;
+  TensorBoard is not installed in the training environment, so this path is unused).</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 result: host syncs removed (N0) — commit `d533acd`</span></summary><pre>- <code>time</code> (<code>/tmp/r2/time_sync</code>): total 245.9 s, <b>speedup_vs_frozen_reference 1.242</b> (windows 67.6 / 90.6 / 87.6 s);
+  against round 1 (1.161) that is about 7% more.
+- <code>check --quick</code> (<code>/tmp/r2/quick_sync</code>): PASS, exact_items_pass.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3: forward blend kernel, colour/inverse depth staged in shared memory — NO GAIN, not committed</span></summary><pre>- Change (<code>/tmp/dev3</code>): <code>collected_color</code> and <code>collected_invdepth</code> gathered with the batch fetch, so the inner loop
+  reads shared memory instead of <code>features[...]</code> and <code>depths[...]</code> per pixel and Gaussian.
+- <code>time</code> (<code>/tmp/r3/time</code>): total 246.6 s, speedup_vs_frozen_reference 1.238 (round 2: 1.242). Within noise: no gain.
+- Probe (<code>/tmp/rtest</code>, reference build vs this build, same inputs): colour, depth and radii are bitwise identical.
+- Conclusion: the blend kernel is not limited by those global gathers. Dropped (<code>git</code> not touched).</pre></details><details><summary><em class="">0.5 h</em><span>Round 4: rasterizer backward kernel (N0) — commit `c3a3620`</span></summary><pre>- Profile before (round 1 profile, unchanged): <code>PerGaussianRenderCUDA</code> was 27.9% of kernel time, one 32-thread block
+  per bucket. Each of its ~290 steps per warp issued global loads from lane 0 (pixel state, gradient inputs) that the
+  shuffle chain had to wait for: a latency chain of about 290 global round trips per bucket.
+- Change: the pixel inputs of 32 consecutive pixel indices are staged in shared memory (lane j loads pixel chunk+j,
+  coalesced); lane 0 reads one entry per step. Background colour is read once into registers. Blocks have 8 warps
+  (256 threads) instead of 1, so more warps are resident per SM. Arithmetic per warp is unchanged.
+- <code>time</code> (<code>/tmp/r4/time</code>): total 228.1 s, <b>speedup_vs_frozen_reference 1.339</b> (round 2: 1.242; +7.8%); windows
+  62.8 / 83.9 / 81.4 s.
+- <code>check --quick</code> (<code>/tmp/r4/quick</code>): PASS, exact_items_pass.
+- Probe (<code>/tmp/rtest/rast_test.py</code>, reference build vs this build, fixed inputs): colour, depth, radii bitwise
+  identical; gradients differ by up to 3.7e-7 relative, the same size as reference-vs-reference (atomics).</pre></details><details><summary><em class="">0.9 h</em><span>Round 5: warp-cooperative duplicateWithKeys (N0) — NO GAIN, not committed (`/tmp/dev5`)</span></summary><pre>- One warp per Gaussian, tiles tested 32 at a time, accepted keys written to consecutive positions (same output
+  layout and sentinel padding as duplicateWithKeys).
+- <code>time</code> (<code>/tmp/r5/time</code>): total 238.4 s, speedup 1.281 (round 4: 1.339). Windows 73.0 / 84.0 / 81.5 s: the last two
+  are identical to round 4 within 0.1 s; the first window differs by 10 s, the size of the window-1 run-to-run swing
+  seen before (62.8 to 73.8 s). Conclusion: no measurable gain from this kernel.
+- <code>check --quick</code>: exact_items_pass.</pre></details><details><summary><em class="">0.9 h</em><span>Round 6: launch bounds (256, 4) on the backward kernel (64 registers, no spills), on top of round 5 — NO GAIN</span></summary><pre>- <code>time</code> (<code>/tmp/r6/time</code>): total 230.0 s, speedup 1.328 (round 4: 1.339); windows 62.5 / 85.1 / 82.4 s. Not better.
+- Not committed. Submission stays at <code>c3a3620</code>.</pre></details><details><summary><em class="">1.0 h</em><span>Round 7: no per-densification `torch.cuda.empty_cache()` (N0) — commit `550356a`</span></summary><pre>- Profile of the committed state (<code>/tmp/r7/profile</code>, steps 7000-7019; kernel busy about 7.7 ms per step): top kernels
+  <code>PerGaussianRenderCUDA</code> 26% (2.01 ms/step), <code>renderCUDA</code> 21% (1.61 ms), fused Adam <code>multi_tensor_apply</code> 15%
+  (1.15 ms), <code>preprocessCUDA</code> 6.4% (0.49 ms), <code>duplicateWithKeys</code> 6.2% (0.48 ms). Runtime: <code>cudaFree</code> 26.6 ms in the
+  20-step window, all from the one densification step that the window contains (<code>empty_cache</code> at the end of
+  <code>densify_and_prune</code>, every 100 steps). Amortized, about 0.3 ms per step.
+- Change: the call removed; allocator behaviour only.
+- <code>time</code> (<code>/tmp/r7/time</code>): total 226.3 s, <b>speedup_vs_frozen_reference 1.349</b> (previous commit 1.339; windows
+  62.2 / 83.4 / 80.7 s). Small but consistent gain in windows 2 and 3.
+- <code>check --quick</code> (<code>/tmp/r7/quick</code>): exact_items_pass.</pre></details><details><summary><em class="">1.4 h</em><span>Round 8 (cont.): rasterizer built with `--use_fast_math` (N1) — commit `c97a3c9`</span></summary><pre>- Change: <code>submodules/diff-gaussian-rasterization/setup.py</code> nvcc flags gain <code>--use_fast_math</code> (exp, div, sqrt in the
+  rasterizer kernels). Numerics tier N1 (statistical gate required).
+- <code>time</code> (<code>/tmp/r8/time_fastmath</code>): windows 58.4 / 78.4 / 76.6 s, total 213.4 s, <b>speedup_vs_frozen_reference 1.431</b>
+  (<code>550356a</code> in the same kind of <code>time</code> run: 1.349).
+- <code>check --quick</code> (<code>/tmp/r8/quick_fastmath</code>): exact_items_pass (PASS).
+- Full check of <code>c97a3c9</code> (<code>/tmp/check-3</code>, started 15:24:43 UTC): pending, result appended below when it finishes.
+- Profile facts recorded from <code>/tmp/r7/profile</code> (steps 7000-7019, 7.78 ms kernel time per step): rasterizer backward
+  26%, forward 21%, fused Adam 15% (1.13 ms, about 2 TB/s effective), preprocess fwd 6%, duplicateWithKeys 6%,
+  radix sort 3%. The tile test that drops non-contributing (Gaussian, tile) pairs already exists in this 3dgs_accel
+  rasterizer (<code>max_contrib_power_rect_gaussian_float</code> in <code>duplicateWithKeys</code>), so it is not a lever.</pre></details><details><summary><em class="">1.4 h</em><span>Round 9 (in progress): dense Adam kernel behind `GS_DENSE_ADAM` (`/tmp/dev11`)</span></summary><pre>- Idea: the Adam step (15%) runs at about 2 TB/s; one bandwidth-bound kernel per parameter tensor (float4 streams,
+  same update rule as torch.optim.Adam, state layout unchanged) should do better. Expected 0.3-0.5 ms per step.
+- Code: <code>cuda_rasterizer/adam_dense.cu</code> (new, in the rasterizer extension), <code>ext.cpp</code> (<code>adamDense</code>), and
+  <code>scene/gaussian_model.py</code> (<code>DenseAdam(torch.optim.Adam)</code>, selected by <code>GS_DENSE_ADAM=1</code>).
+- Status: written in <code>/tmp/dev11</code>, not yet compiled or timed.
+
+- <b>Full check of <code>c97a3c9</code> (<code>/tmp/check-3</code>, 15:24-15:33 UTC): PASS, tier N1, speedup 1.4264</b> (spread as frozen).
+  This is the current verified submission (<code>/submission/switches.json</code> = <code>GS_FUSED_ADAM=1</code>, rasterizer with
+  <code>--use_fast_math</code>).</pre></details><details><summary><em class="">1.4 h</em><span>Round 9: dense Adam kernel (`GS_DENSE_ADAM`, N1) — correctness checked, timing pending</span></summary><pre>- <code>/tmp/r9/adam_test.py</code> (correctness only, not timing): <code>DenseAdam</code> against <code>torch.optim.Adam(fused=True)</code> on random
+  tensors with the shapes of the six groups, 200 steps with a decaying lr: worst max|diff| / max|param| = 3.3e-7
+  after 200 steps (float32 rounding level). The test script&#x27;s last line failed (a tensor-truthiness bug in the test
+  itself, not in the kernel); the state keys are the torch Adam ones (<code>step</code>, <code>exp_avg</code>, <code>exp_avg_sq</code>).
+- Kernel build: <code>bench.py build</code> succeeded (<code>/tmp/gs-ext/a22b6c9d0a666dac630614b4</code>).
+- Backward v1 (<code>/tmp/dev12</code>: per-pixel constants of the backward kernel read from shared memory per lane instead of
+  six shuffles per step; bitwise-same arithmetic, N0 intended): <code>time</code> (<code>/tmp/r9/time_bwd</code>) total 218.2 s, windows
+  59.8 / 80.3 / 78.1 s, speedup 1.3996 — <b>slower</b> than the 213.4 s of <code>c97a3c9</code> (1.431), about 2%. <code>check --quick</code>
+  PASS. Not adopted in this form.
+- Dense Adam, first <code>time</code> (<code>/tmp/r9/time_dense</code>): <b>ERROR</b> on the first optimizer step. Cause: the point positions
+  from <code>fetchPly</code> are a column-major array, so <code>_xyz</code> (<code>torch.tensor(...).float().cuda()</code>) is a non-contiguous
+  parameter (strides (1, N)), which my kernel&#x27;s <code>TORCH_CHECK</code> rejected. Reproduced with a 3-iteration run of the
+  judge&#x27;s recipe (<code>/tmp/r9/repro.py</code>). Fix (in <code>/tmp/dev11</code> and <code>/tmp/dev13</code>): <code>_xyz</code> is made contiguous at creation
+  (values and shape unchanged, a memory-layout change), the Adam state is created contiguous, and <code>DenseAdam</code> updates
+  a contiguous copy of any non-contiguous parameter (copied back). The repro now completes two optimizer steps.
+- Dense Adam, fixed (<code>/tmp/r9/time_dense2</code>, the same code as commit <code>5b80905</code>): **total 197.6 s, windows 53.6 / 73.0
+  / 71.0 s, speedup_vs_frozen_reference 1.5456** (<code>c97a3c9</code> in the same kind of run: 213.4 s, 1.431). Peak memory
+  5.3 GiB allocated.
+- Dense Adam plus backward v2 (<code>/tmp/r9/time_dense13</code>, packed per-pixel constants as float2/float4): 196.8 s, speedup
+  1.5519: 0.4% more, within the window-to-window noise. Not committed (kept the backward kernel unchanged).
+  <code>check --quick</code> of that tree: PASS.
+- Committed <code>5b80905</code> (dense Adam behind <code>GS_DENSE_ADAM=1</code>; <code>/submission/switches.json</code> = `{&quot;environment&quot;:
+  {&quot;GS_DENSE_ADAM&quot;: &quot;1&quot;}}<code>). </code>check --quick<code> of the committed tree (</code>/tmp/r9/quick_submit_dense`): PASS.
+- <b>Full check of <code>5b80905</code> (<code>/tmp/check-4</code>, 15:59-16:07 UTC): PASS, tier N1 (<code>equivalent</code>), speedup 1.5478</b>
+  (candidate 197.3 s, windows 53.4 / 73.0 / 70.9 s; peak 5.32 GiB allocated). Gate 2: exact items OK (3000 steps,
+  final count 1,090,845). Gate 3 (seed 1, sigma 3): PSNR +0.0006 dB (bound 0.117), SSIM +0.0002 (bound 0.00069),
+  LPIPS -0.0008 (bound 0.0010), log count +0.0057 (bound 0.0163). This is the current verified submission.</pre></details><details><summary><em class="">2.2 h</em><span>Round 10 (in progress): profile of `5b80905` and the next two changes</span></summary><pre>- Profile (<code>/tmp/r10/profile</code>, steps 7000-7019, kernel time 6.8 ms per step): backward rasterizer 1.71 ms (25%), forward
+  rasterizer 1.40 ms (21%), dense Adam 0.66 ms (10%; about 3.5 TB/s, close to the bandwidth limit), <code>preprocessCUDA</code>
+  <b>backward</b> 0.50 ms (7%), <code>duplicateWithKeys</code> 0.50 ms (7%), <code>preprocessCUDA</code> <b>forward</b> 0.14 ms (2%), radix sort
+  0.23 ms (3%), SSIM 0.13 ms (2%), densification gathers about 0.1 ms per step amortized, and about 0.8 ms per step in
+  small torch kernels (fills, elementwise, the normalisation&#x27;s autograd, the concatenation of the SH parameters).
+- Correction to the round-7 notes: the 0.49 ms kernel named <code>preprocessCUDA</code> is the backward one (its signature takes
+  <code>float3 const* means</code>; the forward takes <code>float const* orig_points</code>). Its cost is the per-Gaussian SH gradient
+  (15 vec3 stores at a 180-byte stride, uncoalesced) and the 180-byte SH read; the forward preprocess is 0.14 ms.
+- Planned changes (each behind a switch):
+  1. <code>GS_SEPARATE_SH=1</code>: pass <code>dc</code> and the rest of the SH coefficients to the rasterizer as two tensors instead of the
+     per-step <code>torch.cat</code>; colours and gradients identical (N0). <code>/tmp/dev14a</code>, timing <code>/tmp/r10/time_sep</code>.
+  2. <code>GS_FUSED_NORMALIZE=1</code>: the rotation normalisation (<code>F.normalize</code>, about 0.3 ms per step of autograd kernels) as one
+     fused forward and one fused backward kernel (N1). <code>/tmp/dev14b</code>, not built yet.
+  3. Next: coalesced writes of the backward SH gradients (stage each warp&#x27;s 32 x 45 floats in shared memory), N0.
+- Change 1 result (<code>GS_SEPARATE_SH=1</code>, <code>/tmp/dev14a</code>, <code>/tmp/r10/time_sep</code>): total 197.4 s, windows 53.5 / 73.1 / 70.9 s,
+  speedup 1.5469, against 197.6 s for dense Adam alone (<code>/tmp/r9/time_dense2</code>). No measurable gain: the per-step
+  <code>torch.cat</code> of the SH parameters is cheaper than estimated. Not adopted.
+  <b>Why no gain:</b> the committed path already uses separate SH tensors. <code>SparseGaussianAdam</code> is defined in the
+  rasterizer package, so <code>SPARSE_ADAM_AVAILABLE</code> is True and <code>separate_sh=True</code> in <code>train.py</code> (the rasterizer then gets
+  <code>dc</code> (N,1,3) and the 15 rest coefficients (N,15,3)). The <code>GS_SEPARATE_SH</code> switch was a no-op; the cat I expected
+  never happens. The earlier estimate of its cost was wrong.
+- Change 2 result (<code>GS_FUSED_NORMALIZE=1</code>, <code>/tmp/dev14b</code>, <code>/tmp/r10/time_norm</code>): **total 187.2 s, windows 51.0 / 69.2 /
+  66.9 s, speedup 1.6317**, against 197.6 s for dense Adam alone (1.5456): about 5% more. The fused normalisation saved
+  more than the profile suggested (about 10 s per run). Correctness: <code>/tmp/r10/norm_test.py</code> (forward max diff 2.4e-7;
+  backward 4e-6 absolute on unclamped rows, 1e-8 relative on clamped rows). <code>check --quick</code> of the committed tree
+  (<code>/tmp/r10/quick_submit_norm</code>): PASS.
+- Committed <code>3e2cf5b</code> (<code>GS_FUSED_NORMALIZE=1</code>, <code>/submission/switches.json</code> = `{&quot;environment&quot;: {&quot;GS_DENSE_ADAM&quot;: &quot;1&quot;,
+  &quot;GS_FUSED_NORMALIZE&quot;: &quot;1&quot;}}<code>). Full check: </code>/tmp/check-5`, started 16:24:44 UTC (pending).
+- <b>Full check of <code>3e2cf5b</code> (<code>/tmp/check-5</code>, 16:24-16:32 UTC): PASS, tier N1 (<code>equivalent</code>), speedup 1.6354</b>
+  (candidate 186.7 s, windows 51.0 / 69.0 / 66.8 s). Gate 2: exact items OK (3000 steps, final count 1,092,293). Gate 3
+  (seed 1): PSNR -0.055 dB (bound 0.117), SSIM -0.00027 (bound 0.00069), LPIPS +0.00011 (bound 0.0010), log count
+  +0.0023 (bound 0.0163). The PSNR shift is inside the bound but about half of it; noted for later full checks.
+- Change 3 (<code>/tmp/dev16</code>, committed as <code>5f62082</code>): the backward preprocess (<code>preprocessCUDA</code>, backward, 0.50 ms per step
+  in the round-10 profile) staged each block&#x27;s SH gradients in shared memory and wrote them coalesced; the 252 MB
+  <code>dL_dsh</code> memset is gone (<code>torch::empty</code> on this path); <code>computeColorFromSH</code> writes to an <code>sh_offset</code> slot.
+  <b><code>time</code> (<code>/tmp/r10/time_sh</code>): total 176.7 s, windows 48.6 / 65.2 / 63.0 s, speedup 1.7281</b> (previous 187.2 s, 1.6317).
+  <code>check --quick</code> (<code>/tmp/r10/quick_sh</code>): PASS.
+- Correctness of change 3 (<code>/tmp/r10/sh_grad_test.py</code>, <code>compare_sh.py</code>): the rendered image is <b>bitwise identical</b>
+  between the committed build and the new one (and between two runs of the committed build). The SH gradients differ
+  between any two runs of the same build by about 2.5e-5 relative (atomicAdd ordering in the rasterizer backward); the
+  new build differs from the committed one by a similar 1.6e-5 relative. No systematic error (a misplaced coefficient
+  would be orders of magnitude larger). Tier N0 apart from that existing nondeterminism.
+- Full check of <code>5f62082</code>: pending.
+- <b>Full check of <code>5f62082</code> (<code>/tmp/check-6</code>, started 16:38:39 UTC): PASS, speedup 1.7299</b> (windows 48.5 / 65.1 / 62.9 s).
+  Gate 2: exact items OK. Gate 3 (seed 1): verdict <code>equivalent</code>; PSNR -0.008 dB (bound 0.117), SSIM +0.00003 (bound
+  0.00069), LPIPS -0.00044 (bound 0.0010), log count +0.0050 (bound 0.0163). This is the current verified submission.</pre></details><details><summary><em class="">2.8 h</em><span>Round 11 (in progress): profile of `5f62082` and the flattened pair kernel</span></summary><pre>- Profile (<code>/tmp/r11/profile</code>, steps 7000-7019, 6.08 ms kernel time per step): backward rasterizer 1.71 ms (28%),
+  forward rasterizer 1.40 ms (23%), dense Adam 0.66 ms (11%), <code>duplicateWithKeys</code> 0.49 ms (8%), densification gathers
+  and index kernels about 0.1 ms per step amortised, radix sort 0.22 ms (4%), backward preprocess 0.21 ms (3%, down from
+  0.50 ms after the coalesced SH writes), forward preprocess 0.14 ms (2%), SSIM 0.13 ms (2%), other small kernels about
+  0.3 ms. The normalisation kernels are now 0.04 ms per step together.
+- Hypothesis for <code>duplicateWithKeys</code>: one thread per Gaussian, looping over its rectangle, so each warp runs as long as
+  its largest Gaussian (about 4.6 M slots per step, but about 9x more warp iterations than slots). Change: one thread per
+  (Gaussian, tile) slot, with the Gaussian of every slot marked first (<code>markPairGaussians</code>), so the work is balanced and the
+  writes are coalesced. Surviving slots keep their relative order, so the stable sort gives the same list; the expected
+  output is bitwise identical (checked with the render test). Tree: <code>/tmp/dev17</code>, sequence <code>/tmp/r11/run_g.sh</code>.
+- Change 4 result (<code>/tmp/dev17</code>, committed as <code>ee9d83d</code>): <code>markPairGaussians</code> + <code>duplicateWithKeysFlat</code> (one thread per
+  (Gaussian, tile) slot). <b><code>time</code> (<code>/tmp/r11/time_flat</code>): total 164.0 s, windows 45.1 / 60.7 / 58.1 s, speedup 1.8625</b>
+  (previous 176.7 s, 1.7281; about 7.8% faster). Render test (<code>/tmp/r10/sh_grad_test.py</code>): the image is <b>bitwise identical</b>
+  to the previous build; the SH gradients differ by the same ~3e-5 relative atomicAdd noise. <code>check --quick</code>: PASS
+  (<code>/tmp/r11/quick_flat</code>). The old <code>duplicateWithKeys</code> kernel is kept but not launched.
+- Full check of <code>ee9d83d</code>: pending (<code>/tmp/check-7</code>).
+- <b>Full check of <code>ee9d83d</code> (<code>/tmp/check-7</code>, started 16:55:46 UTC): PASS, speedup 1.8746</b> (windows 44.3 / 60.5 / 58.1 s).
+  Gate 2: exact items OK. Gate 3 (seed 1): verdict <code>equivalent</code>; PSNR -0.0045 dB (bound 0.117), SSIM +0.000006 (bound
+  0.00069), LPIPS +0.00002 (bound 0.0010), log count +0.0027 (bound 0.0163). This is the current verified submission.</pre></details><details><summary><em class="">3.1 h</em><span>Round 12 (in progress): profile of `ee9d83d` and the inverse-depth change</span></summary><pre>- Profile (<code>/tmp/r12/profile</code>, steps 7000-7019, 5.72 ms kernel time per step): backward rasterizer 1.71 ms (30%), forward
+  rasterizer 1.44 ms (25%), dense Adam 0.66 ms (12%), radix sort 0.22 ms (4%), backward SH preprocess 0.21 ms (4%), forward
+  preprocess 0.14 ms (2%), SSIM fwd+bwd 0.13 ms (2%), flattened duplicate and mark kernels 0.07 ms (1%), small torch kernels
+  about 0.2 ms, densification gathers about 0.1 ms per step amortised.
+- Reading of the profile: the rasterizer kernels (about 55%) are limited by their per-pair arithmetic; the remaining
+  items are each about 1% (sort is bandwidth-bound with six passes; Adam is at about 3.5 TB/s). Round-12 candidates in
+  order: the inverse depth per Gaussian for the forward blend (the forward used <code>1.f / depths[id]</code> per contributing
+  pair; now computed once in preprocess, same expression, bitwise expected); coalesced SH reads in the backward
+  preprocess (about 1%, not started).
+- Change 5 (<code>/tmp/dev18</code>, sequence <code>/tmp/r12/run_h.sh</code>): <code>invdepths</code> array written in the forward preprocess
+  (<code>1.f / p_view.z</code>), read in the forward blend instead of <code>1.f / depths[id]</code>. Verification: render test comparing the
+  colour and the inverse-depth image with the <code>ee9d83d</code> build; then <code>time</code>, <code>check --quick</code>, and a full check on the tree
+  before any promotion to <code>/submission</code>.
+- Change 5 result (<code>/tmp/dev18</code>, <code>/tmp/r12/run_h.sh</code>): the colour image and the inverse-depth image are <b>bitwise identical</b>
+  to the <code>ee9d83d</code> build (render test, <code>/tmp/r12/depth_compare.log</code>); gradients differ only at the run-to-run noise
+  level. <code>time</code> (<code>/tmp/r12/time_inv</code>): total 162.7 s, windows 44.2 / 60.4 / 58.1 s, speedup 1.8773 (the <code>ee9d83d</code> time run
+  gave 1.8625; its full check 1.8746). The gain is within noise (about 0.1-0.8%). <code>check --quick</code>: PASS. Not promoted on its
+  own; it is part of the next candidate (change 6).
+- Change 6 (in progress, <code>/tmp/dev18</code> on top of change 5, <code>/tmp/r12/run_i.sh</code>): the SH coefficients of each block are loaded
+  into shared memory with coalesced reads in the forward and the backward preprocess (the per-Gaussian reads are strided
+  by 180 bytes); preprocess blocks of 128 threads. Expected 0.5-1%.
+- Change 6 result (staged SH reads in both preprocess kernels, <code>/tmp/dev18</code>, <code>/tmp/r12/time_sh2</code>): <b>regression</b>, total
+  180.7 s (windows 48.8 / 67.1 / 64.8 s; speedup 1.6902) against 162.7 s for change 5 alone. Not adopted.
+  Correctness: the colour and inverse-depth images are bitwise identical; the SH gradients agree with the committed build
+  within run-to-run noise in two of three runs (<code>/tmp/r12/staged_run_a.pt</code> and <code>_b.pt</code>), but the first staged run
+  (<code>new2_depth.pt</code>) had a rare outlier (max difference 0.07 on the xyz gradient against about 0.003 noise). Repeat runs
+  (<code>_c</code>, <code>_d</code>, <code>_e</code>) were started to check whether that is a fluke. The change is abandoned either way: the staging costs
+  more than the strided reads it replaces.
+- Change 5 (inverse depth, bitwise identical): <code>time</code> 162.7 s, speedup 1.8773 — within noise of the committed build (1.8746
+  full check). Not promoted; <code>/submission</code> stays at <code>ee9d83d</code>.
+- Round 12 conclusion: no promoted change. The remaining per-step items (rasterizer kernels, dense Adam, sort, preprocess)
+  are either arithmetic-bound or within a few per cent of their bandwidth limits; SH-read staging is a regression.
+- Repeat runs of the staged build (<code>_c</code>, <code>_d</code>, <code>_e</code>): all three agree with the committed build within run-to-run noise
+  (SH gradient maxima 9e-5 to 2e-4 and xyz 1.5e-3 to 2.8e-3; image bitwise identical). The earlier outlier was a single
+  run and is not reproduced, so it is noted as a rare atomics fluctuation; the change is abandoned on timing.</pre></details><details><summary><em class="">3.6 h</em><span>Round 13: forward blend with eight alphas computed first (`/tmp/dev19`, `/tmp/r13/run_a.sh`): NO GAIN</span></summary><pre>- Change: the forward blend loop computes the alphas of eight pairs in a first phase, then blends them in the original
+  order (same expressions, the <code>power &gt; 0</code> skip written as <code>!(power &gt; 0)</code> so NaN takes the original path).
+- Correctness: colour and inverse-depth images bitwise identical to <code>ee9d83d</code>; gradients at noise level.
+- <code>time</code> (<code>/tmp/r13/time_blend</code>): 163.1 s, windows 44.3 / 60.5 / 58.2 s, speedup 1.8727, the same as the committed build
+  (windows 44.3 / 60.5 / 58.1 s in its full check). <code>check --quick</code>: PASS. Not promoted: the compiler already overlaps the
+  exponentials; the forward is not latency-bound on the alpha chain.</pre></details><details><summary><em class="">3.6 h</em><span>Round 14 (in progress): fused Adam step of the rest-SH coefficients in the backward preprocess (`/tmp/dev20`)</span></summary><pre>- Idea: the rest-SH gradient (45 floats per Gaussian, 252 MB per step) is written by the backward preprocess and read back
+  by the Adam kernel. Every gradient is final after that kernel, so the update of the rest coefficients is applied from the
+  staged gradients in shared memory; the gradient is never written. Expected 2-3% (about 0.14 ms per step).
+- Armed from Python (<code>GaussianModel.prepare_fused_rest_adam</code>, <code>GS_FUSED_REST_ADAM=1</code>) on the iterations that take an
+  ordinary optimizer step: not on densification iterations (densify_and_prune replaces the parameters, so the ordinary
+  step skips them there) and not on the last iteration (no step). On those, the ordinary DenseAdam path applies.
+- Update arithmetic: the same expressions as <code>adamElement</code> in <code>adam_dense.cu</code>; the bias corrections of the iteration are
+  taken from the optimizer&#x27;s step counter (t = steps so far + 1).
+- Verification plan: a 4-iteration training run with and without the switch (<code>/tmp/r13/fused_check.py</code>), comparing the
+  rest and DC parameters (expected at the run-to-run noise level); then <code>time</code>, <code>check --quick</code>, a full check.
+- Verification of the fused rest update (<code>/tmp/r13/fused_exact.py</code>, test-only build <code>/tmp/dev21</code>, which also writes the
+  gradient the fused update used): the fused parameters agree with the exact first Adam step computed from that same
+  gradient to 1.4e-9 absolute (updates up to 1.25e-4; float rounding), so the indexing and arithmetic are correct.
+  The earlier unfused-vs-fused comparison was dominated by run-to-run atomics noise: two unfused runs differ from each
+  other by as much as fused and unfused do (Adam&#x27;s first step moves a parameter by about lr for any non-zero gradient,
+  however small). Equivalence therefore rests on this exact test, not on the multi-run comparison.
+- Fused rest-SH Adam, first version (<code>/tmp/dev20</code>, <code>/tmp/r13/time_restfused</code>): <b>regression</b>, total 182.6 s (windows
+  58.1 / 63.4 / 61.1 s, speedup 1.6725). The fused loop read and wrote each element in turn, so the global loads were
+  serialised behind the stores. <code>check --quick</code>: PASS.
+- Fused rest-SH Adam, restructured (four elements per thread gathered before any store, <code>__restrict__</code> on the Adam
+  arrays; the same per-element expressions; <code>/tmp/r13/time_restfused2</code>): **total 159.6 s, windows 43.6 / 59.5 / 56.6 s,
+  speedup 1.9131** (the committed <code>ee9d83d</code> in the same kind of run: 164.0 s, 1.8625). <code>check --quick</code>: PASS.
+- Full check of this candidate: <code>/tmp/check-8</code> (started 17:59:06 UTC, tree <code>/tmp/dev20</code>, switches
+  <code>GS_DENSE_ADAM=1, GS_FUSED_NORMALIZE=1, GS_FUSED_REST_ADAM=1</code>): pending. Promotion to <code>/submission</code> only after PASS.
+- **Full check of the fused rest-SH candidate (<code>/tmp/check-8</code>, 17:59-18:05 UTC): PASS, tier N1 (<code>equivalent</code>), speedup
+  1.9118** (windows 43.9 / 59.1 / 56.7 s). Gate 2: exact items OK. Gate 3 (seed 1): PSNR +0.019 dB (bound 0.117), SSIM
+  +0.00017 (bound 0.00069), LPIPS -0.00035 (bound 0.0010), log count +0.0023 (bound 0.0163).
+- <b>Committed <code>bf03379</code></b> (promotion of the candidate; the submission tree is byte-identical to the checked tree
+  <code>/tmp/dev20</code>). <code>/submission/switches.json</code> = `{&quot;environment&quot;: {&quot;GS_DENSE_ADAM&quot;: &quot;1&quot;, &quot;GS_FUSED_NORMALIZE&quot;: &quot;1&quot;,
+  &quot;GS_FUSED_REST_ADAM&quot;: &quot;1&quot;}}`.</pre></details><details><summary><em class="">4.1 h</em><span>Round 15 (in progress): profile of `bf03379` and the vectorised fused rest update (`/tmp/dev22`)</span></summary><pre>- Profile (<code>/tmp/r15/profile</code>, steps 7000-7019, 5.57 ms kernel time per step): backward rasterizer 1.72 ms (31%), forward
+  rasterizer 1.41 ms (25%), backward SH preprocess <b>with the fused rest Adam</b> 0.58 ms (10%; 0.21 ms before the fusion, so
+  the fused update costs about 0.37 ms), dense Adam for the other groups 0.16 ms (3%), radix sort 0.23 ms (4%), forward
+  preprocess 0.14 ms (2.5%), SSIM 0.15 ms (2.4%), densification about 0.1 ms per step amortised, small kernels about 0.2 ms.
+- Change: the fused rest update reads and writes its parameters, moments and staged gradients as <code>float4</code> (the block
+  range starts on a 16-byte boundary: 256 x 45 floats), two float4 units per thread per iteration, a scalar tail; the
+  per-element expressions are unchanged. Tree: <code>/tmp/dev22</code>, sequence <code>/tmp/r15/run_v.sh</code>. Expected 1-2%.
+- Vectorised fused rest update (<code>/tmp/dev22</code>, <code>/tmp/r15/time_v4</code>): <code>time</code> 158.7 s, windows 43.5 / 58.8 / 56.4 s, speedup 1.924
+  (committed <code>bf03379</code>: 159.6 s, 1.9131). About 0.5%, consistent in all three windows; <code>check --quick</code>: PASS.
+- Exposure optimizer on the dense Adam kernel (<code>GS_DENSE_EXPOSURE=1</code>, <code>/tmp/dev23</code>, <code>/tmp/r15/time_v5</code>, bundled with the
+  vectorised update): <code>time</code> 159.0 s, speedup 1.9203. No measurable gain over the vectorised update alone (158.7 s), so
+  the switch is not used. Not committed.
+- Full check of the vectorised update (<code>/tmp/check-9</code>, started 18:20 UTC): pending; promotion only if PASS.
+- <b>Full check of the vectorised update (<code>/tmp/check-9</code>, 18:20-18:27 UTC): PASS, tier N1 (<code>equivalent</code>), speedup 1.9295</b>
+  (windows 43.4 / 58.6 / 56.3 s). Gate 2: exact items OK. Gate 3 (seed 1): PSNR +0.031 dB (bound 0.117), SSIM -0.00001
+  (bound 0.00069), LPIPS -0.00035 (bound 0.0010), log count +0.0030 (bound 0.0163).
+- <b>Committed <code>84d6fdc</code></b> (<code>submodules/diff-gaussian-rasterization/cuda_rasterizer/backward.cu</code> only; the submission tree is
+  identical to the checked tree <code>/tmp/dev22</code>). <code>check --quick</code> of the committed tree: running (<code>/tmp/r15/quick_submit_v4</code>).</pre></details><details><summary><em class="">4.5 h</em><span>Round 16 (in progress): profile of `84d6fdc` and a measurement of the forward blend&#x27;s wasted rounds (`/tmp/dev24`)</span></summary><pre>- Profile (<code>/tmp/r16/profile</code>, steps 7000-7019, 5.54 ms kernel time per step): backward rasterizer 1.71 ms (31%), forward
+  rasterizer 1.41 ms (25%), backward SH preprocess with the fused rest update 0.56 ms (10%), radix sort 0.22 ms (4%), dense
+  Adam for the other groups 0.16 ms (3%), forward preprocess 0.14 ms (2.5%), SSIM 0.13 ms (2.4%), densification gathers
+  about 0.09 ms per step amortised (1.7%), small kernels about 0.2 ms.
+- Question: the forward blend&#x27;s block loops over a tile&#x27;s list until all of its 256 pixels are done, so a warp whose own
+  pixels are all done still runs the rounds. Measured in a test-only copy (<code>/tmp/dev24</code>, counters in <code>renderCUDA</code>, read by
+  <code>/tmp/r16/round_test.py</code>): the number of warp-rounds with an active lane against the block-rounds. If the warp-level exit
+  would save much, a warp-level loop is worth a restructure; otherwise the forward has no such waste.
+- The first instrumented build of <code>/tmp/dev24</code> failed (a duplicated test-only counter declaration; fixed). Rebuild running
+  (<code>/tmp/r16/build24b.log</code>); then <code>/tmp/r16/round_test.py</code> renders once and prints the counters.
+- Measured (<code>/tmp/r16/round_test.py</code> on the instrumented copy, one render of the synthetic scene): warp-rounds with an active
+  lane 84,854 against 716,800 / 8 = 89,600 block-rounds, so on average about 0.95 of the 8 warps of a block are active in a
+  block-round. A warp with no live pixel already leaves its inner loop at once, so the warp-level exit the hypothesis was
+  about is already in effect. The remaining cost is the active warp itself: it runs a full 256-pair batch for however many
+  of its 32 pixels are still live. A lane-level count (active lanes per active warp-round) is being measured next, which
+  bounds what a compaction of live pixels could save.
+- Lane-level measurement (same copy, second counter): 2,557,078 active lanes over 84,854 active warp-rounds, i.e. 30.1 of 32
+  lanes active per active warp-round (94% efficient). The forward blend has no lane-level waste to compact; round 16 ends
+  with no change to the submission.</pre></details><details><summary><em class="">4.7 h</em><span>Round 17 (diagnosis, no change): where the backward&#x27;s time goes</span></summary><pre>- Measured on the instrumented copy (<code>/tmp/r16/bw_test.py</code>, one forward and one backward of the synthetic scene):
+  contributing (splat, pixel) pairs 144,028,408 against 579,537,952 lane-steps executed by the backward warps, so **24.9%
+  lane efficiency**. Three quarters of the backward&#x27;s lane-steps evaluate a pair that does not contribute (alpha below
+  1/255, beyond the pixel&#x27;s last contributor, or outside the image).
+- Why it is structural: in the bucket wavefront, lane k handles splat k of a 32-splat bucket at pixel (step - k), so
+  every step pairs 32 different splats with 32 different pixels. The gradient body of a step runs for the whole warp
+  whenever one lane contributes, and with about a quarter of the pairs contributing, that is nearly every step. Changing
+  the pixel-to-thread mapping does not change this (the diagonal pairs splats with pixels, not with a patch).
+- The only remedy is a different backward: per-pixel chains over each pixel&#x27;s contributing splats in depth order, which
+  needs a compacted list per pixel (or per tile). That is a rewrite of the reference&#x27;s bucketed backward and was not
+  attempted; it is the one large lever left (the backward is 31% of the step).
+- Forward: active lanes 94% per active warp-round (round 16). Its contributing fraction within a batch is not measured;
+  the same SIMT effect applies to its blend body, so a similar restructure would be needed there too.
+- Round 17 conclusion: no change to the submission (<code>84d6fdc</code>, full check speedup 1.9295, quick check PASS).</pre></details><details><summary><em class="">5.0 h</em><span>Round 18: warp-level culling of the forward blend (committed `9a4353b`)</span></summary><pre>- Times (UTC): <code>time</code> run 18:55-18:58 (<code>/tmp/r18/time_fwdcull</code>); quick check 18:58 (<code>/tmp/r18/quick_fwdcull</code>); full check
+  19:00-19:07 (<code>/tmp/r18/check</code>).
+- Profile: the round 16 profile of <code>84d6fdc</code> (<code>/tmp/r16/profile</code>, steps 7000-7019, 5.54 ms of kernel time per step): forward
+  <code>renderCUDA</code> 1.41 ms (25%), backward <code>PerGaussianRenderCUDA</code> 1.71 ms (31%), backward preprocess with the fused rest update
+  0.56 ms (10%), radix sort 0.25 ms (4%), dense Adam 0.17 ms (3%), forward preprocess 0.14 ms (2.5%), SSIM 0.13 ms (2.4%).
+- Hotspot: the forward blend. Each warp stepped through every entry of every 256-entry batch for its 32 pixels, and each
+  entry costs the power and exp body whether or not any lane of the warp contributes.
+- Change: per bucket of 32 entries, a ballot of the entries whose opacity factor can fall below ln(255 * opacity) at some
+  pixel of the warp&#x27;s 16 x 2 strip. The test is the exact minimum of the factor over the strip&#x27;s closed box (zero if the mean
+  is inside, otherwise the least of the four edge minima, each a clamped one-dimensional minimum) with a margin of 0.01. The
+  blend loop visits only the kept entries. Bucket checkpoints are still written every 32 entries, and last_contributor is the
+  entry index plus one, as before.
+- Why an exact minimum: the existing <code>max_contrib_power_rect_gaussian_float</code> is not a strict lower bound. In 1,088 of 60,000
+  random strip and tile cases it exceeds the true pixel minimum, by up to 2.5e-3 in factor units (<code>/tmp/r18/rect_test.py</code>).
+  The new test has 0 violations in 120,000 cases (<code>/tmp/r18/exact_rect_test.py</code>). The tile culling in <code>duplicateWithKeys</code>
+  keeps the existing bound, so the pair set of the reference is unchanged.
+- Verification: forward image bitwise identical to the previous build on a synthetic 200,000-splat render
+  (<code>/tmp/r18/exact_test.py</code>), radii equal. Backward gradients differ between the builds by the same amount as two runs of one
+  build (atomics). <code>check --quick</code>: PASS, exact items OK over 3,000 steps.
+- <code>time</code>: <b>146.6 s</b>, windows 40.3 / 54.2 / 52.0 s, <code>speedup_vs_frozen_reference</code> <b>2.0837</b> (previous 158.7 s, windows
+  43.4 / 58.6 / 56.3 s, 1.924): 7.6% less time.
+- Full check (<code>/tmp/r18/check</code>): <b>PASS</b>, speedup <b>2.0805</b>, tier N1 (equivalent), exact items OK. Gate 3, seed 1: PSNR
+  +0.030 dB (bound 0.117), SSIM -0.00010 (bound 0.00069), LPIPS -0.00002 (bound 0.0010), log count +0.0023 (bound 0.0163).
+- Committed <code>9a4353b</code> (only <code>forward.cu</code>). The submission tree is identical to the checked tree <code>/tmp/dev25</code>.</pre></details><details><summary><em class="">5.6 h</em><span>Round 19: backward wavefront over the pixels that can contribute (N1, committed `ca7674a`)</span></summary><pre>- Times (UTC): <code>time</code> run 19:21-19:26 (<code>/tmp/r19/time_rb</code>); quick check 19:27-19:28 (<code>/tmp/r19/quick</code>); full check from 19:29
+  (<code>/tmp/r19/check</code>, speedup and gate values below).
+- Profile: <code>/tmp/r19/profile</code> at <code>9a4353b</code> (steps 7000-7019, 5.10 ms of kernel time per step): backward
+  <code>PerGaussianRenderCUDA</code> 1.72 ms (34%), forward <code>renderCUDA</code> 0.95 ms (19%), backward preprocess with the fused rest update
+  0.56 ms (11%), radix sort 0.23 ms (4%), dense Adam 0.17 ms (3%), forward preprocess 0.14 ms (3%), SSIM 0.13 ms (2.5%).
+- Hotspot: the backward wavefront. Each 32-splat bucket ran 287 steps over all 256 pixels of its tile, and for a pixel whose
+  last contributor lies before the bucket, every step is wasted.
+- Change: the forward sorts each tile&#x27;s 256 pixels by last contributor with <code>cub::BlockRadixSort</code> (descending) and writes the
+  rank -&gt; pixel order (<code>tile_pix_order</code>) and the sorted keys (<code>tile_lc_sorted</code>). A bucket computes <code>n_active</code>, the number of
+  ranks whose last contributor lies beyond its first splat (ballots over <code>tile_lc_sorted</code>), and runs <code>n_active + 31</code> steps.
+  Staging loads pixels by rank, and each lane carries its pixel index along the shuffle chain (<code>p_lane</code>, one extra shuffle per
+  step). The per-pixel inputs and the per-pair arithmetic are unchanged.
+- Why N1: the per-lane sums over pixels now run in rank order, so float reassociation changes the gradients slightly. The
+  forward image is bitwise identical.
+- Build fault and fix: the first build faulted (illegal shared writes, found with compute-sanitizer, <code>/tmp/r19/sanitizer.log</code>).
+  cub&#x27;s <code>BlockRadixSort&lt;uint32_t, BLOCK_SIZE, ...&gt;</code> derives the thread id from its X dimension only, which is wrong for the
+  16 x 16 block. Declared with <code>BLOCK_DIM_X = BLOCK_X</code> and <code>BLOCK_DIM_Y = BLOCK_Y</code>.
+- Open observation (not changed): the existing <code>cub::BlockReduce&lt;uint32_t, BLOCK_SIZE&gt;</code> for <code>max_contrib</code> has the same 1-D
+  thread-id assumption (<code>RowMajorTid</code> ignores the Y dimension when <code>BLOCK_DIM_Y == 1</code>). It is the reference&#x27;s behavior, so it
+  stays. Whether <code>max_contrib</code> is computed over the whole tile has not been verified; it only sets the early exit of buckets.
+- Verification: forward image bitwise equal to the previous build (synthetic 200,000-splat render, <code>/tmp/r18/exact_test.py</code>,
+  <code>/tmp/r19/sub_9a.pt</code> against <code>/tmp/r19/dev27_b.pt</code>), radii equal. Gradient differences are within the spread of the previous
+  build&#x27;s own runs (max relative 3e-5 to 1e-4 between runs 2, 3 and the new build; run 1 differs from all later runs by the same
+  order).
+- <code>check --quick</code>: PASS, exact items OK over 3,000 steps.
+- <code>time</code>: <b>143.74 s</b>, windows 40.26 / 53.21 / 50.27 s, <code>speedup_vs_frozen_reference</code> <b>2.1246</b> (previous 146.6 s, windows
+  40.3 / 54.2 / 52.0 s, 2.0837): 2.0% less time. The gain is smaller than the estimate in the profile discussion.
+- Full check (<code>/tmp/r19/check</code>): <b>PASS</b>, speedup <b>2.1254</b>, tier N1 (equivalent), exact items OK. Gate 3, seed 1: PSNR
+  -0.040 dB (bound 0.117), SSIM +0.00005 (bound 0.00069), LPIPS -0.00024 (bound 0.0010), log count +0.0023 (bound 0.0163).
+- Committed <code>ca7674a</code> (six rasterizer files). The submission tree is identical to the checked tree <code>/tmp/dev27</code>.</pre></details><details><summary><em class="">5.8 h</em><span>Round 20: forward culling test with per-entry constants computed once per batch (committed `9de7de0`)</span></summary><pre>- Times (UTC): <code>time</code> run 19:39-19:43 (<code>/tmp/r20/time_fc</code>, includes the candidate compile); full check 19:44-19:50 (<code>/tmp/r20/check</code>).
+- Profile: <code>/tmp/r20/profile</code> at <code>ca7674a</code> (steps 7000-7019, 5.01 ms of kernel time per step): backward
+  <code>PerGaussianRenderCUDA</code> 1.59 ms (31.6%), forward <code>renderCUDA</code> 1.01 ms (20.2%; the per-tile sort of round 19 adds about
+  0.065 ms to it), backward preprocess with the fused rest update 0.56 ms (11.2%), radix sort 0.23 ms (4.5%), dense Adam
+  0.17 ms (3.3%), forward preprocess 0.14 ms (2.8%), SSIM 0.13 ms (2.7%), torch fills 0.10 ms (1.9%), densification gathers
+  about 0.10 ms per step amortised (1.9%).
+- Hotspot: the forward&#x27;s warp-level culling test. Each of the block&#x27;s 8 warps recomputed ln(255 * opacity) and two reciprocals
+  for each of the 256 batch entries, so the per-entry constants were computed eight times over.
+- Change: the constants (co.x, co.z, co.y / co.x, co.y / co.z, co.y, and the threshold ln(255 * opacity) + 0.01) are computed
+  once per batch while the batch is fetched, into shared memory (<code>collected_strip_a</code>, <code>collected_strip_b</code>). The test reads
+  them. The arithmetic of each decision is the same expression as before.
+- Verification: forward image bitwise equal to the <code>ca7674a</code> build (synthetic 200,000-splat render, <code>/tmp/r20/ca_a.pt</code> against
+  <code>/tmp/r20/dev28_a.pt</code>), radii equal. Gradient differences are the backward&#x27;s atomics noise (max relative 2.4e-5 to 2.8e-5).
+- <code>time</code>: <b>142.68 s</b>, windows 39.72 / 52.92 / 50.04 s, speedup <b>2.1405</b> (previous 143.74 s, windows 40.26 / 53.21 / 50.27 s,
+  2.1246): 0.75% less time, smaller in every window.
+- Full check (<code>/tmp/r20/check</code>): <b>PASS</b>, speedup <b>2.1294</b> (windows 40.06 / 53.14 / 50.22 s), tier N1 (equivalent), exact items OK = True.
+  Gate 3, seed 1: PSNR -0.090 dB (bound 0.117), SSIM -0.00020 (bound 0.00069), LPIPS +0.00001 (bound 0.0010), log count
+  +0.0024 (bound 0.0163).
+- Committed <code>9de7de0</code> (<code>forward.cu</code> only). The submission tree is identical to the checked tree <code>/tmp/dev28</code>.
+- Checked and not changed: <code>dL_dsh</code> is not zero-filled in the judge&#x27;s configuration (the rest coefficients are 15, so
+  <code>3 * M = 45</code> takes the <code>empty</code> branch in <code>rasterize_points</code>). The torch fills (about 0.10 ms per step) come from the other
+  backward tensors that are accumulated with <code>+=</code> or never written for culled Gaussians. Removing them would save at most
+  about 1%.</pre></details><details><summary><em class="">6.0 h</em><span>Round 21 (no gain, not committed): backward per-pixel constants read per lane from a ring (`/tmp/dev29`)</span></summary><pre>- Times (UTC): <code>time</code> run 19:56-20:01 (<code>/tmp/r21/time_ring</code>). Build <code>/tmp/gs-ext/899bc0b5b2b1b35a202fab80</code>.
+- Hotspot and hypothesis: the backward kernel (31.6% of the step at <code>ca7674a</code>, <code>/tmp/r20/profile</code>) carries 12 values
+  through the lane pipeline per wavefront step (<code>shfl_up</code>), and lane 0 reloads 11 staged values per step. The hypothesis was
+  that the shuffle traffic dominates the step.
+- Change: the per-pixel constants of a rank (last contributor, T_final, dL_dpixel x3, dL_invdepth, pixel index) are staged
+  for each 32-rank chunk in a 64-slot ring (rank r in slot r &amp; 63), and each lane reads the constants of its own rank from
+  it. Only the states (T, ar x3, ard) keep the shuffle chain, so the shuffles fall from 12 to 5 per step. The arithmetic is
+  unchanged (patch <code>/tmp/r21/patch_ring.py</code>).
+- Verification: forward image and radii bitwise equal to <code>9de7de0</code>; gradients of xyz, DC, rest, opacity and scale within
+  1.3e-7 (max relative) of the <code>9de7de0</code> build. The rotation gradient differs by the same run-to-run amount as between the
+  <code>ca7674a</code> and <code>9de7de0</code> builds, whose backward kernels are identical (rms relative about 9 for rotations, pre-existing).
+- <code>time</code>: <b>144.12 s</b>, windows 40.22 / 53.45 / 50.45 s, speedup <b>2.1190</b>, against 142.68 s and 2.1405 at <code>9de7de0</code>
+  (windows 39.72 / 52.92 / 50.04 s). That is about 1% slower in every window. <b>Regression, not promoted.</b> The submission
+  stays at <code>9de7de0</code>.
+- Conclusion: the shuffle chain is not the limit of the wavefront. The per-lane shared-memory reads sit on the step&#x27;s critical
+  path, and their address arithmetic and latency cost more than the seven shuffles they replace. The next candidate works on
+  the forward instead.</pre></details><details><summary><em class="">6.2 h</em><span>Round 22 (no gain, not committed): forward warp blocks of 8 x 4 pixels (`/tmp/dev30`)</span></summary><pre>- Times (UTC): <code>time</code> run 20:06-20:11 (<code>/tmp/r22/time_84</code>); build <code>/tmp/gs-ext/feef8a9a15be6333b9a76906</code>.
+- Change (forward.cu only): each warp covers an 8 x 4 pixel block of the tile instead of two rows of 16, so the warp&#x27;s
+  culling box is more compact. The linear pixel index (row-major) stays the index of the bucket checkpoints and of the sort
+  values, so the backward is unchanged. The culling boxes are 8 x 4 with the same exact minimum.
+- Verification: forward image and radii bitwise equal to <code>9de7de0</code>. The first version gave gradients off by up to 1e-3: the
+  sort is stable, and the thread order had changed the order of ties (pixels with equal last contributor). Feeding the
+  sort through a shared-memory transpose in pixel order restored the tie order; the gradients then differ by about 2.5e-5,
+  the atomics noise.
+- <code>time</code>: <b>143.29 s</b>, windows 39.92 / 53.14 / 50.23 s, speedup <b>2.1313</b>, against 142.68 s and 2.1405 at <code>9de7de0</code>.
+  About 0.4% slower in every window. <b>No gain, not promoted.</b> The compact boxes did not reduce the kept entries enough
+  to pay for the other mapping costs.</pre></details><details><summary><em class="">6.4 h</em><span>Round 23: forward sort with the key bits of the tile length (exact, committed `90f9198`)</span></summary><pre>- Times (UTC): <code>time</code> run 20:15-20:18 (<code>/tmp/r23/time_bits</code>); full check 20:19-20:27 (<code>/tmp/r23/check</code>).
+- Profile used: <code>/tmp/r20/profile</code> (head <code>ca7674a</code>). The forward&#x27;s per-tile block radix sort of the 256 pixels by last
+  contributor (about 65 us per step, added in round 19) ran 8 radix passes over full 32-bit keys.
+- Change: a last contributor is at most the length of its tile&#x27;s list, so the sort takes only the bits of that length
+  (<code>SortDescending(keys, values, 0, key_bits)</code>, <code>key_bits</code> from <code>__clz</code> of the tile length). The sort is stable, so the
+  order is the same, with fewer radix passes. The change is in <code>forward.cu</code> only.
+- Verification: forward image and radii bitwise equal to <code>9de7de0</code> (synthetic 200,000-splat render, <code>/tmp/r23/dev31_a.pt</code>
+  against <code>/tmp/r20/dev28_a.pt</code>). Gradients differ by about 2e-7 relative (atomics noise).
+- <code>time</code>: <b>141.59 s</b>, windows 39.47 / 52.50 / 49.62 s, speedup <b>2.1569</b>, against 142.68 s and 2.1405 at <code>9de7de0</code>
+  (windows 39.72 / 52.92 / 50.04 s). 0.8% less time, faster in every window.
+- Full check (<code>/tmp/r23/check</code>): <b>PASS</b>, speedup <b>2.1446</b> (candidate 142.401 s; windows
+  [39.693, 52.829, 49.879]), tier N1 (equivalent), exact items OK = True. Gate 3, seed 1: PSNR
+  -0.086 dB (bound 0.117), SSIM -0.00015 (bound 0.00069), LPIPS
+  -0.00037 (bound 0.0010), log count +0.0007 (bound 0.0163).
+- Committed <code>90f9198</code> (<code>forward.cu</code> only). The submission tree is identical to the checked tree <code>/tmp/dev31</code>.</pre></details><details><summary><em class="">6.6 h</em><span>Round 24 (no gain, not committed): fused-SSIM kernels with 16 x 16 blocks (`/tmp/dev32`)</span></summary><pre>- Times (UTC): <code>time</code> run 20:28-20:32 (<code>/tmp/r24/time_ssim16</code>); same-session <code>time</code> of HEAD <code>90f9198</code> 20:33-20:37
+  (<code>/tmp/r24/time_head_now</code>).
+- Change (<code>submodules/fused-ssim/ssim.cu</code> only): <code>BX</code> and <code>BY</code> 32 -&gt; 16, so each SSIM block handles a 16 x 16 tile and
+  more blocks fit per SM (the kernels run one block per tile with about 20 barriers per channel).
+- Verification (<code>/tmp/r24/ssim_unit.py</code>, one fixed random pair at the training resolution): the SSIM value is bitwise equal
+  to the HEAD build; the gradient differs by 4.5e-13 absolute (about 8e-8 relative, rounding only).
+- <code>time</code>: <b>142.44 s</b>, windows 39.94 / 52.68 / 49.82 s, speedup 2.1439. HEAD in the same session: <b>142.41 s</b>, windows
+  39.78 / 52.75 / 49.88 s, speedup 2.1444. The difference is 0.02%, inside the run-to-run noise (about 0.5%: HEAD measured
+  141.6 s in round 23 and 142.4 s in its full check). <b>No gain, not promoted.</b>
+- Conclusion: the SSIM kernels are not the limit at this size; more blocks in flight do not change their time measurably.</pre></details><details><summary><em class="">6.8 h</em><span>Round 25: backward colour and depth terms regrouped (N1, committed `798f78c`)</span></summary><pre>- Times (UTC): <code>time</code> run 20:38-20:41 (<code>/tmp/r25/time_body</code>); same-session <code>time</code> of HEAD <code>90f9198</code> 20:33-20:37
+  (<code>/tmp/r24/time_head_now</code>); full check 20:43-20:52 (<code>/tmp/r25/check</code>).
+- Profile used: <code>/tmp/r20/profile</code> (the backward is 31.6% of the step, about 90 instructions per active lane-step in the
+  pair body, of which the per-channel colour and depth terms are a large part).
+- Change (backward.cu only): the terms of dL/dalpha regroup exactly, with q = 1 / (1 - alpha), into
+  dL/dalpha = T (c . dL + invd dL_inv) + q (ar . dL + ard dL_inv - T_final bg . dL). The channel loop accumulates the
+  dot products c . dL, ar . dL and bg . dL; the depth term and the background term are then one expression. The order of the
+  state updates (ar, Register_dL_dcolors, ard) is unchanged.
+- Verification: forward image and radii bitwise equal to <code>9de7de0</code> (<code>/tmp/r25/dev33_a.pt</code> against <code>/tmp/r20/dev28_a.pt</code>).
+  Gradients differ by about 2.4e-7 (max relative) and rms about 2e-6, reassociation level.
+- <code>time</code>: <b>141.90 s</b>, windows 39.60 / 52.59 / 49.71 s, speedup <b>2.1522</b>. HEAD <code>90f9198</code> in the same session: 142.41 s,
+  windows 39.78 / 52.75 / 49.88 s, speedup 2.1444. About 0.36% less time, faster in every window.
+- Full check (<code>/tmp/r25/check</code>): <b>PASS</b>, speedup <b>2.1533</b> (candidate 141.823 s; windows
+  [39.607, 52.569, 49.647]), tier N1 (equivalent), exact items OK = True. Gate 3, seed 1: PSNR
+  -0.005 dB (bound 0.117), SSIM -0.00004 (bound 0.00069), LPIPS
+  -0.00007 (bound 0.0010), log count +0.0024 (bound 0.0163).
+- Committed <code>798f78c</code> (<code>backward.cu</code> only). The submission tree is identical to the checked tree <code>/tmp/dev33</code>.</pre></details><details><summary><em class="">7.1 h</em><span>Round 26: forward blend reads per-entry colour and inverse depth from shared memory (exact, committed `3c06e63`)</span></summary><pre>- Times (UTC): paired <code>time</code> runs 20:52-21:00 (<code>/tmp/r26/time_stage</code> then <code>/tmp/r26/time_head</code>); full check 20:59-21:07
+  (<code>/tmp/r26/check</code>).
+- Hotspot: the blend body (the forward is 20% of the step). Each contributing lane read the colour features and the depth
+  of the pair&#x27;s Gaussian from global memory (random, dependent loads inside the loop), and divided by the depth again for
+  every contributing pair.
+- Change (forward.cu only): the batch fetch stages the three features of every entry (<code>collected_feat</code>) and the reciprocal
+  of its depth (<code>collected_invd</code>) in shared memory, computed once per entry. The blend reads them. The values and the
+  order of the operations per pair are the same expressions as before.
+- Verification: forward image and radii bitwise equal to <code>798f78c</code> (<code>/tmp/r26/dev34_a.pt</code> against <code>/tmp/r25/dev33_a.pt</code>).
+  The gradients differ by the run-to-run atomics spread (max relative 2e-4 to 1e-3, the same magnitude as between two
+  renders of one build).
+- <code>time</code>: paired in one chain: <b>134.05 s</b> (speedup 2.2781, windows 37.73 / 49.48 / 46.84 s) against <b>141.38 s</b> for HEAD
+  <code>798f78c</code> in the same chain (speedup 2.1601, windows 39.39 / 52.46 / 49.52 s): 5.2% less time, faster in every window.
+- Full check (<code>/tmp/r26/check</code>): <b>PASS</b>, speedup <b>2.2791</b> (candidate 133.998 s; windows
+  [37.794, 49.445, 46.759]), tier N1 (equivalent), exact items OK = True. Gate 3, seed 1: PSNR
+  -0.044 dB (bound 0.117), SSIM +0.00029 (bound 0.00069), LPIPS
+  -0.00034 (bound 0.0010), log count -0.0033 (bound 0.0163).
+- Note on the order of the paired runs: the staged build ran first in the chain. The full check times the candidate
+  against the frozen reference on its own and gives the same candidate time (133.998 s against 134.054 s in the chain), so the
+  order does not explain the gain. The candidate is 5.5% faster than round 25&#x27;s full check (141.823 s).
+- Committed <code>3c06e63</code> (<code>forward.cu</code> only). The submission tree is identical to the checked tree <code>/tmp/dev34</code>.</pre></details><details><summary><em class="">7.2 h</em><span>Round 27 (inconclusive diagnostic, not committed): cost of the scattered staging loads of the backward (`/tmp/dev35`)</span></summary><pre>- Times (UTC): diagnostic <code>time</code> run 21:02-21:08 (<code>/tmp/r27/time_diag</code>); build <code>/tmp/gs-ext/433f37fbac72541ebfa22d0d</code>.
+- Question: since round 19 the backward stages each 32-rank chunk with loads at scattered pixel positions (the rank order
+  of the tile). By a count of cache-line requests per chunk, that is about 200 requests against about 30 in the linear
+  order. The question was whether this costs a measurable part of the backward.
+- Diagnostic (never to be submitted): every staged pixel load of the backward was redirected to sequential addresses. The
+  outputs are then wrong, the training diverges and does far more densification work (windows 43.5 / 106.3 / 105.1 s,
+  total 254.9 s, speedup 1.198). The timing therefore does not measure the staging cost.
+- Conclusion: inconclusive. A valid measurement needs a correct rank-ordered gather (for example, a kernel that writes the
+  pixel data of each tile in rank order once per pass, so that the backward&#x27;s staging reads are sequential). That is a
+  larger change. The submission stays at <code>3c06e63</code>.</pre></details><details><summary><em class="">7.4 h</em><span>Round 28 (no gain, not committed): rank-ordered records for the backward&#x27;s staging (`/tmp/dev36`)</span></summary><pre>- Times (UTC): paired <code>time</code> chain 21:18-21:25: HEAD <code>3c06e63</code> first (<code>/tmp/r28/time_head</code>), then the record build
+  (<code>/tmp/r28/time_rec</code>); build <code>/tmp/gs-ext/c446065e331cc064dd2ae73b</code>.
+- Change: a kernel <code>gatherTileRecords</code> writes, once per backward pass, the per-pixel data of each tile in rank order (the
+  final transmittance, the inverse depth, the inverse depth gradient, the three colour channels and their gradients). The
+  staging of <code>PerGaussianRenderCUDA</code> then reads consecutive ranks of these records, and the last contributor comes from
+  <code>tile_lc_sorted</code>, which is already in rank order. The values read are the same, so the staging is the same computation
+  with sequential loads. Checkpoint loads stay indexed by pixel.
+- Verification: forward image and radii bitwise equal to <code>3c06e63</code> (<code>/tmp/r26/dev34_a.pt</code> against <code>/tmp/r28/dev36_a.pt</code>).
+  Gradients differ by 2-5e-5 (max relative), the atomics noise.
+- <code>time</code>: HEAD <code>3c06e63</code>: <b>134.32 s</b>, windows 37.75 / 49.65 / 46.92 s. Record build: <b>147.65 s</b>, windows 51.01 / 49.68 /
+  46.96 s. The second and third windows are the same for both builds, so the sequential staging gives no steady-state gain.
+  The first window of the record build was 13 s slower; no cause is visible in the logs (the workload is the same, and the
+  forward is bitwise identical). <b>No gain, not promoted.</b>
+- Conclusion: the scattered staging loads are not what limits the backward. The round 27 diagnostic (inconclusive) and this
+  measurement point the same way. The submission stays at <code>3c06e63</code>.</pre></details><details><summary><em class="">7.4 h</em><span>Current summary (updated after round 28; HEAD `3c06e63` unchanged since round 26)</span></summary><pre>- Submission: <code>/submission/gaussian-splatting</code> at <code>3c06e63</code> (branch <code>opt</code>, clean). Last full check: <code>/tmp/r26/check</code>, PASS,
+  speedup 2.2791 (candidate 133.998 s), tier N1, exact items OK. <code>/submission/switches.json</code> = `{&quot;environment&quot;:
+  {&quot;GS_DENSE_ADAM&quot;: &quot;1&quot;, &quot;GS_FUSED_NORMALIZE&quot;: &quot;1&quot;, &quot;GS_FUSED_REST_ADAM&quot;: &quot;1&quot;}}`.
+- Gains by change (<code>time</code> speedups; full-check speedups in brackets), in order: the earlier changes (see the gains table in the
+  earlier summary), then the forward culling test with per-entry constants (<code>9de7de0</code>, 2.1405 [2.1294]),
+  the forward sort with the tile&#x27;s key bits (<code>90f9198</code>, 2.1569 [2.1446]), the backward regrouping (<code>798f78c</code>, 2.1522 [2.1533]),
+  and the forward blend&#x27;s shared-memory staging of colour and inverse depth (<code>3c06e63</code>, 2.2781 [2.2791]).
+- No gain (not promoted): the backward ring for the per-pixel constants (round 21); the forward 8 x 4 blocks (round 22); the
+  fused-SSIM 16 x 16 blocks (round 24); the inconclusive staging diagnostic (round 27); the rank-ordered records for the
+  backward&#x27;s staging (round 28: the second and third windows equal HEAD).
+- Remaining ideas (all below about 1%, or unmeasured): the zero-fills of the rasterizer backward&#x27;s gradient tensors; the
+  densification gathers (about 0.9% of the run); dense Adam for the remaining groups (about 1%); further exact regroupings of
+  the backward&#x27;s per-pair arithmetic (conic accumulators). The backward is about 31% of the step and its per-pair structure
+  limits the remaining gains.
+- Measurement practice: time paired runs in one chain, HEAD first and the candidate first in turn when the difference is below
+  about 1%; the full check is the verdict and its candidate time is a second sample.</pre></details><details><summary><em class="">7.6 h</em><span>Round 29 (no gain, not committed): software-pipelined batch fetch in the forward (`/tmp/dev37`)</span></summary><pre>- Profile first (<code>/tmp/r29/profile</code>, HEAD <code>3c06e63</code>, steps 7000-7019, 4.76 ms of kernel time per step): backward
+  <code>PerGaussianRenderCUDA</code> 1.573 ms (33.1%), forward <code>renderCUDA</code> 0.774 ms (16.3%; it was 1.014 ms before the blend&#x27;s shared-memory
+  staging of round 26), backward preprocess 0.560 ms (11.8%), radix sort 0.225 ms (4.7%), dense Adam 0.167 ms (3.5%), forward
+  preprocess 0.139 ms (2.9%), SSIM 0.130 ms (2.7%).
+- Hypothesis: the forward&#x27;s per-batch fetch (four or five dependent random global loads per thread, then a barrier) is on the
+  critical path. The change issues the loads of batch i + 1 into registers during the blend of batch i, and stores the values
+  into shared memory at the start of the next batch. The values and the arithmetic are unchanged.
+- Verification: forward image and radii bitwise equal to <code>3c06e63</code>; gradients at the atomics noise.
+- <code>time</code> (paired chain, HEAD first): HEAD <code>3c06e63</code> <b>134.25 s</b> (speedup 2.2747, windows 37.78 / 49.58 / 46.90 s); pipelined
+  forward <b>134.08 s</b> (speedup 2.2777, windows 37.81 / 49.46 / 46.81 s). The difference is 0.13%, inside the noise. **No gain,
+  not promoted.**
+- Conclusion: the batch fetch&#x27;s latency is already hidden by the other blocks on each SM; the round 26 gain came from the per-pair
+  loads inside the blend, which the batch staging removed.</pre></details><details><summary><em class="">7.8 h</em><span>Round 30 (no gain, not committed): fused-SSIM without the scratch flushes and without zero-filled outputs (`/tmp/dev38`)</span></summary><pre>- Times (UTC): paired <code>time</code> chain 21:40-21:47 (<code>/tmp/r30/time_head</code>, then <code>/tmp/r30/time_ssim</code>); build <code>/tmp/gs-ext/b3b685432610dfeca2a586cc</code>.
+- Change (<code>submodules/fused-ssim/ssim.cu</code> only): the eight flushes of the separable convolution&#x27;s scratch buffer are removed (each
+  pass writes every entry the next pass reads, so the zeroing and its barrier were redundant), and the five SSIM outputs are
+  allocated without a zero fill (the kernels write every element they return).
+- Verification (<code>/tmp/r24/ssim_unit.py</code>): the SSIM value and the gradient are bitwise equal to the original kernels.
+- <code>time</code>: HEAD <code>3c06e63</code> <b>134.16 s</b> (speedup 2.2763, windows 37.69 / 49.56 / 46.91 s); SSIM variant <b>134.15 s</b> (speedup 2.2765,
+  windows 38.29 / 49.28 / 46.58 s). The difference is 0.01%; the windows net out to zero. <b>No gain, not promoted.</b></pre></details><details><summary><em class="">7.9 h</em><span>Round 31 (regression, not committed): launch bounds of four blocks per SM for the backward (`/tmp/dev39`)</span></summary><pre>- Profile context: <code>PerGaussianRenderCUDA</code> uses 80 registers per thread (<code>cuobjdump --dump-resource-usage</code> of the round 26
+  build), so at 256 threads per block only 3 blocks (24 warps) fit per SM. <code>renderCUDA</code> uses 40 registers.
+- Change: <code>__launch_bounds__(BLOCK_SIZE, 4)</code> on <code>PerGaussianRenderCUDA</code> (64 registers, a 32-byte stack frame, so some values spill).
+- Verification: forward image and radii bitwise equal to HEAD; gradients differ by 4.5e-5 to 8.7e-5 (max relative).
+- <code>time</code> (paired, HEAD first): HEAD <code>3c06e63</code> <b>133.90 s</b> (speedup 2.2808); launch-bounds build <b>139.42 s</b> (speedup 2.1904),
+  about 4% slower in every window. <b>Regression, not promoted.</b> The spills cost more than the extra blocks gain.</pre></details><details><summary><em class="">8.2 h</em><span>Round 32: per-Gaussian backward kernel with one warp per block (N1, committed `b3eec74`)</span></summary><pre>- Times (UTC): paired <code>time</code> chain 22:00-22:04 (<code>/tmp/r32/time_w1</code> first, then <code>/tmp/r32/time_head</code>); full check 22:07-22:14
+  (<code>/tmp/r32/check</code>).
+- Hypothesis: the per-Gaussian backward kernel ran eight buckets per block of 256 threads. A block holds its slot until its
+  slowest bucket finishes, and buckets of one tile differ in length, so warps that finish early hold resources that could hold
+  work. The register footprint (80 per thread, see round 31) limits the kernel to three blocks per SM, so the idle slots lower
+  the warps that hide latency.
+- Change (<code>backward.cu</code> only): the per-Gaussian kernel is launched with 32-thread blocks (<code>BWD_WARPS</code> = 1), so that each bucket
+  retires with its own block. The staging arrays are sized by the warps of the block. The arithmetic per bucket is unchanged.
+- Verification: forward image and radii bitwise equal to HEAD <code>3c06e63</code>; gradients differ by 3e-5 to 4e-5 (max relative), the
+  atomics noise.
+- <code>time</code>: paired in one chain (the candidate first): <b>132.80 s</b>, speedup 2.2996, windows 37.35 / 49.09 / 46.37 s, against
+  <b>134.31 s</b> (speedup 2.2739, windows 37.69 / 49.65 / 46.97 s) for HEAD <code>3c06e63</code>. About 1.1% less time, faster in every window.
+- Full check (<code>/tmp/r32/check</code>): <b>PASS</b>, speedup <b>2.2968</b> (candidate 132.966 s; windows
+  [37.365, 49.142, 46.459]), tier N1 (equivalent), exact items OK = True. Gate 3, seed 1: PSNR
+  -0.007 dB (bound 0.117), SSIM -0.000006 (bound 0.00069), LPIPS
+  -0.00023 (bound 0.0010), log count -0.0005 (bound 0.0163).
+- Committed <code>b3eec74</code> (<code>backward.cu</code> only). The submission tree is identical to the checked tree <code>/tmp/dev40</code>.</pre></details><details><summary><em class="">8.4 h</em><span>Round 33 (regression, not committed): 72 registers for the one-warp backward kernel (`/tmp/dev41`)</span></summary><pre>- Change: <code>__launch_bounds__(32, 28)</code> on the one-warp per-Gaussian kernel (72 registers, no stack frame, so no spills; the
+  occupancy would rise from about 25 to 28 warps per SM).
+- Verification: forward image and radii bitwise equal to <code>3c06e63</code>; gradients differ by 3.6e-5 to 9.3e-5 (max relative).
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>132.69 s</b> (speedup 2.3016); 72-register build <b>137.75 s</b> (speedup 2.2170), about
+  3.8% slower in every window. <b>Regression, not promoted.</b> A lower register budget costs more instruction-level parallelism
+  than the extra warps gain, even without spills.</pre></details><details><summary><em class="">8.5 h</em><span>Round 34 (no gain, not committed): per-bucket record for the backward&#x27;s warp setup (`/tmp/dev42`)</span></summary><pre>- Hypothesis: each backward warp reads its bucket through a chain of about seven dependent loads (bucket to tile, tile range,
+  bucket base, <code>max_contrib</code>, the last contributors, the splat index, the Gaussian data). The forward already knows a bucket&#x27;s
+  tile, first splat, index in the tile and splat count when it writes <code>bucket_to_tile</code>, so it now writes them as one record
+  (<code>bucket_info</code>, 16 bytes per bucket) and the backward reads one record at its start.
+- Verification: forward image and radii bitwise equal to <code>b3eec74</code> (<code>/tmp/r32/dev40_a.pt</code> against <code>/tmp/r34/dev42_a.pt</code>);
+  gradients differ by 1.5e-4 to 3.0e-4 (max relative), within the atomics spread seen before.
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>133.21 s</b> (speedup 2.2925, windows 37.40 / 49.28 / 46.53 s); bucket-record build
+  <b>134.46 s</b> (speedup 2.2713, windows 37.87 / 49.68 / 46.91 s). About 0.9% slower in every window. <b>No gain, not promoted.</b>
+- Conclusion: the start-of-warp chain is not what limits the backward at its one-warp occupancy.</pre></details><details><summary><em class="">8.7 h</em><span>Round 35 (no gain, not committed): bounding-box fast reject in the forward&#x27;s culling test (`/tmp/dev43`)</span></summary><pre>- Profile first (<code>/tmp/r35/profile</code>, HEAD <code>b3eec74</code>, steps 7000-7019, 4.73 ms of kernel time per step): backward
+  <code>PerGaussianRenderCUDA</code> 1.540 ms (32.6%), forward <code>renderCUDA</code> 0.778 ms (16.5%), backward preprocess 0.560 ms (11.8%), radix
+  sort 0.224 ms (4.7%), dense Adam 0.167 ms (3.5%), forward preprocess 0.139 ms (2.9%), SSIM 0.130 ms (2.8%).
+- Change (forward.cu only): each entry&#x27;s contour {f &lt;= T}, T = ln(255 o) + 0.01, lies within |dx| &lt;= sqrt(2 T Mi_xx) and
+  |dy| &lt;= sqrt(2 T Mi_yy) (M = [[co.x, co.y], [co.y, co.z]]). The warp test first rejects the entries whose contour box does not
+  reach the strip, then runs the unchanged exact test. The rejection is conservative, so the kept set is the same.
+- Verification: forward image and radii bitwise equal to <code>b3eec74</code> (<code>/tmp/r32/dev40_a.pt</code> against <code>/tmp/r35/dev43_a.pt</code>).
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>133.42 s</b> (speedup 2.2889, windows 37.56 / 49.36 / 46.50 s); fast-reject build
+  <b>147.48 s</b> (speedup 2.0708, windows 51.09 / 49.53 / 46.85 s). Windows 2 and 3 are 0.3% and 0.7% slower; the first window
+  of this build was again slow (as in round 28, with no visible cause). <b>No gain, not promoted.</b></pre></details><details><summary><em class="">8.9 h</em><span>Round 36 (regression, not committed): eight blocks per SM for the forward kernel (`/tmp/dev44`)</span></summary><pre>- Change: <code>__launch_bounds__(BLOCK_X * BLOCK_Y, 8)</code> on <code>renderCUDA</code> (32 registers, a 24-byte stack frame, so some spills).
+- Verification: forward image bitwise equal to HEAD.
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>132.94 s</b> (speedup 2.2972); eight-block forward <b>152.28 s</b> (speedup 2.0055), with
+  the second window at 64.7 s against 49.2 s. <b>Regression, not promoted.</b> As in round 31, the register cap costs more in spills
+  than the extra blocks gain.</pre></details><details><summary><em class="">9.2 h</em><span>Round 37 (rejected by gate 3, not committed): tiles in the forward launched longest-first (`/tmp/dev45`)</span></summary><pre>- Hypothesis (the forward&#x27;s blocks run in waves, one block per tile): with the tiles launched in row-major order, a long tile can
+  start late and leave the SMs idle at the end of the launch. Launching the tiles in order of decreasing list length (a cub
+  descending sort of the list lengths, then the blocks map <code>blockIdx.x</code> through <code>tile_order</code>) should shorten the tail. The outputs
+  are per tile, so they should not change.
+- Verification: forward image and radii bitwise equal to <code>b3eec74</code> (<code>/tmp/r32/dev40_a.pt</code> against <code>/tmp/r37/dev45_a.pt</code>); gradients
+  differ by 6e-5 to 1e-4 (max relative, the atomics spread).
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>133.28 s</b> (speedup 2.2913, windows 37.47 / 49.24 / 46.57 s); longest-first build
+  <b>131.09 s</b> (speedup 2.3296, windows 36.86 / 48.48 / 45.75 s): 1.6% less time, faster in every window.
+- Full check (<code>/tmp/r37/check</code>): <b>INCORRECT</b> (verdict <code>different</code>). Gate 2 exact items OK, but gate 3 seed 1: **PSNR -0.159 dB,
+  beyond the bound of 0.117 dB** (SSIM -0.00023 within 0.00069, LPIPS -0.00063 within 0.0010, log count +0.0012 within 0.0163).
+  The speedup of this check is 2.3258 (candidate 131.30 s), but the candidate is rejected by the statistical gate.
+- Decision: not promoted; the submission stays at <code>b3eec74</code>. The gate result is recorded as it is. The forward itself is bitwise
+  identical, so the difference comes from the order of the backward&#x27;s atomic accumulations, which changes which trajectory the
+  training follows; the -0.16 dB shift is larger than the other atomics-only candidates (at most about 0.09 dB in absolute value).
+  A reordering of the tiles would have to be shown to keep the trajectory statistically equivalent before it could be used.
+- Addendum (diagnostic, <code>check --n1</code> on the same tree, <code>/tmp/r37/n1</code>, not a verdict): the statistical gate alone, seed 1 again, gave
+  PASS (equivalent): PSNR -0.012 dB (bound 0.117), SSIM -0.00016 (bound 0.00069), LPIPS -0.00023 (bound 0.0010), log count
+  +0.0087 (bound 0.0163). Two runs of identical code therefore differ in PSNR by about 0.15 dB (-0.159 and -0.012), well
+  above the reference&#x27;s seed spread (sigma 0.039 dB, bound 0.117 dB). Atomics-only variation of the training trajectory can
+  move a single-seed endpoint across the bound. The official verdict of the full check stands (INCORRECT); the change is not
+  promoted, because a candidate is promoted only on a full-check PASS. Evidence for the judge&#x27;s owners: the one-seed statistical
+  gate is sensitive to the run-to-run variation of the atomics for changes that reorder the backward&#x27;s accumulation.</pre></details><details><summary><em class="">9.5 h</em><span>Round 38: forward and backward launch the tiles and their buckets longest-first (N1, committed `0e726ad`)</span></summary><pre>- Times (UTC): paired <code>time</code> chain 23:19-23:24 (HEAD first: <code>/tmp/r38/time_head</code>, then <code>/tmp/r38/time_combo</code>); full check 23:26-23:33
+  (<code>/tmp/r38/check</code>).
+- Hypothesis (from round 37): the forward&#x27;s blocks run in waves, and a long tile launched late leaves the SMs idle at the end.
+  The backward&#x27;s buckets are launched tile by tile in row-major order, so the same tail can occur there.
+- Change: the forward launches one block per tile in the order of decreasing list length (a cub descending sort of the list
+  lengths; block b renders tile tile_order[b]). The backward launches its buckets in the same tile order: a binary search over
+  the prefix sums of the bucket counts in that order maps each block to its bucket (one warp per block, as before).
+- Verification: the forward image and radii are bitwise equal to HEAD (<code>/tmp/r38/dev46_a.pt</code>); the gradients differ only by
+  atomics noise (6e-5 max relative at the largest element).
+- <code>time</code> (paired, HEAD first): HEAD <code>b3eec74</code> <b>133.61 s</b> (speedup 2.2857, windows 37.58 / 49.37 / 46.66 s); launch-order build
+  <b>130.98 s</b> (speedup 2.3316, windows 36.86 / 48.40 / 45.72 s): 2.0% less time, faster in every window.
+- Full check (<code>/tmp/r38/check</code>): <b>PASS</b>, speedup <b>2.3419</b> (candidate 130.404 s; windows
+  [36.655, 48.214, 45.535]), tier N1 (equivalent), exact items OK = True. Gate 3, seed 1: PSNR
+  +0.012 dB (bound 0.117), SSIM -0.00013 (bound 0.00069), LPIPS
+  -0.00021 (bound 0.0010), log count +0.0074 (bound 0.0163).
+- Relation to round 37: the forward-only longest-first tree of round 37 was rejected by its own full check (gate 3 PSNR -0.159 dB,
+  INCORRECT); its <code>check --n1</code> repeat passed. The round 37 tree is not promoted and its verdict is not overturned. This round&#x27;s
+  tree (forward and backward together) is a separate candidate with its own full check.
+- Committed <code>0e726ad</code> (six rasterizer files). The submission tree is identical to the checked tree <code>/tmp/dev46</code>.</pre></details><details><summary><em class="">9.8 h</em><span>Round 39: profile of `0e726ad`; atomic and drain experiments (no change promoted)</span></summary><pre>- Times (UTC): profile of HEAD 23:32-23:33 (<code>/tmp/r39/profile</code>, steps 7000-7019, GPU 93.0 ms in the 20 steps; the window holds one
+  densification event, about 9 ms of gathers and index ops); conic-atomic experiment 23:38-23:43 (<code>/tmp/dev47</code>,
+  <code>/tmp/r39/profile_dev47</code>); drain diagnostic 23:48- (<code>/tmp/dev48</code>, <code>/tmp/r39/profile_dev48</code>).
+- Profile of HEAD: <code>PerGaussianRenderCUDA</code> (backward blend) 30.25 ms (32.5 %, 1.51 ms per step); <code>renderCUDA</code> (forward blend)
+  14.05 ms (15.1 %, 0.70 ms); backward <code>preprocessCUDA</code> (SH and covariance backward with the fused rest-SH Adam) 11.20 ms (12.0 %,
+  0.56 ms; about 1.5 KB of traffic per Gaussian, close to the memory floor); forward preprocess 2.79 ms (3.0 %); radix sorts 4.9 ms
+  (5.2 %); DenseAdam 3.3 ms (3.6 %); fused SSIM 2.7 ms (2.9 %).
+- Experiment 1 (<code>/tmp/dev47</code>, rejected, no gain): the three scalar <code>atomicAdd</code>s on <code>dL_dconic2D</code> replaced by one <code>float4</code> atomic
+  (sm_90 vector atomic; the unused z slot stays zero). Built; <code>profile</code>: <code>PerGaussianRenderCUDA</code> 30.551 ms against 30.247 ms (+1 %,
+  within noise). The number of scalar atomics per splat is therefore not the limit; packing mean2D, opacity and colour into vector
+  atomics is not pursued.
+- Reading of the backward (<code>backward.cu:541-805</code>): one warp per bucket; the pixels of the tile enter lane 0 one per step and pass the
+  32 splats of the bucket (lane = splat); a bucket runs <code>n_active + 31</code> steps, and the 31 fill and 31 drain steps have partly idle
+  lanes. Per step: 12 <code>shfl_up</code> (7 of them carry per-pixel constants that do not change along the pipeline), the lane-0 staging path,
+  and about 100 instructions of body work.
+- Reading of the forward (<code>forward.cu:396-481</code>): already warp-culled (kept entries as a ballot mask); about 40 issue slots per kept
+  entry and warp; no structural waste beyond the tail of each warp.
+- Experiment 2 (<code>/tmp/dev48</code>, diagnostic only, output wrong): the loop bound changed from <code>n_active + 31</code> to <code>n_active</code>, dropping the
+  31 drain steps of every bucket. The time difference bounds what chaining consecutive buckets in one warp (no drain or fill between
+  them) could save.
+
+- Result of experiment 2 (<code>/tmp/r39/profile_dev48</code>, <code>profile</code> 23:50): <code>PerGaussianRenderCUDA</code> 27.331 ms against 30.247 ms (-9.6 %, per
+  step 1.367 ms against 1.512 ms). The forward also changed (-5 %) because the wrong gradients changed the trajectory and the
+  workload of the window, so the number is an estimate. Reading: the 31 drain steps of a bucket cost about 10 % of the backward
+  kernel. Chaining K consecutive buckets in one warp (the pixel wave of the next bucket enters lane 0 as the previous one leaves
+  lane 31; each lane switches its splat when its last pixel of the bucket has passed) would leave one fill and one drain per chain,
+  about (1 - 1/K) of that overhead: roughly 8 % of the backward kernel at K = 8, or about 3 % of a training step. This is the most
+  promising structural change found so far; it is not started (per-lane switches, flushes at staggered steps, and a prefetch of the
+  next bucket&#x27;s splats into shared memory need a careful implementation and an exactness test).
+- Outcome of round 39: no change promoted; the submission stays at <code>0e726ad</code> (clean). Next round: the per-iteration glue (fills,
+  copies, the features concatenation), about 8 % of a step in total by the profile (fills 96 us, cat 69 us, clone 35 us, copy 44 us,
+  memcpy 27 us per iteration); exact changes only.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-3dgs-mm.html"><small>← 2.54×</small><strong>MiniMax M3.1 Flash</strong></a><a class="up" href="3dgs.html">↑ 3DGS</a><a class="next" href="t-3dgs-astra.html"><small>2.04× →</small><strong>GPT-6 Astra<span class="nerf">suspected nerf</span></strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-3dgs-opus.html", "pts": [[0.324, 1.23, 1], [2.034, 2.005, 3], [2.182, 3.02, 4], [3.17, 3.681, 6], [3.56, 3.99, 8], [3.987, 4.124, 9], [4.569, 4.494, 10], [5.265, 4.765, 11], [5.685, 5.212, 12], [6.079, 5.328, 13], [6.336, 5.442, 14], [6.958, 5.442, 15], [8.148, 5.5, 16], [8.279, 5.551, 17], [8.485, 5.607, 18], [8.907, 5.655, 19], [9.973, 5.853, 21]], "end": 10.0, "final": 5.8198}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-3dgs-sonnet.html", "pts": [[0.841, 1.168, 2], [0.841, 1.516, 3], [1.315, 1.867, 4], [3.077, 2.981, 8], [3.337, 3.149, 9], [4.472, 3.313, 11], [5.311, 3.511, 12], [5.662, 3.696, 13], [5.945, 3.787, 14], [6.383, 3.808, 15], [6.7, 4.06, 16]], "end": 10.0, "final": 4.4418}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-3dgs-haiku.html", "pts": [[0.196, 1.161, 1], [0.406, 1.242, 2], [0.406, 1.242, 3], [0.518, 1.339, 4], [0.869, 1.339, 5], [0.869, 1.339, 6], [0.972, 1.349, 7], [1.429, 1.431, 8], [2.117, 1.548, 9], [2.757, 1.73, 10], [3.035, 1.875, 11], [3.228, 1.877, 12], [3.624, 1.877, 13], [3.983, 1.913, 14], [4.449, 1.929, 15], [4.653, 1.929, 17], [5.122, 2.084, 18], [5.589, 2.125, 19], [5.839, 2.14, 20], [6.014, 2.14, 21], [6.191, 2.14, 22], [6.425, 2.157, 23], [6.594, 2.157, 24], [6.823, 2.157, 25], [7.427, 2.279, 26], [7.427, 2.279, 27], [7.427, 2.279, 28], [7.614, 2.279, 29], [7.774, 2.279, 30], [7.933, 2.281, 31], [8.208, 2.3, 32], [8.361, 2.302, 33], [8.531, 2.302, 34], [8.71, 2.302, 35], [8.885, 2.302, 36], [9.158, 2.33, 37], [9.536, 2.342, 38]], "end": 10.0, "final": 2.3462}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-3dgs-astra.html", "pts": [[0.179, 1.179, 1], [0.728, 1.179, 2], [0.958, 1.216, 3], [1.523, 1.249, 4], [1.995, 1.306, 5], [2.653, 1.314, 6], [3.082, 1.326, 7], [3.75, 1.377, 8], [4.33, 1.384, 9], [4.674, 1.44, 10], [5.254, 1.468, 11], [5.625, 1.584, 12], [6.214, 1.584, 13], [6.463, 1.611, 14], [7.13, 1.625, 15], [7.741, 1.626, 16], [7.951, 1.657, 17], [8.306, 1.823, 18], [8.809, 1.876, 19], [9.292, 1.93, 20], [9.701, 2.068, 21]], "end": 10.002, "final": 2.0433}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-3dgs-glm.html", "pts": [[0.233, 1.143, 1], [0.657, 1.327, 3], [0.771, 1.341, 4], [1.429, 1.341, 5], [2.272, 1.46, 6], [2.756, 1.528, 7], [3.478, 1.553, 10], [4.123, 1.583, 12], [4.809, 1.613, 13], [4.987, 1.697, 14], [6.163, 1.697, 17], [7.604, 1.735, 20]], "end": 10.005, "final": 1.7642}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-3dgs-kimi.html", "pts": [[0.454, 1.154, 1], [0.633, 1.239, 2], [0.837, 1.241, 3], [1.107, 1.29, 4], [1.662, 1.326, 5], [1.923, 1.359, 6], [2.255, 1.366, 7], [2.605, 1.398, 8], [2.822, 1.398, 9], [3.354, 1.402, 10], [3.681, 1.442, 11], [4.148, 1.495, 12], [4.472, 1.513, 13], [4.786, 1.513, 14], [5.522, 1.513, 15], [5.625, 1.528, 16], [6.098, 1.589, 17], [6.243, 1.633, 18], [6.579, 1.665, 19], [6.758, 1.665, 20], [7.158, 1.712, 21], [7.158, 1.712, 22], [7.32, 1.712, 23], [7.529, 1.712, 24], [7.751, 1.712, 25], [8.319, 1.73, 26], [8.376, 1.73, 27], [8.601, 1.73, 28], [9.194, 1.778, 29], [9.432, 1.778, 30], [9.852, 1.782, 31], [9.95, 1.782, 32]], "end": 10.002, "final": 1.6836}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-3dgs-ds.html", "pts": [[0.178, 1.199, 1], [0.522, 1.248, 2], [0.934, 1.265, 3], [0.934, 1.364, 4], [1.704, 1.433, 5], [2.229, 1.433, 6], [2.414, 1.659, 8], [2.769, 1.707, 9], [3.145, 1.707, 10], [3.673, 1.707, 11], [3.964, 1.707, 12], [4.428, 1.707, 14], [4.719, 1.707, 15], [5.234, 1.707, 16], [5.796, 1.707, 19], [6.404, 1.707, 23], [6.742, 1.707, 24], [6.962, 1.707, 25], [7.183, 1.707, 27], [7.47, 1.707, 30], [7.705, 1.707, 32], [8.147, 1.707, 35], [8.516, 1.716, 37], [8.651, 1.716, 38], [8.803, 1.716, 39], [9.56, 1.716, 53]], "end": 9.673, "final": 1.7105}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-3dgs-mm.html", "pts": [[0.804, 1.225, 2], [0.804, 1.313, 3], [4.928, 1.485, 15], [4.928, 1.602, 17]], "end": 10.0, "final": 2.538}], "focus": "haiku", "xmax": 10.5, "aria": "Claude Haiku 5.5 on 3DGS: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

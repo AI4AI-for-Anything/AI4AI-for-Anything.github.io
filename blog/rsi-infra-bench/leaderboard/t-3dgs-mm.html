@@ -1,0 +1,471 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · 3DGS · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on 3DGS: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="on">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="3dgs.html">3DGS</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>2.54×</em></h1><p class="lede">Harness: Codex · switches: <code>GS_FUSED_ADAM=1</code> <code>GS_VECTOR_STATS=1</code> <code>GS_ASYNC_LOSS=1</code> <code>GS_FUSED_NORMALIZE=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.54×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.60×</dd></div><div class=""><dt>Rounds</dt><dd>26</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$5.47</dd></div><div class=""><dt>Input tokens · 96.8% cached</dt><dd>209 M</dd></div><div class=""><dt>Output tokens</dt><dd>2.4 M</dd></div><div class=""><dt>Requests</dt><dd>1,587</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-3dgs-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>5.82×</small></a><a class="chip" data-k="sonnet" href="t-3dgs-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>4.44×</small></a><a class="chip self" data-k="mm" href="t-3dgs-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.54×</small></a><a class="chip" data-k="haiku" href="t-3dgs-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.35×</small></a><a class="chip" data-k="astra" href="t-3dgs-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>2.04×</small></a><a class="chip" data-k="glm" href="t-3dgs-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.76×</small></a><a class="chip" data-k="ds" href="t-3dgs-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.71×</small></a><a class="chip" data-k="kimi" href="t-3dgs-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.68×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Smaller tiles + rewritten binning</dt><dd>✓ 8×8 alone flat (1.59 vs 1.60); 1.76 with tight bounding boxes; 1.98 with one warp per Gaussian in binning</dd><dt>Bypass autograd, activations folded into raster kernel</dt><dd>✗ only quaternion normalization made into one bitwise-identical kernel <code>GS_FUSED_NORMALIZE=1</code> (2.21 → 2.40)</dd><dt>Lazy Adam (update only visible Gaussians)</dt><dd>✗</dd><dt>Fused loss / SSIM</dt><dd>last commit fused L1 and its grad (2.403 → 2.410, per commit message); SSIM untouched</dd><dt>Other main levers</dt><dd>bitwise-identical fused Adam, desync, backward per-pixel state packed into float4 (inner loop 176 → 129 instructions, 1.43 → 1.62), unused depth path off (→ 2.06), contiguous SH grad writes (→ 2.21)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>27 sections</small></summary><div class="rounds"><details><summary><em class="">0.1 h</em><span>Round 1 — baseline profile of the unchanged reference</span></summary><pre>Start: 2026-11-09 06:55 UTC. End: 2026-11-09 07:12 UTC.
+
+Command: <code>bench/bench.py profile --tree /submission/gaussian-splatting --config /submission/switches.json --out /tmp/r1/profile</code>
+(unchanged tree; 20 Gaussian-optimizer steps from 7,000; output <code>/tmp/r1/profile/timing_profile.profile.txt</code>).
+
+Profile findings (per step, GPU time 9.47 ms at step 7,000; GPU idle 0.35 ms/step ≈ 3.5 %):
+| kernel | ms/step | share |
+|---|---|---|
+| <code>PerGaussianRenderCUDA&lt;3u&gt;</code> (rasterizer backward) | 2.62 | 27.7 % |
+| <code>renderCUDA&lt;3u&gt;</code> (rasterizer forward) | 1.60 | 16.8 % |
+| Adam <code>multi_tensor_apply</code> (7 foreach passes) | 2.25 | 23.7 % |
+| <code>preprocessCUDA&lt;3&gt;</code> x2 | 0.63 | 6.6 % |
+| <code>duplicateWithKeys</code> | 0.49 | 5.2 % |
+| CUB radix sort (6 passes) | 0.23 | 2.4 % |
+| <code>index</code>/gather/nonzero (densification stats) | 0.51 | 5.4 % |
+| <code>fusedssim</code> fwd+bwd | 0.13 | 1.4 % |
+
+Kinds of hotspot:
+1. <b>Adam is a memory-traffic problem, not a compute problem</b> — 7 separate foreach passes over the
+   59 floats/Gaussian state = 18 array passes (≈6.4 GB/step) where a fused kernel needs 7 (≈2.5 GB).
+2. Rasterizer backward kernel is the single largest kernel.
+3. Host: one device sync per iteration (<code>loss.item()</code>) plus <code>nonzero()</code>; ≈3.5 % bubble, plus a
+   ~7.9 ms bubble on every 100th iteration (densification host work).
+
+Gate-2 sensitivity note (important): the recorded &quot;steps at which the number of Gaussians changes&quot;
+are exactly <code>{1} ∪ {600,700,…,14900}</code> — i.e. <b>schedule-determined</b>, not value-determined. The
+numeric gate is gate 3 (PSNR/SSIM/LPIPS/log(count) within 3σ on seed 1): σ_psnr 0.0389,
+σ_ssim 2.30e-4, σ_lpips 3.34e-4, σ_log_count 5.44e-3 (3σ_log ⇒ final count within ±1.6 %).
+⇒ Numerics must stay *very* close; the optimizer will be made <b>bit-exact</b>, not merely equivalent.</pre></details><details><summary><em class="">0.8 h</em><span>Round 2 — fused Adam (one CUDA kernel for the whole optimizer step)</span></summary><pre>Start: 2026-11-09 07:12 UTC. End: 2026-11-09 07:26 UTC.
+
+Change: new <code>submodules/diff-gaussian-rasterization/fused_adam.{h,cu}</code> — a single kernel that does the whole
+Adam step for the six Gaussian parameter tensors (param, grad, exp_avg, exp_avg_sq) plus the six learning-rate
+tensors (they are tensors in upstream, so <code>lr</code> is read from device memory). Exposed through <code>ext.cpp</code>
+(<code>fused_adam_step</code>) and used by <code>scene/gaussian_model.py</code> through a <code>FusedAdam</code> class (a <code>torch.optim.Optimizer</code>
+subclass with the six parameter groups <code>xyz, f_dc, f_rest, opacity, scaling, rotation</code>), enabled by the switch
+<code>GS_FUSED_ADAM=1</code>.
+
+Numerics: verified <b>bit-exact</b> against torch&#x27;s foreach Adam (60 steps over 6 tensors of the real size, 0
+mismatches, using the exact float semantics torch uses: <code>lerp=fmaf(w,g-m,m)</code>, <code>mul=v*b2</code>,
+<code>addcmul=fmaf(val, g*g, v)</code> with <code>g*g</code> rounded first, <code>div</code> = true float32 division by <code>fl32(scalar)</code> (not a
+reciprocal multiply), <code>addcdiv=fmaf(ss, m/d, p)</code>).
+Microbenchmark at N=1.5 M: 2.121 ms -&gt; 0.693 ms per step.
+
+Result (<code>time</code>, out dir <code>/tmp/r2/time</code>): wall <b>255.2 s</b>, <code>speedup_vs_frozen_reference</code> = <b>1.225</b>.
+<code>check --quick</code> (out dir <code>/tmp/r2/quick</code>): <b>PASS</b> (exact items identical for the first 3,000 steps).
+Commit <code>e906b69</code> — tier N0 (bit-exact).</pre></details><details><summary><em class="">0.8 h</em><span>Round 3 — remove per-iteration host synchronisation, vectorise the densification statistics</span></summary><pre>Start: 2026-11-09 07:26 UTC. End: 2026-11-09 07:38 UTC.
+
+Change (switch <code>GS_VECTOR_STATS=1</code>, <code>GS_ASYNC_LOSS=1</code>):
+* <code>visibility_filter</code> now returns a bool mask instead of <code>.nonzero()</code>; <code>max_radii2D</code> is updated with
+  <code>torch.maximum(..., out=...)</code> (equivalent: invisible radii are 0 and the max is &gt;= 0), and
+  <code>add_densification_stats</code> computes the norm over all N (bit-identical, verified) — removes the gather/scatter
+  and the <code>nonzero</code> device sync.
+* the training loop keeps the loss EMA on the device and only calls <code>iter_end.synchronize()</code> when a
+  <code>tb_writer</code> exists, so the per-iteration <code>loss.item()</code> sync is gone.
+
+Result (<code>time</code>, out dir <code>/tmp/r3/time</code>): wall <b>237.9 s</b>, <code>speedup_vs_frozen_reference</code> = <b>1.313</b>.
+<code>check --quick</code> (out dir <code>/tmp/r3/quick</code>): <b>PASS</b>.
+Commit <code>ce10ea3</code> — tier N0 (bit-exact).</pre></details><details><summary><em class="">0.8 h</em><span>Round 4 baseline profile (`/tmp/r4/profile`, step 7,000, all switches on)</span></summary><pre>GPU busy <b>7.93 ms/iter</b> (was 9.47 ms), idle 6.7 %.
+| kernel | ms/step | share |
+|---|---|---|
+| <code>PerGaussianRenderCUDA&lt;3u&gt;</code> (rasterizer backward) | 2.664 | 33.6 % |
+| <code>renderCUDA&lt;3u&gt;</code> (rasterizer forward) | 1.592 | 20.1 % |
+| <code>fused_adam_kernel</code> | 0.755 | 9.4 % |
+| <code>aten::index</code> (gather/scatter) | 0.456 | 5.8 % |
+| <code>duplicateWithKeys</code> | 0.484 | 6.1 % |
+| backward <code>preprocessCUDA&lt;3&gt;</code> | 0.471 | 5.9 % |
+| CUB radix sort (6 passes) | 0.236 | 3.0 % |
+| forward <code>preprocessCUDA&lt;3&gt;</code> | 0.140 | 1.8 % |
+P ~ 1.66 M Gaussians, B ~ 44 K buckets, L ~ 5.4 M (Gaussian, tile) pairs,
+~1.38 G Gaussian-pixel evaluations/iter, 2170 tiles (62x35).</pre></details><details><summary><em class="">0.8 h</em><span>Round 4 — rasterizer: hoist the per-Gaussian work out of the per-pixel loops (first attempt)</span></summary><pre>Start: 2026-11-09 07:55 UTC. End: 2026-11-09 08:10 UTC.
+
+Profile findings (round-4 baseline <code>/tmp/r4/profile</code>, all switches on, step 7,000):
+GPU busy 7.93 ms/iter. <code>PerGaussianRenderCUDA&lt;3u&gt;</code> 2.664 ms (33.6 %), <code>renderCUDA&lt;3u&gt;</code> 1.592 ms (20.1 %),
+<code>fused_adam_kernel</code> 0.758 ms (9.6 %), <code>duplicateWithKeys</code> 0.493 ms (6.2 %), backward <code>preprocessCUDA</code> 0.472 ms
+(6.0 %), radix sort 0.237 ms (3.0 %). Grid sizes from the profiler trace: the backward runs 44,530 blocks of
+<b>32 threads</b> (64 registers, so only 32 warps/SM = 50 % occupancy), the forward 2,170 blocks of 256 threads.
+
+Change: forward — the <code>1.f / depths[...]</code> division (5 SASS instructions per evaluation) moved into the
+shared-memory prefetch; backward — the per-pixel <code>bg_dot_dpixel</code> moved to the per-pixel state, plus two
+guards (<code>dL_invdepth != 0</code>, <code>bg_dot_dpixel != 0</code>) to skip the depth and background terms.
+
+Result (<code>time</code>, <code>/tmp/r4/time</code>): <b>1.317</b> (231.27 s). <code>check --quick</code> (<code>/tmp/r4/quick</code>): <b>PASS</b>.
+The profile after the change showed <code>renderCUDA</code> 1.592 -&gt; 1.476 ms (-7.3 %, as predicted) but
+<code>PerGaussianRenderCUDA</code> 2.664 -&gt; 2.737 ms (+2.7 %): the compiler turned the two guards into *predication*
+(the instructions are still issued) and added BSSY/BSYNC branch overhead. The guards were removed again.</pre></details><details><summary><em class="">1.7 h</em><span>Round 5 — rasterizer: fetch the colour once per Gaussian, per-pixel background term</span></summary><pre>Start: 2026-11-09 08:10 UTC. End: 2026-11-09 08:33 UTC.
+
+SASS analysis of the two hot kernels (cuobjdump on the judge&#x27;s own build):
+* the forward inner loop is <b>96 instructions</b> for one (Gaussian, pixel) evaluation, of which ~13 were the
+  address arithmetic + 3 global loads + 3 byte permutes for the colour (<code>features[collected_id[j]*3+ch]</code>);
+* the backward inner loop is <b>211 instructions</b> per pixel iteration: 86 in the prologue (18 LDG + 12 SHFL +
+  18 IMAD + 11 LDC) and 120 in the work part.
+Both kernels are close to the instruction-issue limit, so removing instructions is what pays.
+
+Change (commit <code>2c3f6fe</code>):
+* forward: the colour of a Gaussian is fetched once per Gaussian into shared memory, packed with the
+  reciprocal depth in a single <code>float4</code>, so the inner loop replaces ~13 instructions with one <code>LDS.128</code>;
+  <code>collected_id</code> is not needed any more;
+* forward: the depth reciprocal is fetched once per Gaussian (already done in round 4);
+* backward: <code>bg_dot_dpixel</code> is computed once per pixel and shuffled with the other per-pixel state.
+
+Result (<code>time</code>, <code>/tmp/r5/time</code>): <b>1.3637</b> (223.358 s; windows 60.66 / 82.71 / 79.99 vs 63.16 / 85.56 /
+82.55 in round 4). <code>check --quick</code> (<code>/tmp/r5/quick</code>): <b>PASS</b> (exact items identical).
+Numerics tier: N0 (bit-exact).</pre></details><details><summary><em class="">3.4 h</em><span>Round 6 — fused Adam: four elements per thread</span></summary><pre>Start: 2026-11-09 08:33 UTC. End: 2026-11-09 08:50 UTC.
+The Adam kernel walked the parameters one float per thread; it now walks a float4 per
+thread (the same operations in the same order, so the result is bit for bit the same).
+Result (<code>time</code>, <code>/tmp/r6/time</code>): <b>1.3787</b> (220.9 s). <code>check --quick</code>: <b>PASS</b>.
+Commit <code>44f445f</code> — tier N0.</pre></details><details><summary><em class="">3.4 h</em><span>Round 7 — rasterizer backward: unsigned pixel index and one reciprocal per pixel</span></summary><pre>Start: 2026-11-09 08:50 UTC. End: 2026-11-09 09:05 UTC.
+The backward kernel computed the pixel index with a signed modulo/division and divided
+by the depth for every pixel; both are done with unsigned arithmetic and one reciprocal
+per pixel now (the values are the same).
+Result (<code>time</code>, <code>/tmp/r7/time</code>): <b>1.3706</b> (222.2 s). <code>check --quick</code>: <b>PASS</b>.
+Commit <code>c892524</code> — tier N0.</pre></details><details><summary><em class="">3.4 h</em><span>Round 8 — rasterizer: `__expf` instead of `exp`  (REJECTED, reverted)</span></summary><pre>Start: 2026-11-09 09:05 UTC. End: 2026-11-09 09:20 UTC.
+<code>__expf</code> (the fast hardware exponential) instead of <code>exp</code> in the forward and the
+backward. Result (<code>time</code>, <code>/tmp/r8/time</code>): <b>1.4514</b> (209.8 s) — the fastest so far —
+but <code>check --n1</code> <b>INCORRECT</b>: on seed 1 the SSIM bias was -1.006e-3 against a bound of
+6.89e-4 (-4.38 sigma), PSNR -1.87 sigma, LPIPS +2.94 sigma, log(count) -2.11 sigma.
+The model is chaotic: a change of one ulp in the rasterizer ends up at 2-4 sigma after
+30,000 iterations. <b>From here on every change has to be bit exact.</b> The <code>__expf</code> change
+was reverted.</pre></details><details><summary><em class="">3.4 h</em><span>Round 9 — rasterizer: empty gradient buffers + kernel-side zero writes  (REGRESSION)</span></summary><pre>Start: 2026-11-09 09:20 UTC. End: 2026-11-09 09:35 UTC.
+The five gradient buffers that the backward writes in full were allocated with
+<code>torch::empty</code> instead of <code>torch::zeros</code>, and the kernels wrote the zeros for the
+Gaussians that were not rendered.
+Result (<code>time</code>, <code>/tmp/r9/time</code>): <b>1.3277</b> (229.4 s) — a 3 % regression. The profile
+(<code>/tmp/r10/profile</code>) showed why: the per-Gaussian backward preprocessing went from
+0.47 ms to 1.16 ms. The scattered per-Gaussian zero stores are much more expensive
+than the 300 MB bulk memset they replace.</pre></details><details><summary><em class="">3.4 h</em><span>Round 10 — rasterizer: reciprocal hoisted out of the tile loop</span></summary><pre>Start: 2026-11-09 09:35 UTC. End: 2026-11-09 09:40 UTC.
+The reciprocals of the conic&#x27;s diagonal depend only on the Gaussian, so they are
+computed once per Gaussian instead of once per tile it overlaps
+(<code>duplicateWithKeys</code> 0.49 ms -&gt; 0.34 ms). Bit exact.</pre></details><details><summary><em class="">3.4 h</em><span>Round 11 — rasterizer backward: the per-pixel state comes from memory</span></summary><pre>Start: 2026-11-09 09:40 UTC. End: 2026-11-09 10:04 UTC.
+Profile of the current best version (round 10, <code>/tmp/r10/profile</code>, step 7000):
+GPU busy 7.9 ms/iter; <code>PerGaussianRenderCUDA&lt;3u&gt;</code> (the backward) 2.68 ms (33 %),
+<code>renderCUDA&lt;3u&gt;</code> (the forward) 1.29 ms (16 %), the per-Gaussian backward
+preprocessing 1.16 ms (14 %, the zero-write experiment), the fused Adam 0.69 ms,
+<code>duplicateWithKeys</code> 0.34 ms, the radix sort 0.24 ms.
+SASS of the backward&#x27;s inner loop (cuobjdump on the judge&#x27;s own build): **176
+instructions per pixel iteration, 18 of them global loads** (9 for the per-pixel
+state, 9 for the bucket state), 5 shuffles, 20 address IMADs.
+
+Changes (all bit exact):
+* the per-pixel state (final transmittance, number of contributors, the colour and
+  depth gradients, the background term) is read by the lane that needs it instead of
+  being passed along the warp with shuffles;
+* the zero-fill experiment of round 9 was reverted (the buffers are zeroed again);
+* <code>duplicateWithKeys</code> computes the reciprocals once per Gaussian (round 10);
+* <code>prune_optimizer</code> does not empty the caching allocator on every prune;
+* the progress bar reads the loss back every 100 iterations instead of every 10.
+
+Result (<code>time</code>, <code>/tmp/r11/time</code>): <b>1.4263</b> (213.5 s; windows 57.7 / 79.1 / 76.7).
+<code>check --quick</code> (<code>/tmp/r11/quick</code>): <b>PASS</b> (the exact items are identical).
+Commit <code>6dd3745</code> — tier N0.</pre></details><details><summary><em class="">3.4 h</em><span>Round 12 — rasterizer backward: the per-pixel state in two float4s</span></summary><pre>Start: 2026-11-09 10:04 UTC. End: 2026-11-09 10:21 UTC.
+The backward read six scalars per pixel (three colour gradients, the depth gradient,
+the final transmittance, the number of contributors) plus the three components of the
+background colour, and multiplied the background colour with the gradients for every
+pixel of every bucket. A small kernel now packs the state into two float4s
+(<code>packPixelStateCUDA</code>): the colour and depth gradients in one, the final
+transmittance, the background term and the number of contributors in the other. The
+background term is accumulated in the same order with the same fused multiply-add, so
+it is the same number.
+The inner loop of the backward drops from <b>176 to 152 instructions</b> and from **18 to
+11 memory instructions** (the two float4 loads plus the nine loads of the bucket state).
+
+Result (<code>time</code>, <code>/tmp/r12/time</code>): <b>1.5148</b> (201.1 s). <code>check --quick</code>
+(<code>/tmp/r12/quick</code>): <b>PASS</b> (the exact items are identical).
+Commit <code>f9ddce8</code> — tier N0.</pre></details><details><summary><em class="">3.7 h</em><span>Round 13 — rasterizer: pack the bucket state and the pixel colour into float4s</span></summary><pre>Start: 2026-11-09 10:21 UTC. End: 2026-11-09 10:40 UTC.
+The forward wrote the state that starts every bucket (the transmittance <code>T</code> and the
+three colour sums <code>C[0..2]</code>) into four separate arrays (<code>sampled_T</code>, <code>sampled_ar[3]</code>),
+and the backward read them with five separate global loads per pixel. They are now
+written as one <code>float4</code> (<code>sampled_TC</code>) and read with one load. The colour and the
+inverse depth of the pixel (which the backward needs per pixel) are written directly
+by the forward as one <code>float4</code> (<code>pixel_color_invdepth</code>), which also removes the two
+device-to-device copies that used to copy the rendered colour and the inverse depth
+into the chunk.
+
+Bit exact: the values stored are the same bits, and the backward still computes
+<code>-color + C[ch]</code> and <code>-invdepth + ard</code> in the same order.
+
+The inner loop of the backward drops from <b>152 to 129 instructions</b> and from **11 to
+5 memory instructions** per pixel iteration.
+
+Result (<code>time</code>, <code>/tmp/r13b/time</code>): <b>1.6169</b> (188.4 s; windows 51.1 / 69.7 / 67.6).
+<code>check --quick</code> (<code>/tmp/r13b/quick</code>): <b>PASS</b> (the exact items are identical).
+Commit <code>eae55f2</code> — tier N0.</pre></details><details><summary><em class="">4.4 h</em><span>Round 14 — the full check of round 13 FAILED the statistical gate: the fused Adam was not bit-exact</span></summary><pre>Start: 2026-11-09 10:45 UTC. End: 2026-11-09 11:20 UTC.
+
+The full check of the round-13 tree (<code>/tmp/r14c/check/check.json</code>) came back <code>INCORRECT</code>: gate 2
+(exact items) passed, gate 3 failed with SSIM -5.58 sigma, LPIPS +3.55 sigma, PSNR -2.09 sigma.
+<b>No full check had ever been run before</b> (rounds 1-13 only ran <code>check --quick</code>, which compares the
+exact items and not the trained model), so the culprit could be any of the changes, not only the last
+three.
+
+### Diagnosis (cheap probes instead of 5-minute N1 runs)
+* The judge&#x27;s reference record (<code>bench/records/ref.json</code>) has the number of Gaussians after 3,000
+  steps: <b>1,092,971</b> (the bootstrap run of the reference gave 1,095,412, so the run-to-run spread of
+  the *count* is ~0.2 %). The candidate gave <b>1,056,479</b> (-3.3 %): a systematic difference, not noise.
+* A probe that runs the tree&#x27;s own entry for 3,000 steps takes 20 s, so the switches could be bisected
+  with it: without switches 1,094,119, <code>GS_VECTOR_STATS=1</code> 1,094,136, <code>GS_ASYNC_LOSS=1</code> 1,096,426,
+  <b><code>GS_FUSED_ADAM=1</code> 1,053,183</b>. The fused Adam was the culprit; the CUDA changes (rounds 5, 11, 12,
+  13) are fine.
+* <code>torch.norm</code> over a strided view and over a gathered copy is bit-identical (checked), so the
+  vectorised densification statistics are not the problem either.
+
+### Root cause
+<code>create_from_pcd</code> builds the positions with <code>torch.tensor(np.asarray(pcd.points))</code>, which keeps the
+strides of the numpy array: <b><code>self._xyz</code> is column-major, i.e. not contiguous</b>. The fused Adam
+kernel walks the parameter, the gradient and the optimizer state as flat buffers, so for the whole
+training (the positions only become contiguous at the first densification, iteration 600) it wrote
+the update of the first Gaussian into the first elements of the buffer and left the other positions
+untouched: the position update was simply wrong. Torch&#x27;s own Adam uses the foreach route, which
+respects the layout, which is why the reference is right.
+
+### Fix (commit <code>ba310c4</code>)
+<code>FusedAdam.step</code> uses the fused kernel only when the parameter and the two state tensors are
+contiguous, and otherwise falls back to the operations of <code>torch.optim.Adam</code> (<code>lerp_</code>,
+<code>mul_</code>+<code>addcmul_</code>, <code>sqrt</code>/<code>div</code>/<code>add</code>, <code>addcdiv_</code>) - the same operations the reference runs, so the
+values are the same. The fallback is only used for the first 600 iterations.
+
+### Verification
+* The parameters of the first steps are now identical to the ones of the <code>torch.optim.Adam</code> path
+  (only the last-bit differences of the rasterizer&#x27;s atomics remain).
+* The number of Gaussians after 3,000 steps: <b>1,093,883</b> with the fused Adam, against 1,093,831 and
+  1,095,026 for two runs of the reference path (the broken version: 1,053,183).</pre></details><details><summary><em class="">4.9 h</em><span>Round 15 — the fix of round 14 verified, and the first full check</span></summary><pre>Start: 2026-11-09 11:20 UTC. End: 2026-11-09 11:43 UTC.
+
+The fused-Adam fix (commit <code>ba310c4</code>) was verified with the cheap probes:
+* the number of Gaussians after 3,000 steps: 1,093,883 (fused Adam) against
+  1,093,831 / 1,095,026 for two runs of the reference path (1,053,183 with the broken
+  fused Adam);
+* the parameters of the first steps are identical to the ones of the <code>torch.optim.Adam</code>
+  path (only the last-bit differences of the rasterizer&#x27;s atomics remain).
+
+<b>Full check</b> (<code>/tmp/r15/check/check.json</code>): <b>PASS</b>, tier <b>N1</b>, speedup <b>1.4846</b>.
+Gate 2 (exact items) passed; gate 3: SSIM -1.29 sigma, LPIPS -0.67 sigma,
+PSNR -2.08 sigma, log(count) +0.84 sigma (all inside +/- 3 sigma).</pre></details><details><summary><em class="">4.9 h</em><span>Round 16 — the zero-fill of the gradient buffers with a device memset</span></summary><pre>Start: 2026-11-09 11:30 UTC. End: 2026-11-09 11:42 UTC.
+
+Profile of the steady state (<code>bench.py profile --from 7010 --iters 20</code>, <code>/tmp/r17/profile</code>):
+5.95 ms of GPU time per iteration, of which ~0.29 ms was spent filling zeroed
+buffers (<code>aten::fill_</code> / <code>aten::zeros</code> inside the rasterizer: the eleven gradient
+buffers of the backward, the colour image, the inverse depth image and the radii).
+
+<code>torch::zeros</code> / <code>torch::full</code> launch the generic elementwise fill kernel, which
+reaches only a fraction of the memory bandwidth. The eleven gradient buffers of the
+backward are large (the SH gradient alone is P x 45 floats). They are now allocated
+with <code>torch::empty</code> and zeroed with <code>cudaMemsetAsync</code> on the current stream: a float
+0.0f is all-zero bits, so the bytes written are exactly the same.
+
+* <code>time</code> (<code>/tmp/r18/time</code>): <b>1.5961</b> (190.8 s; windows 52.1 / 70.3 / 68.4).
+* <code>check --quick</code> (<code>/tmp/r18/quick</code>): <b>PASS</b> (the exact items are identical).
+* Commit <code>cc91305</code> — tier N0.</pre></details><details><summary><em class="">4.9 h</em><span>Round 17 — the full check of round 16</span></summary><pre>Start: 2026-11-09 11:43 UTC. End: 2026-11-09 11:51 UTC.
+
+<b>Full check</b> (<code>/tmp/r19/check/check.json</code>): <b>PASS</b>, tier <b>N1</b>, speedup <b>1.6018</b>.
+Gate 3: PSNR -0.94 sigma, SSIM -0.05 sigma, LPIPS -1.20 sigma, log(count) +0.42 sigma.
+The submission is now a verified N1 at 1.60x.</pre></details><details><summary><em class="">6.7 h</em><span>Round 18 — the reciprocal and the dummy screen-space tensor (no-ops)</span></summary><pre>Start: 2026-11-09 12:00 UTC. End: 2026-11-09 12:25 UTC.
+
+Two micro-changes in the tree: <code>__frcp_rn(1.0f-alpha)</code> instead of the division in the
+rasterizer backward (verified: <b>identical SASS</b>, 360 instructions, the same opcode
+histogram - a no-op, reverted) and <code>torch.empty_like</code> instead of <code>torch.zeros_like</code> for the
+dummy screen-space mean tensor of <code>gaussian_renderer.render</code> (the rasterizer never reads
+the values, only the <code>.grad</code> of the leaf matters).
+* <code>time</code> (<code>/tmp/r20/time</code>): <b>1.5681</b>; <code>check --quick</code> (<code>/tmp/r20/quick</code>): <b>PASS</b>.
+* Commit <code>f1983df</code> - tier N0.</pre></details><details><summary><em class="">6.7 h</em><span>Round 19 — 8x8 tiles instead of 16x16 (measured: a wash)</span></summary><pre>Start: 2026-11-09 12:25 UTC. End: 2026-11-09 12:32 UTC.
+
+The rasterizer renders a Gaussian against every pixel of every tile its bounding box
+overlaps, so a smaller tile rejects most of the (Gaussian, pixel) pairs early: with 8x8
+tiles the forward and backward render kernels need 2.2x less pixel work (3.10 ms -&gt; 1.83 ms
+per iteration), but the binning gets 4x more expensive (the rectangle of a Gaussian covers
+4x more tiles): duplicateWithKeys 0.35 -&gt; 1.22 ms, the radix sort 0.22 -&gt; 0.50 ms. Net: a
+wash.
+* <code>time</code> (<code>/tmp/r21b/time</code>): <b>1.5912</b>; <code>check --quick</code> (<code>/tmp/r21b/quick</code>): <b>PASS</b>.
+* The number of Gaussians after 3,000 steps moves from 1,093,883 to 1,100,796 (+0.6 %), i.e.
+  the finer culling (a tile is kept if one of its pixels has alpha &gt;= 1/255) changes the
+  image slightly - it stays inside the 3 sigma of the statistical gate, but it eats margin.</pre></details><details><summary><em class="">6.7 h</em><span>Round 20 — the tight tile box</span></summary><pre>Start: 2026-11-09 12:35 UTC. End: 2026-11-09 13:01 UTC.
+
+Profile of the steady state (<code>bench.py profile --from 7010 --iters 20</code>, <code>/tmp/r23/profile</code>):
+5.36 ms of GPU time per iteration. The binning (duplicateWithKeys 1.05 ms + the radix sort
+0.26 ms) and the two render kernels (1.20 + 0.58 ms) are the hot spots.
+
+A Gaussian is rasterized against every tile of its <b>3-sigma square</b>, but the square is
+the bounding box of the *largest* principal axis in both directions. The tiles that can
+change the image are the ones overlapping the ellipse of the pixels whose alpha is at least
+1/255 (<code>q &lt;= log(255*opacity)</code>), whose axis-aligned bounding box is
+<code>sqrt(2k*cov_xx) x sqrt(2k*cov_yy)</code> - much tighter for an elongated Gaussian. Every tile
+that is dropped this way contains only pixels with alpha &lt; 1/255, which the render kernel
+skips anyway, so <b>the image is unchanged</b>; the tile rectangles are stored per Gaussian
+(<code>int2* rects</code>) and used by both the preprocess and the binning kernel.
+* <code>time</code> (<code>/tmp/r22/time</code>): <b>1.7606</b> (173.0 s; windows 49.2 / 62.7 / 61.1), against 1.6018.
+* <code>check --quick</code> (<code>/tmp/r22/quick</code>): <b>PASS</b> (exact items identical).
+* <code>check --n1</code> (<code>/tmp/r23/n1</code>): <b>PASS</b>, tier N1 - PSNR -0.53 sigma, SSIM -0.71 sigma,
+  LPIPS -1.46 sigma, log(count) +1.09 sigma (all inside 3 sigma).
+* Commits <code>cb3d2f0</code> (8x8 tiles) and <code>df2879f</code> (the tight box) - tier N1.</pre></details><details><summary><em class="">6.7 h</em><span>Round 21 — one warp per Gaussian in the binning kernel</span></summary><pre>Start: 2026-11-09 13:09 UTC. End: 2026-11-09 13:35 UTC.
+
+Diagnostic (a build that skips the Gaussians whose rectangle has more than 1024 tiles):
+duplicateWithKeys falls from 1020 us to 293 us - **a few Gaussians with a huge rectangle
+(a big Gaussian close to the camera) serialize the whole kernel**, because the kernel gave
+one *thread* per Gaussian and a thread walks the whole rectangle of its Gaussian alone, so
+a warp can only advance as fast as its slowest Gaussian.
+
+One <b>warp per Gaussian</b> now: the 32 lanes walk the rectangle together, and the pairs
+that pass the opacity test are written with a ballot (<code>__ballot_sync</code>/<code>__popc</code>), so the
+entries of a Gaussian are bit-identical to the ones the old kernel wrote (the image does
+not change at all).
+* <code>time</code> (<code>/tmp/r26/time</code>): <b>1.976</b> (154.1 s), against 1.7606 before.
+* <code>check --quick</code> (<code>/tmp/r26/quick</code>): <b>PASS</b> (exact items identical).
+* Commit <code>00fd509</code> - tier N0 (bit-identical output).
+
+Profile after the change (4.76 ms of GPU time per iteration):
+| kernel | ms/step | share |
+|---|---|---|
+| <code>PerGaussianRenderCUDA&lt;3u&gt;</code> (rasterizer backward) | 1.236 | 26 % |
+| fused Adam | 0.696 | 15 % |
+| <code>preprocessCUDA&lt;3&gt;</code> (rasterizer backward) | 0.452 | 9.5 % |
+| <code>duplicateWithKeys</code> | 0.441 | 9 % |
+| <code>renderCUDA&lt;3u&gt;</code> (rasterizer forward) | 0.407 | 8.5 % |
+| CUB radix sort | 0.261 | 5.5 % |
+| device memsets | 0.153 | 3 % |
+| <code>preprocessCUDA&lt;3&gt;</code> (rasterizer forward) | 0.145 | 3 % |
+| the torch ops of the training loop (rotation normalisation, SSIM, loss, ...) | ~0.8 | 17 % |</pre></details><details><summary><em class="">7.3 h</em><span>Round 22 - the depth path of the rasterizer and the exponential of the rejected pairs</span></summary><pre>Start: 2026-11-09 13:40 UTC. End: 2026-11-09 14:12 UTC.
+
+Profile of the tree at the start of the round (<code>/tmp/r26/profile</code>, 4.76 ms of GPU
+time per iteration): rasterizer backward 1.85 ms (39 %), rasterizer forward 1.47 ms
+(31 %), fused Adam 0.70 ms (15 %), the torch ops of the loop 0.72 ms (15 %).
+The CPU runs at about the same rate as the GPU (the wall clock is 5.14 ms per
+iteration), so every percent of GPU time is a percent of the wall clock.
+
+Two changes, both inside the rasterizer:
+
+1. <b>The exponential of the rejected pairs</b> (<code>alpha_power_threshold</code> in
+   <code>auxiliary.h</code>). The alpha of a (Gaussian, pixel) pair is
+   <code>min(0.99, opacity * exp(power))</code> and the pair is skipped when it is below
+   1/255, that is when <code>power &lt; -log(255 * opacity)</code>. The exponential is the most
+   expensive part of that test and most of the pixels of the tiles a Gaussian
+   touches fail it, so the threshold is now computed once per Gaussian and the
+   power is compared with it *before* the exponential is evaluated. The margin
+   (0.01) makes the test conservative: every pair that passes it is still tested
+   exactly as before, so the set of accepted pairs - and therefore the image - does
+   not change. The forward kernel got 5 % faster (578 -&gt; 550 us in the profile of
+   <code>/tmp/r27/profile</code>); in the backward kernel the test did not pay off (the inner
+   loop is register bound), so it was left out there.
+2. <b>The depth path of the rasterizer</b> is now switched off when the depth
+   regularization is inactive, which is the case of the recipe (<code>--depths &quot;&quot;</code>, so
+   no camera has a depth map). The rasterizer then does not compute the inverse
+   depth of the image, does not carry the inverse depth of the buckets through the
+   sampled state, and does not evaluate the depth part of the gradients (the
+   gradient of the depth image is exactly zero when the depth is not used, so the
+   gradients are unchanged). The flag travels from <code>train.py</code> (the condition of
+   the depth regularization) through <code>gaussian_renderer.render</code> and the rasterizer
+   settings into the four kernels that touch the depth. The per-Gaussian gradient
+   buffer of the inverse depth is not even allocated any more.
+
+* <code>time</code> (<code>/tmp/r29/time</code>): <b>2.0559</b> (148.2 s; windows 41.3 / 54.2 / 52.7),
+  against 1.976 before.
+* <code>check --quick</code> (<code>/tmp/r29/quick</code>): <b>PASS</b> (the exact items of the first 3,000
+  steps are identical).
+* Numerics: N0 (the image and all the gradients are bit for bit the same).
+* An earlier attempt at the same round (<code>/tmp/r27</code>) put the exponential test into
+  the backward kernel as well; it was neutral (1.9694) and was reverted.</pre></details><details><summary><em class="">8.4 h</em><span>Round 23 - the spherical harmonics gradient, written in a contiguous way</span></summary><pre>Start: 2026-11-09 15:00 UTC. End: 2026-11-09 15:16 UTC.
+
+Profile of the tree at the start of the round (<code>/tmp/r32/profile</code>, 4.61 ms of GPU
+time per iteration): rasterizer backward 1.06 ms (23 %), rasterizer forward 0.52 ms
+(11 %), the fused Adam 0.65 ms (14 %), the backward <code>preprocessCUDA</code> 0.49 ms
+(10.5 %), the binning kernel 0.45 ms (10 %), the radix sort 0.26 ms (6 %), the
+device memsets 0.15 ms (3 %), the torch ops of the loop about 0.60 ms (13 %).
+
+The hotspot of the round is the backward <code>preprocessCUDA</code>. It computes, for every
+Gaussian, the gradient of the loss with respect to its 15 spherical harmonics
+coefficients, and writes it to the buffer of shape [P][15][3] that the optimizer
+reads. The buffer gives every Gaussian 180 bytes, so the 45 floats of a Gaussian
+are contiguous but the Gaussians of a warp are 180 bytes apart: the 45 stores of
+a thread touch 45 different cache lines, and the 45 stores of the 32 threads of a
+warp touch 1440 of them. The stores of the warp use 12 % of the bandwidth they
+move.
+
+The gradients are now staged in the shared memory of the block and written to the
+global buffer by the block at the end of the kernel, in the order the buffer uses:
+the 45 floats of the Gaussians of a block are then written by the 32 threads of a
+warp one after the other, so the stores are contiguous. The staging costs 45
+shared stores and 45 shared loads per thread, and it replaces 1440 cache line
+transactions per warp by 135. The buffer is not zeroed any more, because the
+kernel fills every element of it (the Gaussians that are not visible get a zero
+gradient, as before).
+
+The values are the ones the old code computed: <code>computeColorFromSH</code> is unchanged
+except for the place where it writes its result, so the arithmetic, and the way
+the compiler contracts it, are the same. This was checked with a test program
+(<code>/tmp/shgx</code>) that runs the old and the new <code>preprocessCUDA</code> on the same random
+data and compares the 2,250,000 floats of the gradient buffer: **0 of them
+differ**.
+
+* <code>time</code> (<code>/tmp/r36/time</code>): <b>2.2058</b> (138.08 s), against 2.0559 before.
+* <code>check --quick</code> (<code>/tmp/r35/quick</code>): <b>PASS</b> (the exact items of the first 3,000
+  steps are identical).
+* Numerics: N0 (the gradient buffer is bit for bit the same).
+* A first attempt at this round put the computation of the gradients in a
+  separate kernel (<code>computeSHGradCUDA</code>) that recomputed the direction of the
+  Gaussians. It was 1 to 5 ULP off the reference (the compiler contracted the
+  length of the direction differently in the new context) and the run crashed
+  with SIGSEGV, so it was dropped in favour of the staging above.</pre></details><details><summary><em class="">8.8 h</em><span>Round 24 - the normalisation of the quaternions, in one kernel</span></summary><pre>The profile of the tree at the start of the round (<code>/tmp/r37/profile</code>, 4.86 ms of
+GPU time per iteration over the window 7,000..7,019) put the composite op
+<code>torch.nn.functional.normalize(self._rotation, dim=1)</code> at about 0.29 ms of the
+iteration, that is 6 % of it. It is not one kernel but eight: the norm is
+reduced twice (once in the forward, once again in the backward of the norm, as
+torch recomputes it), the sum of the four squares is a reduction over the
+broadcast dimension of the division, and the rest are elementwise passes over
+the quaternions and their gradients. In the trace the two reductions of the
+norm cost 77 us per iteration, the reduction of the division 48 us, and the
+elementwise passes about 150 us more.
+
+The normalisation is now a single CUDA kernel per direction
+(<code>submodules/diff-gaussian-rasterization/quat_normalize.cu</code>, behind the
+<code>GS_FUSED_NORMALIZE</code> switch), which computes the norm, the divisor and the
+result, and in the backward the whole chain of the gradient.
+
+The arithmetic is the one of torch, operation by operation and rounding by
+rounding, and it was measured before writing the kernel:
+
+* the norm is <code>sqrt((q0*q0 + q1*q1) + (q2*q2 + q3*q3))</code>; the four squares are
+  summed in pairs, which is what the reduction of <code>linalg_vector_norm</code> does on
+  this shape (the sequential sum differs from it on 12 % of the samples);
+* the divisor is <code>max(n, 1e-12)</code>, and the result is <code>q / d</code>;
+* the backward is <code>u_k = (q_k/d)/d</code>, <code>t_k = -g_k * u_k</code>,
+  <code>gd = (t0+t1) + (t2+t3)</code>, <code>gn = (n &gt;= eps) ? gd : 0</code>,
+  <code>gx_k = (g_k/d) + gn*(q_k/n)</code>; the sum of the four <code>t_k</code> is again in pairs,
+  and the product <code>gn*(q_k/n)</code> is formed as it is written above and not as
+  <code>(gn*q_k)/n</code> (which differs on 17 % of the samples);
+* a zero norm is replaced by one before the division by the norm, as torch does
+  in the backward of the norm, so that the gradient of a zero quaternion is
+  zero and not a NaN.
+
+The kernel uses <code>__fmul_rn</code>, <code>__fadd_rn</code>, <code>__fdiv_rn</code> and <code>__fsqrt_rn</code>, so that
+the compiler cannot contract the operations into fused multiply-adds, which
+would round differently.
+
+The comparison with torch over about 30 million quaternions (random ones, ones
+over ten scales from 1e-8 to 1e30, heavy-tailed ones, and the edge cases: the
+zero quaternion, the ones whose norm is exactly the epsilon, the infinite and
+the NaN ones) gives <b>0 differences</b> in the forward and <b>0 differences</b> in
+the backward, and the NaNs land on the same elements (<code>/tmp/normtest</code>).
+
+* <code>time</code> (<code>/tmp/r38/time</code>): <b>2.396</b> (127.12 s), against 2.2058 before.
+* <code>check --quick</code> (<code>/tmp/r38/quick</code>): <b>PASS</b> (the exact items of the first
+  3,000 steps are identical).
+* Numerics: N0 (the forward and the backward are bit for bit the ones of
+  torch).</pre></details><details><summary><em class="">9.6 h</em><span>Round 25 - two experiments on the backward render (no gain, reverted)</span></summary><pre>The backward render (<code>PerGaussianRenderCUDA</code>, 1081 us per iteration, 26 % of the
+time) is the biggest kernel of the iteration.  Two changes were tried on it, both
+measured with <code>bench.py profile</code> (the time of the kernel is in the profile):
+
+1. <b>The alpha log-threshold pre-filter.</b>  The forward render skips the
+   exponential of a pair whose contribution to the tile is below 1/255 (it
+   compares the power with <code>log(1/(255*opacity))</code>).  The same test was added to
+   the backward render, before the exponential.  The backward render went from
+   1059 us to 1068 us: the backward is not bound by the exponential (its
+   <code>last_contributor</code> early exit already removes most of the pairs, and the warp
+   divergence prevents the lanes from skipping the test), so the extra
+   comparison only costs.
+2. <b>The <code>pix_grad4</code> load moved after the alpha test.</b>  The backward render
+   loads the state of the pixel it works on before it knows whether the pair
+   contributes.  Deferring the load made it slower (1081 us).
+
+Both changes were reverted (<code>git checkout</code>).  The threshold itself was proved
+safe (0 violations over 16 million samples, <code>/tmp/normtest/thr.py</code>), it simply
+buys nothing.</pre></details><details><summary><em class="">9.6 h</em><span>Round 26 - the occupancy of the backward render (a wash)</span></summary><pre>The backward render uses 56 registers (<code>nvcc -Xptxas -v</code>) and was launched with
+one warp per block, so that the number of resident warps per multiprocessor was
+limited by the hardware limit of 32 blocks per multiprocessor and not by the
+registers: 32 warps out of the 64 a multiprocessor can hold.
+
+The kernel does not care how many warps share a block (it computes the bucket
+index from the warp index), so the launch was made configurable
+(<code>GS_BWD_WARPS</code>, off by default, <code>cuda_rasterizer/backward.cu</code>): with four warps
+per block the limit becomes the number of registers, 36 warps.
+
+* <code>time</code> (<code>/tmp/r43/time</code>): <b>2.4032</b> (126.74 s), against 2.396 before.  The
+  difference is inside the noise of the measurement (the same tree measured
+  2.3856 in the full check), so the kernel is not bound by its occupancy.
+* The change is kept and enabled, it is bit for bit the same computation.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-3dgs-sonnet.html"><small>← 4.44×</small><strong>Sonnet 5.5</strong></a><a class="up" href="3dgs.html">↑ 3DGS</a><a class="next" href="t-3dgs-haiku.html"><small>2.35× →</small><strong>Haiku 5.5</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-3dgs-opus.html", "pts": [[0.324, 1.23, 1], [2.034, 2.005, 3], [2.182, 3.02, 4], [3.17, 3.681, 6], [3.56, 3.99, 8], [3.987, 4.124, 9], [4.569, 4.494, 10], [5.265, 4.765, 11], [5.685, 5.212, 12], [6.079, 5.328, 13], [6.336, 5.442, 14], [6.958, 5.442, 15], [8.148, 5.5, 16], [8.279, 5.551, 17], [8.485, 5.607, 18], [8.907, 5.655, 19], [9.973, 5.853, 21]], "end": 10.0, "final": 5.8198}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-3dgs-sonnet.html", "pts": [[0.841, 1.168, 2], [0.841, 1.516, 3], [1.315, 1.867, 4], [3.077, 2.981, 8], [3.337, 3.149, 9], [4.472, 3.313, 11], [5.311, 3.511, 12], [5.662, 3.696, 13], [5.945, 3.787, 14], [6.383, 3.808, 15], [6.7, 4.06, 16]], "end": 10.0, "final": 4.4418}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-3dgs-haiku.html", "pts": [[0.196, 1.161, 1], [0.406, 1.242, 2], [0.406, 1.242, 3], [0.518, 1.339, 4], [0.869, 1.339, 5], [0.869, 1.339, 6], [0.972, 1.349, 7], [1.429, 1.431, 8], [2.117, 1.548, 9], [2.757, 1.73, 10], [3.035, 1.875, 11], [3.228, 1.877, 12], [3.624, 1.877, 13], [3.983, 1.913, 14], [4.449, 1.929, 15], [4.653, 1.929, 17], [5.122, 2.084, 18], [5.589, 2.125, 19], [5.839, 2.14, 20], [6.014, 2.14, 21], [6.191, 2.14, 22], [6.425, 2.157, 23], [6.594, 2.157, 24], [6.823, 2.157, 25], [7.427, 2.279, 26], [7.427, 2.279, 27], [7.427, 2.279, 28], [7.614, 2.279, 29], [7.774, 2.279, 30], [7.933, 2.281, 31], [8.208, 2.3, 32], [8.361, 2.302, 33], [8.531, 2.302, 34], [8.71, 2.302, 35], [8.885, 2.302, 36], [9.158, 2.33, 37], [9.536, 2.342, 38]], "end": 10.0, "final": 2.3462}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-3dgs-astra.html", "pts": [[0.179, 1.179, 1], [0.728, 1.179, 2], [0.958, 1.216, 3], [1.523, 1.249, 4], [1.995, 1.306, 5], [2.653, 1.314, 6], [3.082, 1.326, 7], [3.75, 1.377, 8], [4.33, 1.384, 9], [4.674, 1.44, 10], [5.254, 1.468, 11], [5.625, 1.584, 12], [6.214, 1.584, 13], [6.463, 1.611, 14], [7.13, 1.625, 15], [7.741, 1.626, 16], [7.951, 1.657, 17], [8.306, 1.823, 18], [8.809, 1.876, 19], [9.292, 1.93, 20], [9.701, 2.068, 21]], "end": 10.002, "final": 2.0433}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-3dgs-glm.html", "pts": [[0.233, 1.143, 1], [0.657, 1.327, 3], [0.771, 1.341, 4], [1.429, 1.341, 5], [2.272, 1.46, 6], [2.756, 1.528, 7], [3.478, 1.553, 10], [4.123, 1.583, 12], [4.809, 1.613, 13], [4.987, 1.697, 14], [6.163, 1.697, 17], [7.604, 1.735, 20]], "end": 10.005, "final": 1.7642}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-3dgs-kimi.html", "pts": [[0.454, 1.154, 1], [0.633, 1.239, 2], [0.837, 1.241, 3], [1.107, 1.29, 4], [1.662, 1.326, 5], [1.923, 1.359, 6], [2.255, 1.366, 7], [2.605, 1.398, 8], [2.822, 1.398, 9], [3.354, 1.402, 10], [3.681, 1.442, 11], [4.148, 1.495, 12], [4.472, 1.513, 13], [4.786, 1.513, 14], [5.522, 1.513, 15], [5.625, 1.528, 16], [6.098, 1.589, 17], [6.243, 1.633, 18], [6.579, 1.665, 19], [6.758, 1.665, 20], [7.158, 1.712, 21], [7.158, 1.712, 22], [7.32, 1.712, 23], [7.529, 1.712, 24], [7.751, 1.712, 25], [8.319, 1.73, 26], [8.376, 1.73, 27], [8.601, 1.73, 28], [9.194, 1.778, 29], [9.432, 1.778, 30], [9.852, 1.782, 31], [9.95, 1.782, 32]], "end": 10.002, "final": 1.6836}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-3dgs-ds.html", "pts": [[0.178, 1.199, 1], [0.522, 1.248, 2], [0.934, 1.265, 3], [0.934, 1.364, 4], [1.704, 1.433, 5], [2.229, 1.433, 6], [2.414, 1.659, 8], [2.769, 1.707, 9], [3.145, 1.707, 10], [3.673, 1.707, 11], [3.964, 1.707, 12], [4.428, 1.707, 14], [4.719, 1.707, 15], [5.234, 1.707, 16], [5.796, 1.707, 19], [6.404, 1.707, 23], [6.742, 1.707, 24], [6.962, 1.707, 25], [7.183, 1.707, 27], [7.47, 1.707, 30], [7.705, 1.707, 32], [8.147, 1.707, 35], [8.516, 1.716, 37], [8.651, 1.716, 38], [8.803, 1.716, 39], [9.56, 1.716, 53]], "end": 9.673, "final": 1.7105}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-3dgs-mm.html", "pts": [[0.804, 1.225, 2], [0.804, 1.313, 3], [4.928, 1.485, 15], [4.928, 1.602, 17]], "end": 10.0, "final": 2.538}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on 3DGS: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

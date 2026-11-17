@@ -1,0 +1,290 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Haiku 5.5 · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="Claude Haiku 5.5 on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>Claude Haiku 5.5</b></nav><h1>Claude Haiku 5.5 <em>1.60×</em></h1><p class="lede">Harness: Claude Code · switches: <code>BAGEL_OPT_KEEP_UNSHARDED=1</code> <code>BAGEL_OPT_FORWARD_PREFETCH=1</code> <code>BAGEL_OPT_LIMIT_ALL_GATHERS=0</code> <code>BAGEL_OPT_MOT_PERMUTE=1</code> <code>BAGEL_OPT_ATTN_FLASH=1</code> <code>BAGEL_OPT_FUSED_ADAMW=1</code> <code>NCCL_PROTO=Simple</code> <code>BAGEL_OPT_COMPILE_RMSNORM=1</code> <code>BAGEL_OPT_COMPILE_MLP_ACT=1</code> <code>BAGEL_OPT_COMPILE_ROPE=1</code> <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> <code>BAGEL_OPT_NO_GRAD_DIVIDE=1</code> <code>BAGEL_OPT_FLASH_BATCHED=1</code> <code>BAGEL_OPT_PAIR_CARRY=1</code> <code>BAGEL_OPT_VIT_NO_AC=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.60×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.60×</dd></div><div class=""><dt>Rounds</dt><dd>14</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$20.0</dd></div><div class=""><dt>Input tokens · 99.6% cached</dt><dd>336 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.9 M</dd></div><div class=""><dt>Requests</dt><dd>710</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip self" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Attention kernel swap (split by mask structure)</dt><dd>✓ <code>BAGEL_OPT_ATTN_FLASH</code> (FA2): 1.09 → 1.26×; batched calls a further +4.5%. Wanted FA3, source couldn't be downloaded, dropped</dd><dt>Drop activation recompute (28 decoder layers)</dt><dd>only ViT removed (+2.9%). Decoder minus 4 layers 1.280× vs 1.289×, minus 2 layers −0.9%, both reverted; all 28 layers still recomputed</dd><dt>Intra-layer MoT fusion (routing / RMSNorm / RoPE / SwiGLU)</dt><dd>✓ <code>torch.compile</code> on RMSNorm, SiLU·up, RoPE (1.29 → 1.44×); MoT permuted layout (bitwise, +6.5%), two token types carried separately (+2.1%)</dd><dt>Optimizer, EMA, step start / end</dt><dd>fused AdamW; FSDP grad division removed (bitwise, +1.4%). EMA via lerp blocked by gate 3; EMA side stream −1.0%, reverted</dd><dt>Other main levers</dt><dd>unsharded weights kept for backward, all-gather rate limiter off, forward prefetch (combined 1.025×)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>16 sections</small></summary><div class="rounds"><details><summary><em class="">0.1 h</em><span>Setup facts (round 0)</span></summary><pre>- Start of session: 2026-11-10 ~01:35 UTC. Working time is not told; treat as limited.
+- GPUs: 4 x Hopper-class (nvidia-smi names them &quot;Hopper&quot;, 143771 MiB, 700 W limit, NV18 NVLink,
+  max SM clock 1980 MHz). Peak BF16 used by the run&#x27;s MFU: 119.5 (L20 entry); true Hopper-class dense
+  peak is ~989 TFLOPS. Judge reference timing: 2.5966 s/step (spread 0.07%), peak alloc 82.14 GiB.
+- Gate 1 needs speedup &gt; max(1.02, 1 + 2 x reference spread) -&gt; &gt;= 1.02.
+- candidate runs use /opt/candidate-env/bin/python (torch 2.5.1+cu124, triton 3.1.0, transformers 4.49.0).
+- Current switches file: /submission/switches.json = {&quot;environment&quot;: {}}  (upstream behaviour).
+- Tier ceiling: agent_max_tier N1 (N2 dtype changes are rejected).</pre></details><details><summary><em class="">0.1 h</em><span>Round 0: profile of the unchanged reference (01:36-01:43 UTC)</span></summary><pre>- Judge profile: <code>bench.py profile</code> on the unchanged tree, steps 8-9 of a 10-step run, rank 0.
+  Output: /tmp/r0/profile/timing_profile.profile.txt and .trace.json (kernel aggregation in /tmp/r0/ana/).
+- Kernel time per step (trace, summed over streams; 2 profiled steps halved):
+  NCCL 1.34 s (ReduceScatter bf16 0.78 s, AllGather 0.53 s; RING_LL kernels, on a side stream);
+  cuBLAS GEMM 0.79 s; mem-efficient SDPA with explicit bias 0.55 s (fwd+recompute 0.24, bwd 0.32; dense L^2, no causal skip);
+  elementwise 0.55 s (RMSNorm fp32 pieces, SiLU/mul, adds, bf16 casts); index/copy/fill ~0.30 s (MoT index_put/gather, cat, zeros);
+  AdamW/EMA/clip foreach 0.09 s; flash (ViT) 0.015 s; reduce/norm 0.035 s.
+- Timeline (2 steps, span 5.6 s): compute stream busy 2.07 s/step, idle 0.73 s/step. NCCL not overlapped with compute
+  ~0.56 s/step. Forward shows ~17-18 ms compute gaps per FSDP unit: forward all-gathers are issued only when the unit starts
+  (FSDP forward_prefetch is off by default upstream), so they are exposed.
+- Hotspot classes: (1) communication exposed in forward = configuration problem (existing overlap option not enabled);
+  (2) attention = existing backend (mem-efficient) on dense masks with no causal skipping = candidate for a rewrite;
+  (3) elementwise/index traffic = fusion candidate.
+- No NCCL environment is set in the container (NCCL 2.21.5 defaults).</pre></details><details><summary><em class="">0.1 h</em><span>Round 1 (started 01:43 UTC): FSDP forward prefetch</span></summary><pre>- Hotspot: exposed forward all-gathers (class: communication, configuration).
+- Change: train/fsdp_utils.py fsdp_wrapper passes forward_prefetch=True when BAGEL_OPT_FORWARD_PREFETCH=1 (default 0 = upstream).
+  Scheduling only; same collectives and math. Expected N0.
+- Experiment config: /tmp/r1/switches_fp.json. time output: /tmp/r1/time_fp.
+
+- Round 1 result: time run /tmp/r1/time_fp/time.json: 2.5943 s/step, speedup_vs_frozen_reference 1.0009 (no gain beyond
+  noise; reference spread 0.0007). Forward prefetch alone does not help: the CPU rate limiter (limit_all_gathers=True)
+  still blocks the issuing thread on events (trace: 234 cudaEventSynchronize calls over 2 steps), and NCCL LL kernels spin
+  on SMs. Forward prefetch kept only as a switch (default off).
+- Tooling note: <code>time</code> takes ~6-7 min per run (model build ~3 min, 65 steps ~3 min); the judge copies the tree at start.</pre></details><details><summary><em class="">0.3 h</em><span>Round 2 (started 01:50 UTC): FSDP rate limiter off (+ forward prefetch)</span></summary><pre>- Switch BAGEL_OPT_LIMIT_ALL_GATHERS=0 with BAGEL_OPT_FORWARD_PREFETCH=1. Config /tmp/r2/switches_fp_nolimit.json.
+- Also written, not yet timed: MoT permuted layout (BAGEL_OPT_MOT_PERMUTE=1; modeling/bagel/qwen2_navit.py) and
+  _HYBRID_SHARD_ZERO2 for the trained model (BAGEL_OPT_KEEP_UNSHARDED=1; train/fsdp_utils.py), AC skip (BAGEL_OPT_AC_SKIP_FIRST=K).
+
+- Round 2 result (fp + limit off): /tmp/r2/time_fp_nolimit/time.json: 2.5681 s/step, speedup 1.0111 (windows 2.5749, 2.5613),
+  beyond reference noise but below the 1.02 bar on its own. Reserved memory 122 GiB.
+- Round 3 result (ZERO2 keep-unsharded + fp + limit off + expandable segments): /tmp/r3/time_zero2/time.json:
+  2.5323 s/step, speedup 1.0254 (windows 2.5361, 2.5285), beyond reference noise. Peak allocated 90.39 GiB,
+  reserved 119.32 GiB. Config /tmp/r3/switches_zero2_nolimit.json.
+- Production-mode losses are not bitwise reproducible across runs (steps 0-1 agree, step 2 onward differs in the 3rd digit,
+  including the profiled reference run). Bitwise verdict comes only from deterministic record/check --quick.
+- MoT permuted layout: CPU equivalence on a tiny bf16 model (tests in /tmp/r2/unit/test_perm_count.py): forward output, input
+  gradient, all 58 parameter gradients bitwise equal; the permuted path was called once (verified by counter).</pre></details><details><summary><em class="">0.6 h</em><span>Round 4 (02:03-02:20 UTC): bitwise check of the combined candidate</span></summary><pre>- First attempt of the permuted layout called the layer&#x27;s inner method directly, bypassing the FSDP unit and checkpoint
+  wrapper: record run failed in backward (ViewBackward0 modified in place). Fixed by calling the layers as modules with the
+  permuted layout as one keyword argument (commit 7f28ce1). CPU equivalence test still bitwise equal.
+- <code>check --quick</code> on /tmp/r4/switches_all_perm.json (ZERO2 + forward prefetch + limit off + MoT permute + expandable
+  segments): PASS, tier N0 (/tmp/r4/quick_all_perm2/check.json). This config is now /submission/switches.json.
+- Time run of this config: /tmp/r4/time_all_perm (result below when finished).
+
+- Round 4 time result (ZERO2 + fp + limit off + MoT permute + expandable segments): /tmp/r4/time_all_perm/time.json:
+  2.3782 s/step, speedup 1.0918 (windows 2.3774, 2.3790), beyond reference noise. Peak allocated 90.32 GiB, reserved 119.38 GiB.
+  The MoT permutation alone added ~6.5% on top of round 3 (1.0254 -&gt; 1.0918).
+- Full check of this config started 02:18:57 on a copy of commit 7f28ce1: /tmp/r4/check_full_1 (log /tmp/r4/check_full_1.log).
+- After the copy: uncommitted change in qwen2_navit.py converting the per-sample masks to bf16 once per forward (N0 by
+  construction; CPU equivalence test bitwise equal). Not yet judged; needs its own check --quick before commit.
+
+- FULL CHECK PASS (02:36 UTC): /tmp/r4/check_full_1/check.json: status PASS, tier N0, speedup 1.0921, for
+  /submission/switches.json (all-perm switches) on commit 7f28ce1. Gates: timing (gate 1) 02:19-02:24, record (gate 2)
+  bitwise, conformance deterministic + production (gate 2b) 02:28-02:36. Gate 3 not needed (bitwise).</pre></details><details><summary><em class="">1.1 h</em><span>Round 5 (02:36-): fused AdamW (dropped), attention via flash-attention runs (N1 candidate)</span></summary><pre>- Fused AdamW (BAGEL_OPT_FUSED_ADAMW=1) with the rest of the verified config: check --quick NOT_BITWISE (exact items pass,
+  numbers differ): N1 at best. Not used (small expected gain, would need gate 3). Switch left in code, default 0.
+- Flash-attention path (BAGEL_OPT_ATTN_FLASH=1): per sample, the mask rows must be prefixes [0, E(r)] (checked on GPU once
+  per forward; two host transfers). Causal runs -&gt; one causal flash call over keys [0, end) (bottom-right alignment gives
+  row r keys &lt;= r); full runs -&gt; one non-causal call over keys [0, end). Any sample not prefix-shaped (noise span followed by
+  another split, the N pool of gate 2b) -&gt; dense path for the whole forward. GQA handled by flash (no K/V repeat).
+  CPU test (/tmp/r5/unit/test_flash_plans.py, float64, reference flash with bottom-right causal): exact (1e-15) on
+  causal/full/alternating/multi-sample layouts; holes -&gt; fallback. GPU sanity (/tmp/r5/unit/gpu_flash_check.py): relative L2
+  2.1e-3 vs fp32 dense reference (bf16 output level).
+- Expected tier N1 (numerics change in the attention kernel): needs gate 3 (check --n1 or full check).
+- Time run: /tmp/r5/time_flash (started 02:42:22).
+- Also uncommitted: per-forward bf16 conversion of masks (N0 by construction); to be verified with its own check --quick.
+
+- Flash path v1 (prefix-only masks): time 1.1267 (2.3045 s/step) but only ~12% of attention kernel time went to flash:
+  the judge&#x27;s timing data (interleave config, editing mandatory) has noise spans followed by more tokens in ~40% of samples
+  (holes; checked on real batches with /tmp/r5/unit/data_masks.py on CPU), and any such sample forced the dense path for
+  the whole pack.
+- Flash path v2 (current working tree): per sample, query runs (causal/full, from the per-row last allowed key), key set of a
+  run = allowed set of its last row (holes excluded), verified on the device against the mask; a failing sample falls back
+  to the dense path, per sample. CPU end-to-end test with a hole sample (/tmp/r5/unit/test_flash_e2e.py): 12 flash calls,
+  output identical at bf16, grads 0.4% relative. Time run: /tmp/r5/time_flash2 (started 02:57:34).
+- Flash v2 time run /tmp/r5/time_flash2/time.json: 2.0529 s/step, speedup 1.2648 (windows 2.0615, 2.0444); peak allocated
+  90.13 GiB, reserved 118.59 GiB.
+- Full check of the flash config started 03:03:38 (/tmp/r5/check_flash_full): gate 1 timing done, gate 2 not bitwise (expected,
+  N1 kernel), gate 2b passed (deterministic and production), gate 3 trajectory running at 03:20.
+- Code edit after the copy (guard in _split_runs against E[r] &lt; r, docstring): CPU tests re-run, identical results. Needs a
+  final verification in the committed state.
+- FULL CHECK PASS (flash config, tree before the guard edit): /tmp/r5/check_flash_full/check.json: status PASS, tier N1,
+  speedup 1.263. Gates: gate 1 timing, gate 2 not bitwise, gate 2b passed (deterministic + production), gate 3 passed.
+- Submission now: commit f8c464e + /submission/switches.json = flash config (BAGEL_OPT_KEEP_UNSHARDED=1,
+  BAGEL_OPT_FORWARD_PREFETCH=1, BAGEL_OPT_LIMIT_ALL_GATHERS=0, BAGEL_OPT_MOT_PERMUTE=1, BAGEL_OPT_ATTN_FLASH=1,
+  PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True).
+- Round 6 (03:33): time of bundle = flash config + NCCL_PROTO=Simple + BAGEL_OPT_FUSED_ADAMW=1 (/tmp/r6/time_bundle).
+- Round 6 results: bundle (flash + fused AdamW + NCCL_PROTO=Simple): /tmp/r6/time_bundle: 2.0148 s/step, speedup 1.2887
+  (+1.9% over flash alone, beyond noise). Bundle + NCCL_MAX_NCHANNELS=4: 1.2664 (worse; channel cap slows the collectives).
+- Full check of the bundle started 03:44 (/tmp/r6/check_bundle_full). If PASS it becomes the submission switch file.</pre></details><details><summary><em class="">2.6 h</em><span>Round 7 (04:11): verified bundle is the submission</span></summary><pre>- /tmp/r6/check_bundle_full/check.json: PASS, tier N1, speedup 1.2905. /submission/switches.json = /tmp/r6/switches_bundle.json.</pre></details><details><summary><em class="">2.8 h</em><span>Round 8 (04:11-04:30): bundle profile and host stalls</span></summary><pre>- Profile of the verified bundle (/tmp/r7/profile): step 2.04 s; NCCL RS 0.66 s/step (RING_LL), AG 0.24 s/step, GEMM 0.73 s,
+  flash attention 0.17 s, elementwise 0.41 s; compute stream idle ~0.54 s/step, of which ~0.34 s NCCL not overlapped.
+- Backward shows ~45 ms compute gaps once per FSDP unit: the CPU autograd thread sits ~400 ms in
+  FullyShardedDataParallel._post_backward_hook with no GPU work queued (/tmp/r0/ana/gapcpu.py).
+- NCCL_PROTO=Simple had no effect: the kernels stay RING_LL. NCCL&#x27;s parser is probably case-sensitive (SIMPLE).
+- expandable_segments off: 1.2900 vs 1.2887 with it (no difference).
+- Hypothesis under test: the DataLoader pin-memory thread pins the fp32 nested masks (hundreds of MB per pack) during
+  backward. Switch BAGEL_OPT_NO_PIN_MASKS=1 (data/dataset_base.py); time run with NCCL_PROTO=SIMPLE too (/tmp/r7/time_nopin).
+- Round 8 result: no-pin + NCCL_PROTO=SIMPLE (uppercase not guaranteed effective): 1.2691 (worse than bundle 1.2887).
+  Re-testing no-pin alone (/tmp/r7/time_nopin_only).
+- No-pin masks alone: /tmp/r7/time_nopin_only: 1.2676 (worse than bundle 1.2887) -&gt; hypothesis refuted; code reverted
+  (data/dataset_base.py restored to the committed version).
+- NCCL transport check (/tmp/r8/nccl_probe.log): P2P/CUMEM on all pairs; a 256 MB reduce-scatter takes 0.82 ms alone. So the
+  ~45 ms ReduceScatter kernels in training are waiting for the slowest rank (packs differ per rank: 9-10.6k tokens and
+  different sum of L^2), not slow NCCL. Structural to the recipe&#x27;s data; not changeable without changing packing.
+- AC skip for 4 layers (BAGEL_OPT_AC_SKIP_FIRST=4) on the bundle: time run /tmp/r8/time_ac4 (started 04:36:30).
+- AC skip 4 layers on the bundle: 1.2798 (worse than 1.2887). Rejected.
+- Compiled RMSNorm (BAGEL_OPT_COMPILE_RMSNORM=1; torch.compile dynamic=True on the same formula): time run /tmp/r8/time_rms.
+- Compiled RMSNorm (BAGEL_OPT_COMPILE_RMSNORM=1, torch.compile dynamic=True of the same formula): /tmp/r8/time_rms:
+  1.8566 s/step, speedup 1.3986 (windows 1.8584, 1.8548); peak alloc 89.57, reserved 112.03 GiB; no recompile-limit or
+  cudagraph signature in the log.
+- + compiled silu(gate)*up in the Qwen2 MLP (BAGEL_OPT_COMPILE_MLP_ACT=1): /tmp/r8/time_rms_mlp: 1.8307 s/step,
+  speedup 1.4183 (windows 1.8285, 1.8329); peak alloc 89.17, reserved 112.69 GiB; no invalid signature.
+- Full check of this config (switches /tmp/r8/switches_rms_mlp.json, tree = working tree incl. the two compile switches,
+  default off) started 04:55:05: /tmp/r8/check_rms_mlp.
+- NOTE: the two compile switches are uncommitted edits in modeling/qwen2/modeling_qwen2.py (defaults off = upstream math).</pre></details><details><summary><em class="">3.8 h</em><span>Round 9 (05:22-): compiled elementwise pieces</span></summary><pre>- Full check of commit 58b982f config: PASS, N1, speedup 1.4251. Submission switch file updated.
+- Next candidate: compile the rotary embedding (apply_rotary_pos_emb in the permuted attention).
+- Compiled RoPE (BAGEL_OPT_COMPILE_ROPE=1, apply_rotary_pos_emb_switchable in the permuted attention): time run
+  /tmp/r9/time_rope: 1.8011 s/step, speedup 1.4417 (+1.65% over 1.4183), reserved 113.1 GiB, no invalid signature.
+  Full check started 05:28:55: /tmp/r9/check_rope.
+- Remaining small candidates: EMA as one _foreach_lerp_ (N1, ~1%); coarser FSDP units (2 layers per unit: fewer collectives,
+  structural, uncertain). Exposed NCCL is mostly waiting for the slowest rank (packs differ per rank).
+- FULL CHECK PASS (05:56): /tmp/r9/check_rope/check.json: PASS, tier N1, speedup 1.4356 (time run 1.4417).
+- SUBMISSION NOW (05:57): commit (see git log, &quot;Compile the rotary embedding&quot;) + /tmp/r9/switches_rope.json as
+  /submission/switches.json (bundle + BAGEL_OPT_COMPILE_RMSNORM=1 + BAGEL_OPT_COMPILE_MLP_ACT=1 + BAGEL_OPT_COMPILE_ROPE=1).</pre></details><details><summary><em class="">4.4 h</em><span>Round 10 (06:00): profile of the submission config and the stall analysis</span></summary><pre>- Profile /tmp/r10/profile (2 steps, rank 0): GEMM 0.73 s/step (40% of compute), flash attention 0.18 s, elementwise incl.
+  compiled 0.20 s, RS 0.58 s/step and AG 0.19 s/step on the NCCL stream (exposed part ~0.27 s/step), compute idle ~0.48 s/step.
+- The per-unit compute gaps equal the ReduceScatter duration on rank 0 (~45 ms). The judge&#x27;s step is set by the SLOWEST rank
+  (packs differ per rank), and rank 0 waits for it at each collective, so the idle time on rank 0 is largely imbalance wait,
+  not lost time on the critical rank. Possible remaining cause to test later: allocator reuse of freed reduce-scatter buffers
+  across streams (FSDP records the unsharded grad on the post-backward stream).
+- No further change verified after 6d2fac4. Submission stays at 6d2fac4 + switches (verified PASS, N1, 1.4356).</pre></details><details><summary><em class="">4.6 h</em><span>Round 11 (06:03-): profile of the submission config; backward stalls</span></summary><pre>- Profile /tmp/r11/profile (2 steps, rank 0): data loader __next__ 0.10 ms (not data-bound); start-of-step gaps 4-7 ms
+  (the 80 ms start gap of earlier profiles is gone); optimizer step 34 ms.
+- Backward gaps: 8-9 gaps of ~38 ms, one per FSDP unit, during each ReduceScatter. Inside one gap the CPU thread is blocked
+  in a single cudaLaunchKernel call (inside aten::add_ / ToCopyBackward0) for 39.5 ms, while the RS kernel runs for 38.7 ms
+  (/tmp/r11/window.py). Hypothesis: the spinning LL-protocol RS kernel blocks compute-stream launches/dispatch until it ends.
+- Tests queued: profile with NCCL_PROTO=SIMPLE (uppercase; /tmp/r11/profile_simple), then time with
+  CUDA_DEVICE_MAX_CONNECTIONS=32 (/tmp/r11/switches_conn32.json).
+- NCCL_PROTO=SIMPLE: the profile kernel names stay ...RING_LL, and so do the names of a probe with the default setting;
+  the probe&#x27;s NCCL_DEBUG tuning line did pick proto 2 (Simple) under the variable. Reduce-scatter time is unchanged
+  (1177 vs 1166 ms per 2 steps). Conclusion: the protocol is not the limit here.
+- Time run with CUDA_DEVICE_MAX_CONNECTIONS=32 (/tmp/r11/time_conn32) started 06:15.
+- CUDA_DEVICE_MAX_CONNECTIONS=32 on the submission config: /tmp/r11/time_conn32 = 1.4383 (1.8053 s/step) vs 1.4417 for the
+  submission: no gain (rejected).
+- Key correction to earlier analysis: the judge&#x27;s step time is set by the SLOWEST rank. Rank 0 is a fast rank here (it waits
+  in every ReduceScatter), so its idle time is not on the critical path. Compute-kernel composition on rank 0 is still the
+  right guide for kernel work. Per-rank pack statistics (CPU, judge timing data, seed 42): /tmp/r11/rank{0..3}.json (running).
+- Per-rank pack statistics (CPU, judge timing data): tokens per rank 0.83-1.15 x mean, sum of L^2 0.72-1.36 x mean; the
+  slowest rank changes from step to step. Rank 0 is an average rank.
+- Non-GEMM kernel time on rank 0 (per step, round 11 trace): ~438 ms in total: triton (compiled) 74, cat 59 (539 calls),
+  bf16 copies 46 (FSDP casts / grad casts), fused AdamW 34, bf16 adds 30, gathers 30, fills 28 (1666 calls), bf16 unary 24.
+- Found: slicing x[:n] / x[n:] in the permuted path creates one full-size zero-fill and add per slice in backward (about 16
+  slices per layer per pass); permutation gathers zero-fill and sort in backward. Fix (switch BAGEL_OPT_PERM_AUTOGRAD=1):
+  one split per stage (split backward = cat) and a permutation autograd function whose backward is the inverse gather.
+  CPU: forward, input and parameter gradients identical to the default path (test_perm_autograd.py; helpers counted).
+  Flash e2e CPU test unchanged. Time run /tmp/r11/time_permauto started 06:26.
+- Permutation autograd (BAGEL_OPT_PERM_AUTOGRAD=1; split once per stage + inverse-gather autograd): /tmp/r11/time_permauto =
+  1.4389 (1.8045 s/step) vs 1.4417 for the submission: no gain. Code reverted from the tree (patch kept at
+  /tmp/r11/perm_autograd_attempt.patch). CPU equivalence held (forward, input and parameter grads identical).
+- cuBLASLt preference (BAGEL_OPT_BLAS_LT=1, torch.backends.cuda.preferred_blas_library(&#x27;cublaslt&#x27;), in
+  train/pretrain_unified_navit.py main()): time run /tmp/r11/time_blaslt started 06:32:50. Default off.
+- cuBLASLt preference on the submission config: /tmp/r11/time_blaslt = 1.4493 (1.7916 s/step), +0.5% vs 1.4417 (small;
+  within ~2x of run-to-run variation seen on this machine, not adopted alone).
+- EMA as one _foreach_lerp_ (BAGEL_OPT_EMA_LERP=1, train/fsdp_utils.py): time run with cuBLASLt on:
+  /tmp/r11/time_blaslt_lerp, started 06:39:16.
+- cuBLASLt + EMA lerp (switches /tmp/r11/switches_blaslt_lerp.json): time run /tmp/r11/time_blaslt_lerp = 1.4537
+  (1.7862 s/step), +0.8% vs the submission. Full check started 06:45 (/tmp/r11/check_blaslt_lerp). If PASS: commit the two
+  default-off switches and set /submission/switches.json to this file. If not: revert the two code switches.
+- FULL CHECK INCORRECT (07:12): /tmp/r11/check_blaslt_lerp/check.json (speedup 1.4517 measured). Gate 3 failed on the two EMA
+  displacement endpoints (disp_ema_s050_100: -53 sigma; disp_ema_s100_140: -40 sigma; sigma ~4e-5). Cause: the single-pass
+  _foreach_lerp_ EMA rounds differently from upstream&#x27;s mul-then-add; the EMA displacement endpoint is very sensitive to the
+  EMA arithmetic. Lesson: keep the EMA update exactly as upstream. Other endpoints passed (grad-norm endpoints at 1.0-1.6 sigma,
+  which says cuBLASLt-type changes move the trajectory noticeably). Conformance passed (n 1.60 ratio, j 1.12).
+- Reverted both uncommitted switches (EMA lerp, cuBLASLt preference); the tree is back at commit 6d2fac4 and the submission
+  switches are unchanged (verified PASS, N1, 1.4356).
+- Selective activation checkpointing (BAGEL_OPT_SAC_MM_FIRST=K; train/pretrain_unified_navit.py): save the outputs of the
+  matmuls (mm/addmm/bmm) for the first K decoder layers instead of recomputing them in backward (same values). First attempt
+  failed (context_fn must be functools.partial of create_selective_checkpoint_contexts); fixed; time run /tmp/r11/time_sac12b (K=12).
+- SAC K=12 result (/tmp/r11/time_sac12b): 1.2834 (2.0232 s/step), peak alloc 102.9 GiB, reserved 124.4 GiB: 12% SLOWER
+  than the submission despite less recompute. Hypothesis: allocator behaviour with expandable segments under the larger
+  footprint. Testing the same SAC config without PYTORCH_CUDA_ALLOC_CONF (/tmp/r11/time_sac12_noexp).
+- SAC K=12 without expandable segments (/tmp/r11/time_sac12_noexp): 1.2758 (2.0352 s/step): same slowdown, so the allocator
+  is not the cause. The selective policy is a Python callback on every op (dispatch mode), a likely host-side cost. Rejected;
+  code reverted (tree back at 6d2fac4).</pre></details><details><summary><em class="">6.0 h</em><span>Round 13 (07:32-): attribution of non-GEMM time, FSDP division removal</span></summary><pre>- Attribution (CPU op that launched each kernel; /tmp/r13/attrib.py, parents2.py; rank 0, per step): slice backward zero-fill
+  + add 43 ms (permuted x[:n]/x[n:] slices), cat 59 ms (split backward 32, forward 25), copy 47 ms (FSDP casts 28, VAE and
+  ViT autocast 15), FSDP post-backward division <code>div_</code> 24 ms (2 divides per unit, full unsharded gradient), flash K/V gathers
+  and their index_put backward ~35 ms.
+- Change (switch BAGEL_OPT_NO_GRAD_DIVIDE=1): FSDP predivide/postdivide factors set to 1 on every FSDP module, and the loss
+  normalization uses scale 1 instead of world_size (ce and mse). The loss scale is a power of two (4), so all backward
+  values and reduce-scatter sums scale exactly and the divisions removed were exact: expected bitwise identical gradients.
+  Logged loss values change by the factor 4 (logging only).
+- Check: check --quick on the N0 config + switch (/tmp/r13/quick_n0_nodiv) to confirm bitwise identity.
+- check --quick on the N0 config + BAGEL_OPT_NO_GRAD_DIVIDE=1 (/tmp/r13/quick_n0_nodiv): PASS, tier N0 (bitwise identical
+  to the reference record). So the change is a pure reorganization of the scale: N0.
+- Time run of the submission config + NO_GRAD_DIVIDE=1 (/tmp/r13/time_nodiv) started 07:43.
+- Time run submission + NO_GRAD_DIVIDE=1 (/tmp/r13/time_nodiv): 1.4614 (1.7768 s/step), speedup +1.4% vs 1.4417 (beyond
+  noise). Tier N0 for this switch (bitwise quick check above); the full config stays N1 (flash path).
+- Full check of this config started 07:49 (/tmp/r13/check_nodiv). If PASS: commit the switch and set switches.json.
+- Batched flash calls (BAGEL_OPT_FLASH_BATCHED=1): all runs of a forward issued from one split of the queries and one
+  index-select of keys/values (+ one split each). CPU check (/tmp/r13/test_batched.py): forward output exactly equal to the
+  per-sample calls; gradients differ at bf16 summation-order level (input grad 2e-4, max param grad 3e-3 relative, same order
+  as flash vs dense). Time run queued behind the running full check: /tmp/r13/time_nodiv_batched.
+- Pair carry (BAGEL_OPT_PAIR_CARRY=1): understanding and generation rows carried as two tensors through the permuted layers
+  (per-part projections, norms, RoPE, attention core; o_proj and MLP per part; residual adds per part). CPU check
+  (/tmp/r13/test_pair.py): outputs exactly equal and all gradients exactly equal to the default permuted path, with flash
+  (per-sample and batched) and with the dense fallback; the pair layers are called. Time run queued: /tmp/r13/time_pair.
+- FULL CHECK PASS (08:15): /tmp/r13/check_nodiv/check.json: PASS, tier N1, speedup 1.4698 for the submission config
+  + BAGEL_OPT_NO_GRAD_DIVIDE=1 (was 1.4356). /submission/switches.json = /tmp/r13/switches_nodiv.json.
+- Committed (see git log): NO_GRAD_DIVIDE switch + default-off FLASH_BATCHED and PAIR_CARRY code. The default path is the
+  checked one (the new code only runs under the new switches).
+- Time run nodiv + BAGEL_OPT_FLASH_BATCHED=1 (/tmp/r13/time_nodiv_batched): 1.5275 (1.6999 s/step), +4.5% vs the nodiv
+  configuration (1.4614 in its time run). Pair-carry run next (/tmp/r13/time_pair).
+- Time run nodiv + batched + pair carry (/tmp/r13/time_pair): 1.5593 (1.6652 s/step), +2.1% over batched, +6.7% over the
+  adopted nodiv configuration. Full check of this config started 08:25 (/tmp/r13/check_pair). If PASS: adopt
+  /tmp/r13/switches_pair.json as the submission switch file and commit the WORK_LOG note.
+- FULL CHECK PASS (08:52): /tmp/r13/check_pair/check.json: PASS, tier N1, speedup 1.5582 for nodiv + BAGEL_OPT_FLASH_BATCHED=1
+  + BAGEL_OPT_PAIR_CARRY=1 (code committed in aa57b3f). /submission/switches.json = /tmp/r13/switches_pair.json.
+- SUBMISSION NOW: commit aa57b3f + switches: KEEP_UNSHARDED, FORWARD_PREFETCH, LIMIT_ALL_GATHERS=0, MOT_PERMUTE, ATTN_FLASH,
+  FLASH_BATCHED, PAIR_CARRY, FUSED_ADAMW, NCCL_PROTO=Simple (no effect), COMPILE_RMSNORM, COMPILE_MLP_ACT, COMPILE_ROPE,
+  NO_GRAD_DIVIDE, expandable segments.</pre></details><details><summary><em class="">7.3 h</em><span>Round 14 (08:53-): profile of the pair configuration</span></summary><pre>- Profile of the submission (aa57b3f + pair switches) started 08:53: /tmp/r14/profile (judge profile, rank 0, steps 8-9).
+- Flash views (BAGEL_OPT_FLASH_VIEWS=1, with FLASH_BATCHED): profile of aa57b3f+pair showed the split backward of the
+  batched keys/values (35 ms/step, cat of all runs&#x27; key rows) as the largest remaining non-GEMM item. Views: queries split
+  once; keys/values split once per sample; prefix runs take views of the sample&#x27;s key rows (no copy), hole runs gather.
+  CPU check (/tmp/r14/test_views.py): output exact vs gathered batched; gradients 2e-4 (input) / 3e-3 (params) relative.
+  Time run /tmp/r14/time_views started 08:59.
+- Flash views on the pair configuration (/tmp/r14/time_views): 1.5609 (1.6635 s/step) vs 1.5593 for the pair configuration:
+  no gain (within noise). Although the split-backward cats were 35 ms per step in the profile, removing them did not move the
+  step time: the critical rank&#x27;s time is not the rank 0 kernel sum. Code reverted (patch kept at /tmp/r14/views_attempt.patch).
+- Round 14 profile (pair configuration, rank 0, per step): GEMM 666 ms, NCCL 685 ms (overlapped), flash attention 180,
+  compiled Triton 74, fused AdamW 34, EMA foreach 19, clip 10, cat 46, copy 46 (FSDP casts 27, VAE/ViT autocast ~10), index
+  27, add 20, sum 12. The remaining non-GEMM items are each 1-5% and mostly inherent (FSDP mixed-precision casts, optimizer,
+  autograd sums).</pre></details><details><summary><em class="">7.3 h</em><span>Round 14 verdict (09:38 UTC): ViT without activation recomputation adopted</span></summary><pre>- Full check of pair + BAGEL_OPT_VIT_NO_AC=1 (/tmp/r14/check_vitnoac, 09:11-09:38): PASS, tier N1, speedup 1.5958
+  (candidate 1.6271 s/step against the frozen reference 2.5966; window range 0.9%; window ratios 1.5928 and 1.5989).
+  Gate 2 NOT_BITWISE with the exact items passing: the first differing shards (step 0) are the gradients and both Adam
+  moments of r0.model0, so the un-recomputed ViT changes gradient bits (the cause was not isolated; the change is N1).
+  Gate 2b conforming: deterministic R_N ratio 1.56, R_J 1.05; production R_N ratio 1.47, R_J 0.97 (bound 3.0).
+  Gate 3 seed 1 equivalent: all 14 endpoints within 3 sigma. Peak allocated 95.66 GiB, reserved 119.84 GiB.
+- Adopted: /submission/switches.json = /tmp/r14/switches_vitnoac.json (pair configuration + BAGEL_OPT_VIT_NO_AC=1).
+  Code committed as a21d36d (N1; time run 1.6045; full check 1.5958). Working tree clean.
+- The previous full check (pair configuration, aa57b3f) was 1.5582; this round adds +2.4% on the full check.</pre></details><details><summary><em class="">8.4 h</em><span>Round 15 (09:40-): profile of the submission (a21d36d + switches), NCCL and stream switches</span></summary><pre>- Profile /tmp/r15/profile (judge profile, rank 0, steps 8-9; per step = total / 2): NCCL ReduceScatter 537 ms (116 calls
+  over 2 steps, 9.3 ms avg, RING_LL), AllGather 383 ms (6.6 ms avg, RING_LL); GEMM (aten::mm + addmm) ~730 ms; flash
+  attention forward 69 ms + backward 95 ms; compiled Triton 75 ms; cat 47 ms; copy_ 47 ms; index + elementwise gathers
+  ~61 ms; fused AdamW 34 ms; EMA foreach 11 ms; VAE conv + group norm ~32 ms.
+- NCCL diagnostics (kernel names only, no timing; /tmp/r15/nccl/names.py): NCCL_NVLS_ENABLE=1 still launches RING_LL
+  for unit-sized all-gather and reduce-scatter (NVLS is set up but not selected); NCCL_PROTO=SIMPLE: the tuner reports
+  proto 2 but the launched kernels are still RING_LL (same conclusion as round 11).
+- AC_SKIP_FIRST=2 on top of VIT_NO_AC (/tmp/r15/time_ac2): 1.5896 (1.6335 s/step) vs the control run of the submission
+  (/tmp/r15/time_base): 1.6040 (1.6188 s/step). Rejected: about 0.9% slower; memory headroom is the limit (about 2.8 GB of
+  activations per LM layer at 10240 tokens, and reserved memory was 119.8 GiB).
+- Switch tests on a21d36d (judge <code>time</code>; control = /tmp/r15/time_base 1.6040, 1.6188 s/step; run-to-run spread of this
+  control is about 0.5%, so differences below about 0.6% are not resolved by one run):
+  NCCL_MAX_NCHANNELS=12: 1.6163 (1.6065 s/step), repeat 1.6067 (1.6161 s/step): no gain. =16: 1.6113 (1.6115), +0.45%, not
+  repeated. =8: 1.5906 (1.6324), -0.8%. TORCH_NCCL_HIGH_PRIORITY=1: 1.5857 (1.6375), -1.1%. TORCH_NCCL_AVOID_RECORD_STREAMS=1:
+  1.5938 (1.6292), -0.6%. Rejected all; the submission keeps the default NCCL settings.
+- EMA update on a side stream (BAGEL_OPT_EMA_STREAM=1, a copy at /tmp/r15/tree_ema; optimizer waits for the EMA of the
+  previous step, EMA waits for the optimizer, checkpoints wait for the EMA; the judge&#x27;s digests are taken in the optimizer
+  post-hook, which sees the same EMA state): 1.5890 (1.6341 s/step), -1.0%. Rejected (the quick check was stopped, it was
+  not needed). Not committed.
+- Trace analysis of /tmp/r15/profile (rank 0, 2 steps; no GPU): compute stream busy 1.17 s/step, idle 0.59 s/step; 0.45 s/step
+  of the idle time is inside NCCL kernels. The three largest gaps (337, 201, 157 ms over the 2 steps) are entirely inside NCCL
+  kernels; the largest one is a CPU thread blocked for 335 ms in cudaLaunchKernel (GeluBackward0, ViT backward) while an NCCL
+  kernel is in flight. So rank 0 waits for the slower ranks and its compute stream is starved behind the spinning collectives;
+  the step is set by the slowest rank&#x27;s compute plus its waits.
+- Looked at and dropped: the flash path already keeps K/V in KV heads (the repeat only in the rare dense fallback), so GQA
+  expansion is not a cost on the main path.
+- Results of that queue: NCCL_BUFFSIZE=16 MB 1.6041 (1.6187 s/step, equal to the control); NCCL_NTHREADS=512 1.6003
+  (1.6226, -0.2%); baseline repeat 1.5992 (1.6237). The control spread over this round is 1.6183-1.6237 s/step, about
+  0.4%, so all NCCL knobs are at noise level. The NCCL line is closed.
+- Step-start stall (rank 0 trace, window start): the first all-gather starts at 52 ms and then waits 82 ms for the other
+  ranks; the CPU is in an aten::item sync inside FSDP.forward (bagel.py:169/383 take torch.max(vit_token_seqlens).item()).
+  Before it on rank 0: an 18 ms blocking batch copy (aten::to), the token all-reduce, and the VAE encode (one
+  AutoEncoder.encode call per step on padded_images; about 20 conv launches at 1.1-1.5 ms CPU each). So the slowest rank
+  reaches the first collective later, because of per-rank VAE/batch work. Candidate remedies: a one-batch lookahead that
+  prefetches the VAE encode of the next batch (the judge&#x27;s noise is keyed by encode ordinal, so this is allowed); it needs
+  a checkpoint-state correction for the loader, so it is not started. Estimated gain 1-3%, uncertain.
+- Other host syncs inside the training forward (bagel.py:169, 383, 753): each costs a few ms, not pursued yet.
+- Next option under consideration: FlashAttention-3 (hopper) for the attention runs (attention is ~165 ms of rank-0 time
+  and the slowest rank carries more of it). Source clone started at 11:01 (/tmp/r16/fa3src); the sdist route failed.</pre></details><details><summary><em class="">9.9 h</em><span>Round 16 (11:00-11:35): FlashAttention-3 blocked; host-side copies and data depth (no adoption)</span></summary><pre>- FlashAttention-3: GitHub clone failed (TLS errors, retried over HTTP/1.1); the PyPI sdist of flash-attn 2.8.3 downloads at
+  about 25 KB/s and CUTLASS is a GitHub submodule. Not feasible in this container now; dropped for this session.
+- Mask copy on a side stream (BAGEL_OPT_MASK_COPY_STREAM=1, a copy at /tmp/r16/tree_mask): the dense fp32 attention masks
+  (18 ms blocking host copy per step) are copied on a side stream; the training loop waits for the copy event before the
+  forward (after the VAE encode). Record digests of the deterministic quick check equal the verified candidate&#x27;s digests on
+  all four ranks (bitwise no-op relative to a21d36d). Timing: 1.6126 (1.6102 s/step) and 1.5919 (1.6311 s/step) for the same
+  tree: a 1.3% spread between two runs. Mean is not better than the control. Not adopted; code not committed.
+- Prefetch depth (BAGEL_OPT_PREFETCH_FACTOR=4, a copy at /tmp/r16/tree_pf; same batches and order): 1.5962 (1.6267 s/step),
+  no gain. So the data worker is not what makes the slowest rank late at the first collective; the step-start skew comes
+  from the per-rank VAE/ViT pre-forward work (see the round 15 notes). Not adopted.
+- Measurement lesson: one judge <code>time</code> run of the same tree varies by about 1% (1.6102 vs 1.6311). Only effects above about
+  1.5% can be called from one run; repeat a candidate before adopting anything smaller.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-astra.html"><small>← 1.62×</small><strong>GPT-6 Astra<span class="nerf">suspected nerf</span></strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-mm.html"><small>1.49× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[1.344, 1.067, 7], [2.899, 1.227, 10], [7.008, 1.227, 19], [8.229, 1.227, 20], [8.727, 1.227, 22], [9.438, 1.227, 24]], "end": 10.0, "final": 1.1469}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935}], "focus": "haiku", "xmax": 10.5, "aria": "Claude Haiku 5.5 on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

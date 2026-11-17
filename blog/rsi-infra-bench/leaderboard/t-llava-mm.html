@@ -1,0 +1,554 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · LLaVA · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on LLaVA: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="on">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="llava.html">LLaVA</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>2.34×</em></h1><p class="lede">Harness: Codex · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.34×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.32×</dd></div><div class=""><dt>Rounds</dt><dd>29</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$5.89</dd></div><div class=""><dt>Input tokens · 97.2% cached</dt><dd>238 M</dd></div><div class=""><dt>Output tokens</dt><dd>2.4 M</dd></div><div class=""><dt>Requests</dt><dd>1,743</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-llava-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.92×</small></a><a class="chip" data-k="sonnet" href="t-llava-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.80×</small></a><a class="chip" data-k="haiku" href="t-llava-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.46×</small></a><a class="chip self" data-k="mm" href="t-llava-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.34×</small></a><a class="chip" data-k="ds" href="t-llava-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>2.22×</small></a><a class="chip" data-k="glm" href="t-llava-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.52×</small></a><a class="chip" data-k="astra" href="t-llava-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.41×</small></a><a class="chip" data-k="kimi" href="t-llava-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.38×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Sequence packing</dt><dd>✓ round 3, 1942 ms, 1.42×</dd><dt>Recompute / activations</dt><dd>—</dd><dt>Optimizer</dt><dd>✓ fused AdamW</dd><dt>Communication &amp; libraries</dt><dd>resident params (1191 ms); ZeRO-3</dd><dt>Other main levers</dt><dd>fused norm / rotary / SwiGLU; logits only at supervised positions; grad layout and single-precision grad norm</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>29 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 - profile of the unchanged tree (2026-11-12 19:07-19:12 UTC)</span></summary><pre>Command: <code>bench.py profile --tree /submission/llava --config /submission/switches.json --out /tmp/r1/profile --detail --steps 2</code>
+(<code>/tmp/r1/profile/profile_tree.md</code>, traces in /tmp/r1/profile/detail_tree.r*.json)
+
+Findings (rank 0, per optimizer step = 1 micro-batch of 16 rows/rank):
+* GPU kernel time 2881 ms/step; compute stream (stream 7) busy 2526 ms/step,
+  NCCL all-gather 202 ms (ZeRO-3 param gather, stream 14) + reduce-scatter 133 ms (stream 26)
+  - both fully overlapped with compute (union 2554 ms/step vs 2881 ms of kernel durations).
+* GPU idle ~220 ms/step (90% busy), concentrated in the optimizer/transition phase
+  at the end of the step (t=+2.5..2.85 s of the 2.83 s step).
+* GPU time by op (ms/step): aten::mm (GEMM) 1471 (51%), aten::mul 286 (rotary embedding
+  + norms), allgather 202, copy_ 174, reduce-scatter 135, add 122, cat 54, silu 24,
+  flash-attn fwd+bwd 75, optimizer multi_tensor ~50.
+* CPU: aten::nonzero 874 ms/step over 112 calls/step (D2H syncs in
+  llava_arch.prepare_inputs_labels_for_multimodal and DeepSpeed); busy_cpus 2.2 of 48.
+* Padding: each rank&#x27;s 16 rows are padded to the longest row (1253 tokens for step 0),
+  real tokens 13269 -&gt; 20048 padded positions =&gt; ~34% of the LLM GEMM work is padding.
+* GEMM roofline: microbenchmark on this GPU gives 640-750 TFLOP/s bf16 for the LLM shapes;
+  the step&#x27;s mm time (1471 ms for ~1050 TFLOP) is at the roofline =&gt; the only way to cut
+  GEMM time is to cut FLOPs (recompute, padding).</pre></details><details><summary><em class="">0.9 h</em><span>Round 2 (continued) - model-side length grouping (split into groups) - NOT the way forward</span></summary><pre>The earlier attempt split the micro-batch into 2 or 4 length-homogeneous padded groups
+(<code>LLAVA_SPLIT_GROUPS</code>).  Measured (sweep /tmp/r2/sweep): split2 2416 ms (1.1435x), split4 2615 ms
+(1.0565x).  Two problems: (a) the per-group loss was computed with <code>F.cross_entropy</code> on <b>bf16</b>
+logits while the reference casts the logits to fp32 first, which shifted the logged losses by up to
+17% (the 25% sanity band did not catch it, gate 3 would have); (b) more groups than 2 made the step
+*slower*, most likely because every group is a separate <code>LlamaModel.forward</code>, and with DeepSpeed
+ZeRO-3 that means one more parameter gather/release cycle per group (the all-gather kernel is
+203 ms/step in the reference profile).  Fixed the fp32 cast, but the direction is dominated by the
+next round.</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 - packed micro-batch (varlen attention), LLAVA_PACK=1  (2026-11-12 19:56-20:05 UTC)</span></summary><pre>Profile finding (round 1) that drove it: 34% of the LLM GEMM work is padding (16 rows padded to the
+longest row of the micro-batch: 20048 padded positions for 13269 real tokens).  The lengths are
+strongly bimodal (576 image tokens + 60..950 text tokens), so no reordering of the rows can remove
+the padding; only removing the padding itself can.
+
+Change: <code>llava/model/llava_arch.py</code> packs the rows of the micro-batch into ONE sequence
+(<code>_pack_multimodal_rows</code>): the rows keep their own positions and their own attention block, so the
+attention runs with flash-attention&#x27;s variable length API (<code>llava/model/language_model/llava_llama.py</code>
+patches <code>LlamaFlashAttention2.forward</code> for the packed layout, cu_seqlens travel down as the
+attention mask).  The label of the first token of every row but the first is set to IGNORE_INDEX, so
+the shifted prediction never crosses a row boundary - the same set of supervised tokens as the
+padded batch.  The loss is the mean cross entropy over exactly those tokens (fp32 logits, as the
+reference).  One forward pass, so the ZeRO-3 gather pattern is unchanged.
+
+Numerics: tier N1 (not bitwise: different GEMM shapes, so a different rounding of the same maths).
+Measured on a real 16-row batch (1 GPU, /tmp/bench_pack.py): loss 0.20693207 (ref) vs 0.20696662
+(packed), rel 1.7e-4; the gradient differences (median 0.9-3.4%) are of the same order as the
+reference&#x27;s own run-to-run nondeterminism (1-3.7% on the same parameters).
+
+<code>time</code> (/tmp/r3/time_pack): <b>1942.2 ms/step, speedup_vs_frozen_reference 1.4224</b>, peak memory
+62.95 GiB (reference 73.5), no problems, logged losses within 0.35% of the reference&#x27;s
+(first step 1.3827 vs 1.3839), startup 14.4 s.
+
+<b>Full check PASS</b> (/tmp/r3/check/check.json, 2026-11-12 20:10 UTC): status PASS, speedup
+<b>1.4207</b> (candidate 1944.5 ms/step vs the frozen reference 2762.6 ms/step), tier N1, gate 3
+&quot;equivalent&quot;: train_loss_last20_canonical diff -6.7e-5 (-0.02 sigma, bound 0.0094),
+probe_loss_last20 diff -1.6e-4 (-0.05 sigma, bound 0.0086).  Committed as bf83e56.</pre></details><details><summary><em class="">1.4 h</em><span>Round 4 - profile of the packed tree + DeepSpeed ZeRO-3 tuning (20:12-20:25 UTC)</span></summary><pre>Profile (/tmp/r4/profile/profile_tree.md, packed tree): GPU kernel time 2087 ms/step, GEMM 1132 ms
+(54%, at the roofline), NCCL all-gather 140 ms + reduce-scatter 46 ms, elementwise ~420 ms, flash
+attention 80 ms, optimizer 65 ms; the GPU is now 100% busy (no idle left), so only less work helps.
+
+Microbenchmarks of the elementwise part (real packed shapes, T=13269): rotary 0.83 ms fwd + 0.97 ms
+bwd per layer, RMSNorm 0.77 ms fwd + 1.47 ms bwd per norm (2 per layer), SwiGLU 0.38 + 0.63 ms.
+Per step that is ~115 ms (rotary), ~287 ms (RMSNorm), ~65 ms (SwiGLU).
+
+DeepSpeed ZeRO-3 tuning (sweep /tmp/r5/sweep, reference 2770.9 / 2755.3 ms):
+* ds_a (prefetch + reduce bucket 5e8): 1946.2 ms, 63.7 GiB - no gain (the all-gather is bandwidth
+  bound, not latency bound).
+* ds_b (ds_a + all the parameters kept gathered: persistence threshold 1e9, max_live/max_reuse
+  1e10): 1921.4 ms, <b>1.4378x</b>, 74.7 GiB (+11.8 GiB, the full bf16 model stays gathered).
+  The logged losses are unchanged (max rel diff 0.16% vs the frozen reference), so the numerics are
+  untouched.  Baked into scripts/zero3.json (the judge uses the tree&#x27;s file); the same values are
+  also reachable through the LLAVA_DS_* switches.</pre></details><details><summary><em class="">1.8 h</em><span>Round 5 - fused RMSNorm (Triton), LLAVA_FUSED_NORM=1  (20:33-20:57 UTC)</span></summary><pre>Profile finding that drove it (round 4): the elementwise part of the step is
+~420 ms, of which the RMSNorm is the biggest piece (0.77 ms fwd + 1.47 ms bwd
+per norm at the real packed shape, 2 norms x 32 layers + the recomputation of
+the checkpointed layers).
+
+Change: <code>llava/fused_rmsnorm.py</code> computes the RMSNorm of the LLaMA layers in one
+Triton kernel per direction (forward; rowsum + backward; gradient of the
+weight), with the same arithmetic as transformers&#x27; LlamaRMSNorm (fp32 variance,
+the normalised value rounded to bf16 before the weight is applied).  It is
+installed by <code>llava/model/language_model/llava_llama.py</code> when LLAVA_FUSED_NORM
+is set; the flag is off by default.
+
+Bug found while validating (important): the kernel that reduces the gradient of
+the weight looped over a fixed chunk of 64 rows without bounding the last chunk
+to the number of rows, so with 12987 rows it read 37 rows past the end of the
+tensor.  The garbage turned into NaN in the master weights after the first
+optimizer step (the loss became NaN at step 2 and the run died with an illegal
+memory access at step 20).  Fixed by masking the rows of the last chunk.
+
+Numerics: tier N1.  On a small model the fused norm reproduces the reference&#x27;s
+loss and *all* the gradients bitwise (T=65, 100, 12987 rows).  The judge&#x27;s
+quick check (gate 0 + the exact items of gate 2) passes: 0 exact failures, no
+dtype change, no precision-mode change, tier N1.
+
+<code>time</code> (/tmp/r6/time_fused): **1757.3 ms/step, speedup_vs_frozen_reference
+1.5721** (the packed tree without the fused norm: 1924.6 ms/step, 1.4354x),
+peak memory 74.25 GiB.  The logged losses match the packed tree (1.3829 vs
+1.3839 at the first step, &lt;0.02% afterwards).  <code>check --quick</code>: PASS.</pre></details><details><summary><em class="">2.5 h</em><span>Round 9 - fused rotary embedding (Triton), LLAVA_FUSED_ROTARY=1  (21:28-21:36 UTC)</span></summary><pre>Profile finding that drove it (round 7, /tmp/r7/profile/profile_tree.md): of the 1721 ms of GPU
+kernel time per step, the GEMMs are 1087 ms (63%, at the roofline, nothing to gain) and the
+elementwise part is ~250 ms, of which the rotary embedding is the biggest piece: the reference
+rotary costs 1.48 ms forward and 2.14 ms backward per layer at the packed shape of this recipe
+(T=13269, H=32, D=128), and with the gradient checkpointing the forward runs twice, so the rotary
+costs ~163 ms per step.
+
+Change: <code>llava/fused_rotary.py</code> computes the rotary embedding of the query and of the key in one
+Triton kernel per tensor: one pass over the data instead of a negation, a concatenation, two
+multiplications and an addition that each read and write the whole tensor.  The rounding of every
+bf16 intermediate is kept (the products are rounded to bf16 before they are added), so the kernel
+reproduces transformers&#x27; apply_rotary_pos_emb <b>bitwise</b>, in the forward and in the backward
+(checked on the real shapes: T=13269, 1992, 4096, 100 -&gt; max difference 0).  The kernel is
+installed by the packed attention of <code>llava/model/language_model/llava_llama.py</code> when
+LLAVA_FUSED_ROTARY is set; the flag is off by default.
+
+Numerics: tier N0 for this change (the rotary is bitwise identical to the reference&#x27;s).
+
+<code>time</code> (/tmp/r9/time_rotary): <b>1635.7 ms/step, speedup_vs_frozen_reference 1.6889</b> (the previous
+tree: 1757.3 ms/step, 1.5721), peak memory 74.26 GiB (unchanged), no problems.
+<code>check --quick</code> (/tmp/r9/quick_rotary): PASS (gate 0 + the exact items of gate 2).
+Committed as 65495a4.  /submission/switches.json = pack + fused norm + fused rotary.
+
+### Failed direction: selective gradient checkpointing (the last layers keep their activations)
+Idea: the layers that are not checkpointed are not recomputed during the backward, which is a
+whole extra forward of the model.  With the last 8-12 layers un-checkpointed the timing run went
+from 1757 ms to 1622 ms/step (1.7027x) and the peak memory rose from 74.25 to 98.62 GiB.
+The implementation hooks transformers&#x27; <code>_set_gradient_checkpointing</code> and lets the last layers of
+the LLaMA run without the checkpoint (<code>llava/selective_ckpt.py</code>, switch LLAVA_CKPT_SKIP_LAST).
+
+It deadlocks: the run hangs in the ZeRO-3 backward, both ranks spinning in a NCCL collective
+(py-spy: the autograd worker thread of both ranks is busy inside the backward; the GPU is at 100%
+but no step finishes).  Two runs hung the same way (the first one with a version whose counter was
+also counting the vision tower&#x27;s layers, the second one with the counter fixed to count only the
+LLaMA decoder layers).  The same tree without the switch runs fine, and an earlier variant of the
+idea (which un-checkpointed the *first* layers, because of the same counter bug) did finish 24
+steps, so the deadlock is not deterministic - it smells like the ZeRO-3 gradient reduction being
+issued in a different order on the two ranks when the order in which the layers&#x27; gradients become
+ready changes.  Not worth the risk: the change is left out of the tree (llava/selective_ckpt.py
+is not imported by anything).
+
+### Full check of the fused-rotary tree (21:57-22:04 UTC)
+<code>check</code> (/tmp/r10/check_rotary/check.json): <b>status PASS, speedup 1.6923</b> (candidate 1632.4
+ms/step vs the frozen reference 2762.6 ms/step), tier N1, gate 2: 0 exact failures, 0 dtype
+changes, 0 precision-mode changes (4724 tensors checked, 32 bitwise identical, 7 beyond the
+diagnostic tolerances - gate 3 decides), gate 3: passed, peak memory 74.25 GiB (reference
+73.5), window spread 1.16%, the logged losses are within 0.15% of the reference&#x27;s.</pre></details><details><summary><em class="">3.5 h</em><span>Round 11 - fused AdamW (torch&#x27;s fused implementation), LLAVA_FUSED_ADAM=1 (22:12-22:36 UTC)</span></summary><pre>Profile finding that drove it (round 10, /tmp/r11/profile/profile_tree.md): the AdamW update is
+65.2 ms of the 1585 ms of GPU kernel time per step (4.1%), spent in <code>multi_tensor_apply</code> with
+one kernel per tensor (the LLaMA-7B model has 686 parameter tensors and the ZeRO-3 partitions
+are flat per sub-group, so the update is done on ~10 flat tensors - but each of them goes
+through the multi-tensor path).
+
+Change: <code>llava/train/llava_trainer.py::enable_fused_adamw</code> wraps <code>torch.optim.AdamW.step</code> so
+that the parameter group is marked as <code>fused</code> before the update runs.  DeepSpeed&#x27;s ZeRO-3 keeps
+the client optimizer (<code>torch.optim.AdamW</code>, created by the HF Trainer) and calls it once per
+sub-group with the flat fp32 partition (<code>DeepSpeedZeroOptimizer_Stage3._optimizer_step</code>), so the
+fused implementation of AdamW is used with exactly the same hyperparameters (lr, betas, eps,
+weight decay) and the same fp32 master weights and fp32 Adam state - only the kernels differ
+(one fused kernel instead of the multi-tensor ones).  The flag has to be set at step time and
+not at creation time because DeepSpeed replaces the parameters with the fp32 GPU partitions
+after the optimizer is built.  The optimizer class is unchanged (<code>torch.optim.AdamW</code>), so gate 2&#x27;s
+&quot;Adam hyperparameters&quot; item is untouched.
+
+Numerics: tier N1 (the tree was already N1 because of the packed attention).
+
+<code>time</code> (/tmp/r11/time_adam4): <b>1621.4 ms/step, speedup_vs_frozen_reference 1.7039</b> (the previous
+tree: 1635.7 ms/step, 1.6889), +0.9%.  The logged losses match the reference
+(1.3829 / 1.2879 / 1.3170 / 0.2573 / 1.2641 vs the reference&#x27;s 1.3839 / 1.2880 / 1.3171 / 0.2572 /
+1.2638).  <code>check --quick</code> (/tmp/r11/quick_adam): PASS - gate 0 matches, 0 exact failures,
+0 dtype changes, 0 precision-mode changes, and the tensor comparison is the same as the
+previous tree&#x27;s (4724 tensors, 32 bitwise identical, 7 beyond the diagnostic tolerances), so
+the fused update did not make the numerics any worse.
+
+/submission/switches.json = pack + fused norm + fused rotary + fused adam.</pre></details><details><summary><em class="">3.7 h</em><span>Round 12 - partial recompute of the gradient checkpoint (cache the MLP&#x27;s gate/up), LLAVA_PARTIAL_MLP=1 (22:38-22:47 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r11/profile/profile_tree.md): of the 1585 ms of GPU kernel time
+per step, the GEMMs are 1119.6 ms (70.6%) and about a quarter of them are the *recompute* of the
+gradient checkpoint (the forward of the decoder layer is computed a second time in the backward
+pass: 404.9 MFLOP per token and layer, of which the MLP&#x27;s two up-projections are 180.4 MFLOP,
+i.e. 44.6%).  The recompute of the two projections is pure waste: it computes exactly the numbers
+that the forward pass already computed.
+
+Change: <code>llava/partial_mlp_cache.py</code>.  The forward pass of the checkpoint (which runs under
+<code>torch.no_grad()</code>) keeps the result of the gate and the up projection; the recompute (which runs
+under <code>torch.enable_grad()</code>) reuses it and skips the matrix multiplication.  The projections are
+still called through their module, so every hook of DeepSpeed&#x27;s ZeRO-3 fires at exactly the same
+place and the trace of the modules is unchanged - only the matrix multiplication is skipped.  The
+gradient of the weight is computed by the backward of the projection itself, with the same two
+matrix multiplications as the backward of the linear layer (grad_input = mm(grad, W),
+grad_weight = mm(x^T, grad)^T).
+
+Numerics: tier N0 for this change.  Checked on the real shapes (T=13269, K=4096, N=11008, bf16,
+on the GPU): the output of the layer, the gradient of the input and the gradients of the three
+weights are <b>bitwise identical</b> to the ones of the reference.  The judge&#x27;s <code>check --quick</code>:
+PASS, and the tensor comparison is the same as the previous tree&#x27;s (4724 tensors, 32 bitwise
+identical, 7 beyond the diagnostic tolerances, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r12/time_partial): <b>1518.5 ms/step, speedup_vs_frozen_reference 1.8192</b> (the
+previous tree: 1621.4 ms/step, 1.7039), +6.8%.  Peak memory 93.82 GiB (the reference 73.5, the
+previous tree 74.25): the two projections of the 32 layers are kept alive, 2 x 13269 x 11008 x 2
+bytes x 32 = 18.7 GB more.
+
+/submission/switches.json = pack + fused norm + fused rotary + fused adam + partial mlp.</pre></details><details><summary><em class="">3.8 h</em><span>Round 13 - cache the down projection too (skip its recompute), LLAVA_PARTIAL_MLP=1 (22:47-22:53 UTC)</span></summary><pre>Change: the same mechanism as round 12, extended to the third projection of the MLP.  The
+recompute of a layer now only does the elementwise product of the MLP (silu(gate) * up); the
+matrix multiplications of the gate, the up and the down projection are all skipped.
+
+Numerics: tier N0 (checked on the real shapes on the GPU: the output of the layer and the
+gradients of the input and of the three weights are bitwise identical to the reference&#x27;s).
+<code>check --quick</code> (/tmp/r13/quick_down): PASS, the tensor comparison is unchanged (4724 tensors,
+32 bitwise identical, 7 beyond the diagnostic tolerances, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r13/time_down): <b>1457.7 ms/step, speedup_vs_frozen_reference 1.8952</b> (the previous
+tree: 1518.5 ms/step, 1.8192), +4.2%.  Peak memory 97.47 GiB (+3.7 GB: the output of the down
+projection of the 32 layers).</pre></details><details><summary><em class="">4.1 h</em><span>Round 14 (investigation) - the copies of the gradients into the ipg bucket</span></summary><pre>The profile of the tree of round 13 (/tmp/r14/profile) showed 30 ms more copies of the gradients
+of the MLP into the ipg bucket of DeepSpeed than the tree of round 11 (96 extra copies of 45.1M
+elements per step).  The instrumentation of <code>DeepSpeedZeroOptimizer_Stage3.__add_grad_to_ipg_bucket</code>
+(a copy of the tree in /tmp/dbg/llava, LLAVA_DEBUG_IPG) shows that *every* parameter is added to
+the ipg bucket twice, with and without the cache of the projections: it is a behaviour of
+DeepSpeed (the hook on the accumulation of the gradient fires again when the gradient of the
+parameter is accumulated a second time) and not something the cache introduces.  Making the
+gradient of the weight contiguous (<code>.contiguous()</code>) changes nothing (1460 ms instead of 1457 ms),
+so the change was reverted.</pre></details><details><summary><em class="">4.1 h</em><span>Round 15 - cache the query, key and value projections too, LLAVA_PARTIAL_MLP=1 (23:05-23:11 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r14/profile/profile_tree.md): the GEMMs are 930.3 ms of the
+1429 ms of GPU kernel time per step (65%).  Of the matrix multiplications that are still done
+twice (the forward pass and the recompute of the gradient checkpoint), only the attention is left:
+the query, the key and the value projections are 100.7 of the 134.2 MFLOP per token and layer, so
+they are 10% of the matrix multiplications of a step (about 70 ms).
+
+Change: the same mechanism as rounds 12 and 13, applied to the query, the key and the value
+projection of every layer.  The recompute of a layer now only does the rotary embedding, the
+attention itself and the output projection.
+
+Numerics: tier N0 (the output of the projection and the gradients of its input and of its weight
+are bitwise identical to the ones of the reference; the same three matrix multiplications as the
+backward of the linear layer).  <code>check --quick</code> (/tmp/r15/quick_attn): PASS, the tensor comparison
+is unchanged (4724 tensors, 32 bitwise identical, 7 beyond the diagnostic tolerances, 0 exact
+failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r15/time_attn): <b>1401.0 ms/step, speedup_vs_frozen_reference 1.9719</b> (the previous
+tree: 1457.7 ms/step, 1.8952), +4.0%.  Peak memory 108.39 GiB (the reference 73.5): the query,
+the key and the value of the 32 layers are kept alive, 3 x 13269 x 4096 x 2 bytes x 32 = 10.4 GB
+more.</pre></details><details><summary><em class="">4.2 h</em><span>Round 16 - do not copy the gradients into the flat ipg bucket, LLAVA_PARTIAL_MLP=1 (23:11-23:17 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r14/profile/profile_tree.md): 80.5 ms of the step is spent in
+copies of the gradients.  DeepSpeed&#x27;s ZeRO-3 copies every gradient into a flat buffer
+(<code>__add_grad_to_ipg_bucket</code>) and only reduces that buffer when <code>reduce_scatter</code> is off; with
+<code>reduce_scatter</code> on (the default) the reduction reads the gradients of the parameters one by one
+(<code>__avg_scatter_grads</code>), so the copies into the flat buffer are never used.
+
+Change: <code>scripts/zero3.json</code> sets <code>&quot;contiguous_gradients&quot;: false</code>.  The reduction of the
+gradients is the same code path as before (the flat buffer is not used either way), the gradients
+are read where they are, and the flat buffer (1 GB) is not allocated at all.
+
+Numerics: tier N0 (the same gradients are reduced, in the same order).
+
+<code>time</code> (/tmp/r16/time_nocontig): <b>1395.4 ms/step, speedup_vs_frozen_reference 1.9797</b> (the
+previous tree: 1401.0 ms/step, 1.9719).  Peak memory 107.46 GiB (-0.93 GB).
+<code>check --quick</code> (/tmp/r16/quick_nocontig): PASS, the tensor comparison is unchanged.</pre></details><details><summary><em class="">4.4 h</em><span>Round 17 - cache the output projection of the attention, LLAVA_CACHE_OPROJ=1 (23:19-23:33 UTC)</span></summary><pre>Profile of the tree of round 16 (/tmp/r17/profile/profile_tree.md): 1356 ms of GPU kernel time per
+step, of which 862 ms are the matrix multiplications (63%), 113 ms are plain copies (8%), 85 ms the
+flash attention, 77 ms the NCCL collectives, 56 ms the fused AdamW and ~100 ms the elementwise
+operations.  The GPU is idle 153 ms of the 1477 ms of the profiled step (one gap of 59 ms at the
+end of the backward, where the CPU prepares the optimizer step); in the timed run the bubble is
+~70 ms of 1395 ms.
+
+Profile finding that drove it: after the caches of rounds 12 to 15, the only matrix multiplication
+of a layer that was still computed twice was the output projection of the attention (the recompute
+of the checkpoint computed it again).  The GPU time of the copies of the gradients and of the
+parameters is not reducible from our side (it is DeepSpeed&#x27;s ZeRO-3), and the collectives
+(46.7 ms of AllGather of the parameters, 30 ms of ReduceScatter of the gradients) are the price of
+the ZeRO-3 of the recipe.
+
+Change: the output projection of the attention is cached like the other projections of the layer
+(<code>llava/partial_mlp_cache.py</code>, switch <code>LLAVA_CACHE_OPROJ</code>), so the recompute of the checkpoint
+takes its result instead of computing the matrix multiplication again.
+
+Numerics: tier N0 (the same mechanism as the other projections: the result of the forward pass is
+reused and the gradients of the input and of the weight are computed with the same two matrix
+multiplications as the backward of the linear layer).  <code>check --quick</code> (/tmp/r17/quick_oproj):
+PASS, the tensor comparison is unchanged (4724 tensors, 32 bitwise identical, 7 beyond the
+diagnostic tolerances, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r17/time_oproj): <b>1378.1 ms/step, speedup_vs_frozen_reference 2.0047</b> (the previous
+tree: 1395.4 ms/step, 1.9797), +1.3%.  Peak memory 111.1 GiB (+3.6 GB: the output of the output
+projection of the 32 layers).</pre></details><details><summary><em class="">4.5 h</em><span>Round 18 - the output layer only on the supervised positions, LLAVA_SUP_LOGITS=1 (23:33-23:40 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile/profile_tree.md): the matrix multiplications are
+862 ms of the 1356 ms of GPU kernel time per step.  Of those, the output layer (the vocabulary
+projection) is 10.7 TFLOP (2% of the matrix multiplications of the step, about 18 ms), and it is
+applied to *every* position of the sequence, while only the tokens of the answer are supervised:
+the image tokens (576 per image) and the prompt are masked.  The logits of the whole sequence are
+also the biggest tensors of the step (13600 x 32000, 1.7 GB in fp32).
+
+Change: in the packed path the transformer returns the hidden states and the output layer is
+applied to the hidden states of the supervised positions only (`llava/model/language_model/
+llava_llama.py<code>, switch </code>LLAVA_SUP_LOGITS`).  The loss is still the mean cross entropy over the
+same supervised tokens, and <code>model.forward(labels=...)</code> still returns it.
+
+Numerics: tier N1 (the output layer is a matrix multiplication with fewer rows, so the rounding
+of the logits can differ in the last bit; the loss and the gradients are the same to about 1e-7).
+<code>check --quick</code> (/tmp/r18/quick_sup): PASS, the tensor comparison is unchanged (7 tensors beyond
+the diagnostic tolerances, the same ones as before, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r18/time_sup): <b>1354.4 ms/step, speedup_vs_frozen_reference 2.0397</b> (the previous
+tree: 1378.1 ms/step, 2.0047), +1.7%.  Peak memory 110.49 GiB (-0.6 GB).</pre></details><details><summary><em class="">4.7 h</em><span>Round 19 - fused SwiGLU, LLAVA_FUSED_SWIGLU=1 (23:40-23:50 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile/profile_tree.md): the elementwise operations of the
+MLP are the biggest remaining item that is not a matrix multiplication: the SiLU (13.7 ms), the
+multiplication of the SiLU and the up projection (28.4 ms of the multiplications of the step) and
+the SiLU of the backward (9.0 ms).  The chain reads and writes the two big tensors of the layer
+(the gate and the up projection, 13600 x 11008) four times.
+
+Change: <code>llava/fused_swiglu.py</code> computes <code>silu(gate) * up</code> in one Triton kernel and its backward
+in one more, and the MLP of the LLaMA layers uses it (switch <code>LLAVA_FUSED_SWIGLU</code>).  The
+arithmetic is the one of PyTorch, with the rounding of every intermediate result kept: the SiLU
+is <code>x / (1 + exp(-x))</code> in fp32, rounded to bf16, the product is rounded to bf16, and the backward
+is <code>d_up = d_out * silu(gate)</code>, <code>d_silu = d_out * up</code> (rounded to bf16) and
+<code>d_gate = d_silu * s * (1 + gate * (1 - s))</code> with <code>s = 1 / (1 + exp(-gate))</code>.
+
+Two details of Triton matter for the exactness: <code>tl.exp</code> is the fast <code>ex2.approx</code> and differs
+from the <code>expf</code> of PyTorch (48% of the values), so the kernel uses <code>tl.math.exp</code> (the libdevice
+<code>__nv_expf</code>); and the division of the sigmoid uses <code>tl.math.div_rn</code>.
+
+Numerics: tier N0.  Checked on the real shapes (13600 x 11008) on the GPU: the result and the
+two gradients are bitwise identical to the ones of PyTorch (0 differing elements out of 149.7M).
+<code>check --quick</code> (/tmp/r19/quick_swiglu): PASS, the tensor comparison is unchanged (7 tensors
+beyond the diagnostic tolerances, the same ones as before, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r19/time_swiglu): <b>1337.6 ms/step, speedup_vs_frozen_reference 2.0653</b> (the
+previous tree: 1354.4 ms/step, 2.0397), +1.3%.  Peak memory 110.5 GiB (unchanged; the kernel
+does not need the result of the SiLU to be kept for the backward).</pre></details><details><summary><em class="">4.8 h</em><span>Round 20 - no copy of the gradients of the rotary, LLAVA_FUSED_ROTARY=1 (23:51-23:58 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile/profile_tree.md): 113 ms of the step are plain
+copies.  64 of them are the copies of the gradients of the rotary embedding: the backward of the
+fused rotary made the gradients contiguous before reading them, but the gradient of the query
+arrives with the strides of the transposed view of the attention (the transpose of the backward of
+the transpose of the forward), so the copy was real: two copies of 111 MB per layer and per
+backward (14 GB of traffic per step, about 5 ms).
+
+Change: <code>llava/fused_rotary.py</code> reads the gradients with their own strides (the kernel already
+takes the strides of its arguments), so the copies are not needed any more.
+
+Numerics: tier N0 (the same values are read, only the copy is gone).  Checked on the GPU with
+the real shapes: the gradient of the query is bitwise identical to the one of the reference
+implementation of the rotary (the strides of the gradient are the same too).
+<code>check --quick</code> (/tmp/r20/quick_rotary): PASS, the tensor comparison is unchanged (7 tensors
+beyond the diagnostic tolerances, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r20/time_rotary): <b>1331.2 ms/step, speedup_vs_frozen_reference 2.0753</b> (the
+previous tree: 1337.6 ms/step, 2.0653), +0.5%.  Peak memory 110.5 GiB (unchanged).</pre></details><details><summary><em class="">5.0 h</em><span>Round 21 - keep the result of the attention for the recompute, LLAVA_CACHE_FLASH=1 (23:57-00:05 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile/profile_tree.md): after the caches of the
+projections (rounds 12 to 17), the recompute of the checkpoint still ran the attention of every
+layer a second time: 33.2 ms of the step are the forward of flash-attention (64 calls, one per
+layer and per pass), half of which is the recompute.
+
+Change: <code>llava/flash_cache.py</code> keeps the result of the attention of the forward pass (the output,
+the log-sum-exp of the softmax and the state of the random number generator) and the recompute
+reuses it: the forward of the recompute returns the result of the forward pass and the backward
+calls the backward of flash-attention with the tensors it saves (the query, the key, the value,
+the output and the log-sum-exp), with the same arguments as the reference.
+
+Numerics: tier N0.  Checked on the GPU with the real shapes (13600 tokens, 32 heads): the output,
+the gradient of the key and the gradient of the value are bitwise identical to the ones of
+flash-attention&#x27;s own function.  The gradient of the query is the one of flash-attention&#x27;s
+backward, which accumulates with atomic operations when it is not deterministic (the reference
+gives a different result on two runs as well); in the deterministic mode (the mode of the gate 2
+of the judge) the two are bitwise identical.
+<code>check --quick</code> (/tmp/r21/quick_flash): PASS, the tensor comparison is unchanged (7 tensors
+beyond the diagnostic tolerances, 0 exact failures, 0 dtype changes).
+
+<code>time</code> (/tmp/r21/time_flash): <b>1314.5 ms/step, speedup_vs_frozen_reference 2.1016</b> (the
+previous tree: 1331.2 ms/step, 2.0753), +1.3%.  Peak memory 114.25 GiB (+3.75 GB: the output of
+the attention of the 32 layers is kept until the recompute).</pre></details><details><summary><em class="">5.2 h</em><span>Round 22 - full check of the tree of round 21: ERROR (00:05-00:12 UTC)</span></summary><pre>Command: <code>bench.py check --tree /submission/llava --config /submission/switches.json --out /tmp/r22/check_full</code>
+
+* gate 0: PASS.  gate 1: PASS - 1319.1 ms/step, speedup 2.0943 (the frozen reference is
+  2762.6 ms/step), peak memory 114.25 GiB.
+* gate 2: NOT_BITWISE with 0 exact failures (7 tensors beyond the diagnostic tolerances, the
+  same ones as in every round since the packed attention), 0 dtype changes.
+* gate 3: <b>ERROR</b> - &quot;trajectory seed 0 exited 1&quot;.  The trajectory died at step 41 with
+  <code>RuntimeError: shape &#x27;[1, 14122, 32, 128]&#x27; is invalid for input of size 60534784</code> in
+  <code>llava_llama.py:67</code> (the view of the query of the packed attention).
+
+Root cause (found by reading the traceback): the values that the projections keep for the
+recompute of the checkpoint were kept per projection, without saying which forward pass had
+computed them.  The bench makes a forward pass of its own before every training step (the
+forward that measures the loss of the batch) and, at the end of every step of the window of
+the probe, another one with the probe batch (32 held out rows).  Those passes end without a
+recompute, so their values stayed in the cache; the *next* training pass found them and took
+them for its own recompute - the values of another batch, with another number of tokens.  The
+first step of the probe window (step 41) is the first one whose micro-batch has another number
+of tokens than the probe batch, and the shapes did not match: the crash.</pre></details><details><summary><em class="">5.2 h</em><span>Round 23 - the values of the projections belong to the pass that computed them (00:12-00:20 UTC)</span></summary><pre>Change: <code>llava/partial_mlp_cache.py</code> gives every forward pass of the model a new generation
+of the values (a counter, and the values of the previous generation are dropped), and a
+recompute only takes the values of the generation that is running.  The values of a pass that
+ends without a recompute are dropped with it, so they cannot be used by another pass.
+
+Numerics: N0 for the values (the same values are computed and used; only the values of another
+pass are not used any more).
+
+<code>check --n1</code> (/tmp/r23/n1, gates 0 and 3): <b>PASS</b>.  The trajectory of the gate 3 ends with
+a bias of -0.12 sigma (the canonical loss of the last 20 steps) and -0.03 sigma (the probe
+loss), the bound is 3 sigma.
+
+<code>time</code> (/tmp/r23/time): 1318.5 ms/step, speedup_vs_frozen_reference 2.0953 (the tree of round
+21: 1314.5 ms/step, 2.1016 - the same, the fix does not cost anything in the timing run).</pre></details><details><summary><em class="">5.4 h</em><span>Round 24 - cheaper release of the gathered parameters of ZeRO-3, LLAVA_FAST_ZERO3_RELEASE=1 (00:23-00:26 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile, the trace of the step): the GPU is idle for
+58.8 ms of the step, right after the backward, and the CPU is walking the module tree of the
+model 13 686 times: it is <code>DeepSpeedZeroOptimizer_Stage3.step</code> -&gt; <code>_partition_all_parameters</code> -&gt;
+<code>PartitionedParameterCoordinator.release_and_reset_all</code>, which releases the 686 parameters that
+are still gathered.  The release walks the module tree three times per step and asks the process
+for its rank 2 744 times to decide whether a message is printed, although the message is only
+printed with force=True and is never printed in the training loop.
+
+Change: <code>llava/zero3_release.py</code> keeps the parameters of a module (they do not change while the
+model is trained) instead of walking the module tree again, and does not ask for the rank when
+the message cannot be printed.  The same parameters are released, in the same order, with the
+same calls.
+
+Numerics: tier N0 (nothing is computed differently).
+<code>time</code> (/tmp/r24/time): <b>1306.0 ms/step, speedup_vs_frozen_reference 2.1153</b> (the previous
+tree: 1318.5 ms/step, 2.0953), +1.0%.  Peak memory 114.25 GiB (unchanged).</pre></details><details><summary><em class="">5.4 h</em><span>Round 25 - the gradient of the weight of a projection in its own layout, LLAVA_CONTIG_GRAD=1 (00:26-00:30 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r17/profile): 41 ms of the step are the copies of the
+gradients of the weights of the projections (the shapes [11008, 4096], [4096, 4096] and
+[4096, 11008] of the trace).  The gradient of the weight is computed by the backward of the
+matrix multiplication in the transposed layout and is copied into the gradient of the parameter;
+the copy of a transposed tensor reads the memory in the wrong order (96 GB/s against 3.9 TB/s
+for a contiguous copy on this GPU).
+
+Change: the backward of the cached projection computes the gradient of the weight with the
+transposed multiplication (<code>mm(grad.t(), x)</code> instead of <code>mm(x.t(), grad).t()</code>), which gives the
+same numbers in the layout of the weight.  Checked on the GPU with the real shapes (13600
+tokens): not one element of the 45M differs, for the three shapes of the model.
+
+Numerics: tier N0 (the values are bitwise identical, only the layout of the gradient changes).
+<code>time</code> (/tmp/r25/time): <b>1266.6 ms/step, speedup_vs_frozen_reference 2.1811</b> (the previous
+tree: 1306.0 ms/step, 2.1153), +3.0%.  Peak memory 114.25 GiB (unchanged).</pre></details><details><summary><em class="">5.5 h</em><span>Round 26 - profile of the tree of round 25 (00:30-00:31 UTC)</span></summary><pre>Command: <code>bench.py profile --tree /submission/llava --config /submission/switches.json --out /tmp/r26/profile --detail</code>
+GPU kernel time 1232 ms/step (the tree of round 17: 1356 ms/step).  The GEMMs are 838 ms (68%)
+and are at the roofline of the shapes (774 TFLOP/s measured on the GPU for the shape of the
+gradient of a weight); the rest is: the fused AdamW 56 ms, the backward of flash-attention 53 ms,
+the AllGather 35.5 ms, the ReduceScatter 31.2 ms, the residual adds 27.6 ms (384 calls at
+4.2 TB/s, at the roofline), the cats 21.7 ms, the copies 35.6 ms, the fused SwiGLU 29 ms, the
+fused RMSNorm 20.8 ms, the fused rotary 13.6 ms.  The GPU is idle for 35 ms of the step.</pre></details><details><summary><em class="">5.5 h</em><span>Round 27 - release the gathered parameters at the end of the optimizer step, LLAVA_DEFER_ZERO3_RELEASE=1 (00:31-00:36 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r26/profile): the release of the gathered parameters is CPU
+work that the GPU waits for (the GPU is idle for 35 ms of the step, the release is most of it).
+The parameters that are gathered are not needed by the optimizer step: the optimizer works on
+the fp32 master weights and on the fp32 gradients.  Releasing them at the end of the step lets
+the GPU update the parameters while the CPU releases the ones of the next forward pass.
+
+Change: <code>llava/zero3_release.py</code> defers <code>_partition_all_parameters</code> to the end of the optimizer
+step (the release is done before the gather of the persistent parameters, in the same order as
+before); a step that ends without a release (the loss scale overflowed) releases the parameters
+at the beginning of the next step.
+
+Numerics: tier N0 (the same parameters are released, in the same order, with the same calls;
+only the moment of the release changes, and the values of the parameters are refreshed by the
+gather that follows it, as before).
+<code>time</code> (/tmp/r27/time): <b>1247.3 ms/step, speedup_vs_frozen_reference 2.2148</b> (the previous
+tree: 1266.6 ms/step, 2.1811), +1.5%.  Peak memory 114.25 GiB (unchanged: the peak is in the
+forward pass, not in the optimizer step).</pre></details><details><summary><em class="">5.7 h</em><span>Round 28 - full check of the tree of round 27 (00:37-00:47 UTC)</span></summary><pre>Command: <code>bench.py check --tree /submission/llava --config /submission/switches.json --out /tmp/r28/check_full</code>
+
+* gate 0: PASS.  gate 1: PASS - 1249.8 ms/step, speedup <b>2.2103</b> (the frozen reference is
+  2762.6 ms/step), peak memory 114.25 GiB.
+* gate 2: NOT_BITWISE with 0 exact failures (7 tensors beyond the diagnostic tolerances, the
+  same ones as in every round since the packed attention), 0 dtype changes, 0 precision mode
+  changes -&gt; tier <b>N1</b>.
+* gate 3: PASS - the canonical loss of the last 20 steps is -0.10 sigma, the probe loss is
+  -0.03 sigma (the bound is 3 sigma).
+
+The tree of the round is the one of the round 27 (commit fa7cfb8): it is the state that is
+judged at the end, unless a later round is better.</pre></details><details><summary><em class="">6.4 h</em><span>Round 30 - a Triton kernel for the fused AdamW, LLAVA_TRITON_ADAM=1 (01:12-01:25 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r29/profile): the fused AdamW of PyTorch moves 28 bytes
+per parameter (the gradient, the two moments, the parameter) and reaches 1.7 TB/s on this
+GPU; the kernel takes 56 ms of the step.
+
+Change: <code>llava/fused_adamw.py</code> is a Triton kernel that does the same update as PyTorch&#x27;s
+fused AdamW (the same arithmetic, the same bias corrections, the same rounding) and is
+installed in place of <code>torch._fused_adamw_</code>; the state, the counter of the steps and the
+bias corrections are still PyTorch&#x27;s.  The kernel takes 22 ms of the step (4.2 TB/s, the
+speed of a copy).
+
+Numerics: tier N1 (the update is PyTorch&#x27;s fused AdamW up to the last bit of the rounding of
+the arithmetic of the kernel; the parameters differ by at most 4e-11).
+<code>time</code> (/tmp/r30/time_triton): <b>1236.5 ms/step, speedup_vs_frozen_reference 2.2341</b> (the
+tree without the kernel, measured just before: 1255.5 ms/step, 2.2004).
+<code>check --quick</code> (/tmp/r30/quick): PASS, tier N1, 0 exact failures, 0 dtype changes.
+Committed as 09e5bad.</pre></details><details><summary><em class="">6.4 h</em><span>Round 31 - skip the work of the optimizer step that nothing uses (01:26-01:32 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r29/profile): the optimizer step of ZeRO-3 spends 26 ms
+in the computation of the norm of the gradients (<code>get_grad_norm_direct</code>: the gradients are
+copied into a buffer of double precision and reduced there, 16.3 ms of copies and 8.7 ms of
+reduction) and 6.3 ms in the unscale of the gradients (<code>grad.mul_(1/loss_scale)</code>).
+
+Both are dead work: the norm is only used to clip the gradients and the recipe does not
+clip them (<code>scripts/zero3.json</code> does not set <code>gradient_clipping</code>, so <code>clip_grad</code> is zero and
+<code>unscale_and_clip_grads</code> never scales the gradients with the norm; the value is kept in
+<code>optimizer._global_grad_norm</code>, which nothing reads), and with bf16 the loss scale is one, so
+the unscale multiplies the gradients by one.
+
+Change: <code>llava/fast_grad_norm.py</code> and <code>llava/fast_grad_unscale.py</code> patch the two methods of
+<code>DeepSpeedZeroOptimizer_Stage3</code> (<code>LLAVA_FAST_GRAD_NORM</code>, <code>LLAVA_FAST_GRAD_UNSCALE</code>).
+
+Numerics: tier N0 (the gradients, the update of the parameters, the state of the optimizer
+and the loss scale are unchanged; only a value that nothing reads is not computed).
+<code>time</code> (/tmp/r31/time_norm): <b>1218.7 ms/step, speedup_vs_frozen_reference 2.2669</b> (the
+tree without the change: 1236.5 ms/step, 2.2341).
+Committed as 3f3e769.</pre></details><details><summary><em class="">6.5 h</em><span>Round 32 - make the release of the gathered parameters cheaper, LLAVA_FAST_PARAM_RELEASE=1 (01:32-01:41 UTC)</span></summary><pre>Profile finding that drove it (/tmp/r29/profile): the GPU is idle for 43.5 ms in one gap,
+between the release of the parameters that the backward pass gathered and the all-gather of
+the forward pass.  The CPU work of the release is 33 ms: for every one of the 686
+parameters, it builds three messages that are never printed, describes the parameter for one
+of them, queries the current stream of the device (11 us) and allocates the empty tensor
+that replaces the gathered one.
+
+Change: <code>llava/fast_param_release.py</code> builds the messages and the description not at all,
+queries the stream of the device once, and reuses the empty tensor of every dtype and
+device.
+
+Numerics: tier N0 (the same parameters are released, in the same order, with the same
+calls; only the messages that are not printed and the repeated queries are avoided).
+<code>time</code> (/tmp/r32/time_release): <b>1207.6 ms/step, speedup_vs_frozen_reference 2.2877</b> (the
+tree without the change: 1218.7 ms/step, 2.2669).
+<code>check --quick</code> (/tmp/r32/quick): PASS, tier N1, 0 exact failures, 0 dtype changes.
+Committed as 1c5c927.</pre></details><details><summary><em class="">6.8 h</em><span>Round 33 - the norm of the gradients in single precision (2026-11-13 01:40-01:55 UTC)</span></summary><pre>Profile finding that drove it: DeepSpeed&#x27;s ZeRO-3 computes the norm of the gradients to clip them
+(the default <code>gradient_clipping</code> of DeepSpeed is 1.0, so the gradients *are* clipped - the earlier
+round that tried to skip the norm was a no-op).  The norm was computed with a buffer of double
+precision: 16.3 ms of bf16-&gt;fp64 copies + 8.7 ms of fp64 reduction + a <code>.item()</code> that costs a
+synchronization (a 4.8 ms gap of the GPU idle).
+
+Change: <code>llava/fast_grad_norm.py</code> computes the norm with `torch.linalg.vector_norm(g, 2,
+dtype=torch.float32)` (the squares of the bf16 gradients are exact in single precision) and sums
+the per-parameter squares in double precision, as DeepSpeed does.  The norm of the reference is
+computed instead when the result is not finite.  Tier N1 (the norm differs by ~1e-7 relative, the
+gradients are scaled by it).
+
+<code>time</code> (/tmp/r33/time_norm32): <b>1200.9 ms/step, speedup_vs_frozen_reference 2.3005</b> (was 1207.6 /
+2.2877).  <code>check --quick</code> (/tmp/r33/quick): PASS (0 exact failures, 7 unresolved).  Committed b07099e.</pre></details><details><summary><em class="">6.8 h</em><span>Round 34 - the parameters of ZeRO-3 are not persistent any more (2026-11-13 01:55-02:05 UTC)</span></summary><pre>Profile finding that drove it: the end of the optimizer step is serial.  With
+<code>stage3_param_persistence_threshold: 1e9</code> every parameter of the model is persistent (7 062 902 784
+elements in 686 parameters; the reference has 599 040 in 312), so at the end of every step DeepSpeed
+releases all the gathered parameters (17.9 ms of CPU, a 28.6 ms gap of the GPU idle) and then
+re-gathers them with 686 NCCL all-gathers (38 ms of GPU time, nothing else to do while they run).
+
+Change: <code>LLAVA_DS_PERSIST_THRESHOLD=100000</code> (the value the reference&#x27;s &quot;auto&quot; resolves to) in
+/submission/switches.json.  The parameters are then gathered by the prefetcher of ZeRO-3 during the
+forward and the backward, where the gathering overlaps with the computation, and the end of the step
+has almost nothing left to do.  The numerics do not change (the same parameters are gathered, the
+same values).
+
+<code>time</code> (/tmp/r34/time_persist): <b>1191.0 ms/step, speedup_vs_frozen_reference 2.3197</b> (was 1200.9 /
+2.3005).  The gain is much smaller than the 60 ms the tail seemed to cost: the gathering during the
+forward and the backward is only partly hidden.
+
+## Rounds 35-41 - the tail of the ZeRO-3 step (2026-11-13 02:05-03:00 UTC)
+Profile finding that drove them: the critical path of a step is the compute stream (1084 ms of
+kernels of the 1200 ms of the step); the communication (all-gather 45 ms, reduce-scatter 31 ms),
+the split of the flat buffer of ZeRO-3 (86 ms) and the gradients (25 ms) run on other streams and
+are completely hidden.  The GEMMs are 844 ms of the 1084 ms and run at the roofline (~818 TFLOP/s
+of ~990), the recompute of the gradient checkpointing is ~207 ms of them, so what is left to win
+is the ~175 ms of GPU idle (32 ms in the tail of the step, 17.5 ms in the forward of the vision
+tower, which is CPU bound) and the recompute.
+
+Four changes were tried, each behind its own switch, and each was neutral (the spread of the
+reference is 0.13% and the runs differ by less than that):
+* <code>LLAVA_FAST_PARAM_GATHER</code> (llava/fast_param_gather.py): gather every parameter of ZeRO-3 with an
+  all-gather of its own instead of a cat of all of them.  <code>time</code> (/tmp/r38/time_gather): 1194.7
+  ms/step (2.3118).
+* <code>LLAVA_FAST_PARAM_SPLIT</code> (llava/fast_param_split.py): copy the gathered parameters out of the
+  flat buffer of the gathering with one cat for the whole module instead of one copy per
+  parameter.  <code>time</code> (/tmp/r38/time_split): 1202.2 ms/step (2.2961).
+* <code>LLAVA_NO_PERSIST_GATHER</code>: do not gather the persistent parameters at the end of the step (the
+  prefetcher gathers them anyway, while the GPU computes).  <code>time</code> (/tmp/r39/time_nopersist):
+  1205.6 ms/step (2.2924), but that run was noisy (the two windows of the run differ by 3.7%).
+* <code>LLAVA_DS_PERSIST_THRESHOLD=100000</code>: the parameters of ZeRO-3 are not persistent any more (the
+  value the reference&#x27;s &quot;auto&quot; resolves to).  <code>time</code> (/tmp/r34/time_persist): 1191.0 ms/step
+  (2.3197).
+
+<code>sweep</code> (/tmp/r40/sweep) with the four combinations of the last two switches: 1199.6, 1197.7,
+1196.4 and 1200.8 ms/step - all inside 0.4%, that is, inside the noise of the measurement.  The
+tree keeps the code of the first two (off by default) and the last two are on.
+
+Full <code>check</code> (/tmp/r41/check): <b>PASS, speedup 2.308</b>, tier N1, 0 exact failures, 7 unresolved
+(out of 4724 tensors), 32 tensors bitwise identical.  This is the best validated state so far.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-llava-haiku.html"><small>← 2.46×</small><strong>Haiku 5.5</strong></a><a class="up" href="llava.html">↑ LLaVA</a><a class="next" href="t-llava-ds.html"><small>2.22× →</small><strong>DeepSeek V4.1 Flash-1017</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-llava-opus.html", "pts": [[0.53, 1.457, 1], [0.757, 1.723, 2], [1.111, 2.091, 3], [1.621, 2.296, 4], [2.115, 2.421, 6], [2.233, 2.452, 7], [2.36, 2.542, 8], [2.731, 2.576, 10], [2.909, 2.589, 11], [3.307, 2.615, 12], [3.307, 2.643, 13], [3.51, 2.655, 15], [3.659, 2.655, 16], [3.944, 2.68, 18], [3.979, 2.704, 19], [4.202, 2.726, 20], [4.368, 2.735, 21], [5.069, 2.735, 26], [5.337, 2.748, 27], [5.792, 2.748, 29], [6.083, 2.77, 31]], "end": 10.014, "final": 2.9153}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-llava-sonnet.html", "pts": [[0.928, 1.468, 2], [0.928, 1.704, 3], [1.148, 2.122, 4], [1.743, 2.244, 6], [2.05, 2.412, 8], [3.021, 2.498, 12], [4.63, 2.627, 14], [7.301, 2.742, 19]], "end": 9.999, "final": 2.8022}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-llava-haiku.html", "pts": [[0.355, 1.451, 2], [0.478, 1.99, 3], [0.712, 2.005, 4], [0.843, 2.187, 5], [1.611, 2.21, 9], [2.237, 2.21, 11], [2.38, 2.21, 12], [3.296, 2.21, 13], [3.884, 2.21, 14], [4.858, 2.248, 21], [5.646, 2.323, 22], [6.608, 2.34, 26], [6.892, 2.361, 27], [7.555, 2.368, 30], [8.519, 2.403, 34], [9.205, 2.456, 36], [9.987, 2.466, 37]], "end": 10.002, "final": 2.4629}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-llava-astra.html", "pts": [[0.164, 1.035, 1], [0.309, 1.035, 2], [2.235, 1.06, 7], [2.235, 1.063, 12], [2.235, 1.065, 15], [2.235, 1.067, 17], [2.235, 1.067, 19], [3.491, 1.176, 20], [3.805, 1.176, 21], [4.146, 1.192, 22], [4.485, 1.199, 23], [4.836, 1.206, 24], [5.159, 1.215, 25], [5.487, 1.224, 26], [5.813, 1.231, 27], [6.143, 1.243, 28], [6.413, 1.253, 29], [6.832, 1.255, 30], [6.832, 1.255, 31], [7.295, 1.263, 32], [7.61, 1.273, 33], [7.61, 1.273, 35], [7.994, 1.273, 36], [7.994, 1.273, 37], [8.536, 1.278, 38], [8.816, 1.287, 39], [8.889, 1.287, 40], [9.272, 1.29, 42], [9.545, 1.294, 43], [9.623, 1.294, 44], [9.703, 1.294, 45]], "end": 10.0, "final": 1.4063}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-llava-glm.html", "pts": [[0.38, 1.032, 2], [0.473, 1.05, 3], [0.839, 1.099, 4], [0.917, 1.099, 5], [1.308, 1.131, 7], [1.987, 1.139, 9], [2.367, 1.261, 10], [5.294, 1.447, 18], [5.779, 1.457, 19], [6.096, 1.466, 20], [6.413, 1.466, 21], [6.615, 1.486, 22], [7.016, 1.486, 23], [7.201, 1.491, 24], [7.563, 1.496, 25], [7.931, 1.496, 26], [8.048, 1.496, 27], [8.252, 1.502, 28], [8.574, 1.502, 30], [8.754, 1.528, 31], [8.997, 1.528, 32], [9.4, 1.528, 34], [9.434, 1.528, 35], [9.48, 1.528, 36], [9.633, 1.528, 37], [9.685, 1.528, 38], [9.929, 1.528, 39]], "end": 10.0, "final": 1.5188}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-llava-kimi.html", "pts": [[0.123, 1.036, 1], [0.57, 1.058, 3], [1.124, 1.091, 4], [1.414, 1.108, 5], [1.695, 1.221, 6], [1.914, 1.296, 7], [2.478, 1.306, 8], [3.232, 1.329, 9], [3.28, 1.329, 10], [3.874, 1.333, 11], [3.95, 1.333, 12], [4.335, 1.343, 13], [4.57, 1.343, 14], [4.871, 1.343, 15], [5.071, 1.343, 16], [5.53, 1.355, 17], [5.827, 1.364, 18], [5.919, 1.364, 19], [6.344, 1.379, 20], [6.566, 1.379, 21], [6.752, 1.379, 22], [7.004, 1.379, 23], [7.24, 1.379, 24], [7.354, 1.379, 25], [7.465, 1.379, 26], [7.65, 1.379, 27], [7.85, 1.379, 28], [8.34, 1.379, 29], [8.654, 1.379, 30], [8.885, 1.379, 31], [9.047, 1.379, 32], [9.461, 1.385, 33], [9.741, 1.385, 34], [9.872, 1.385, 35]], "end": 10.0, "final": 1.3797}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-llava-ds.html", "pts": [[0.202, 1.038, 1], [0.379, 1.24, 2], [0.751, 1.318, 3], [1.256, 1.804, 4], [1.611, 1.897, 5], [1.799, 1.925, 6], [2.261, 2.008, 7], [3.611, 2.008, 9], [4.355, 2.099, 11], [4.806, 2.146, 12], [5.315, 2.225, 14], [6.253, 2.225, 17], [6.561, 2.225, 20], [6.631, 2.225, 23], [6.78, 2.225, 24], [7.084, 2.228, 26], [7.378, 2.228, 29]], "end": 7.702, "final": 2.2194}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-llava-mm.html", "pts": [[0.918, 1.143, 2], [0.918, 1.422, 3], [1.358, 1.438, 4], [1.764, 1.438, 5], [2.471, 1.703, 9], [3.484, 1.704, 11], [3.661, 1.819, 12], [3.759, 1.895, 13], [4.067, 1.972, 15], [4.167, 1.98, 16], [4.421, 2.005, 17], [4.538, 2.04, 18], [4.718, 2.065, 19], [4.835, 2.075, 20], [4.96, 2.102, 21], [5.22, 2.102, 22], [5.22, 2.102, 23], [5.37, 2.115, 24], [5.37, 2.181, 25], [5.468, 2.215, 27], [5.664, 2.215, 28], [6.415, 2.234, 30], [6.415, 2.267, 31], [6.526, 2.288, 32], [6.832, 2.3, 33], [6.832, 2.32, 34]], "end": 10.0, "final": 2.3388}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on LLaVA: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

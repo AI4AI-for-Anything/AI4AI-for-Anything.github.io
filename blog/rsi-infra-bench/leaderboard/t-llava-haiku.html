@@ -1,0 +1,519 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Haiku 5.5 · LLaVA · RSI-Infra Bench</title><meta name="description" content="Claude Haiku 5.5 on LLaVA: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="on">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="llava.html">LLaVA</a><span>/</span><b>Claude Haiku 5.5</b></nav><h1>Claude Haiku 5.5 <em>2.46×</em></h1><p class="lede">Harness: Claude Code · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.46×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.47×</dd></div><div class=""><dt>Rounds</dt><dd>36</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$43.8</dd></div><div class=""><dt>Input tokens · 99.7% cached</dt><dd>768 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.5 M</dd></div><div class=""><dt>Requests</dt><dd>1,355</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-llava-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.92×</small></a><a class="chip" data-k="sonnet" href="t-llava-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.80×</small></a><a class="chip self" data-k="haiku" href="t-llava-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.46×</small></a><a class="chip" data-k="mm" href="t-llava-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.34×</small></a><a class="chip" data-k="ds" href="t-llava-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>2.22×</small></a><a class="chip" data-k="glm" href="t-llava-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.52×</small></a><a class="chip" data-k="astra" href="t-llava-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.41×</small></a><a class="chip" data-k="kimi" href="t-llava-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.38×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Sequence packing</dt><dd>✓ round 2 <code>LLAVA_PACKED</code>, 1.45×</dd><dt>Recompute / activations</dt><dd>✓ expandable segments + activation budget 64 GiB (−2.3%)</dd><dt>Optimizer</dt><dd>✓ <code>LLAVA_TRITON_ADAMW</code>, 2.2401 → 2.3216; optimizer reads/writes bf16 shards directly</dd><dt>Communication &amp; libraries</dt><dd>✓ ZeRO-2: round 5 2.00 → 2.19×, then intermittent NaNs in trajectories; reverted first, then overlap turned off; overlap back on in round 34 after adding event ordering to grad buckets (2.3657 → 2.4011); no cuBLAS / FlashAttention swap</dd><dt>Other main levers</dt><dd>skip unused grad norm (−2.2%), tuned grad bucket size</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>40 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 — 19:22–19:30 — profile of the unchanged reference (no change)</span></summary><pre>Command: <code>bench.py profile --tree targets/reference --config switches.json --out /tmp/r1/profile_ref --detail</code>
+(dir /tmp/r1/profile_ref, rank 0, 1 captured step).
+
+Findings (rank 0, one step; kernel-time sum 2757 ms):
+- GEMM (cuBLAS bf16 sm90 xmma, fwd + recompute + bwd): ~1330 ms, 48%.
+- Elementwise / copies / cat / scatter / fill (memory-bound): ~1030 ms, ~37%. Largest items: bf16 binary mul 131 ms
+  (rotary broadcast), bf16 add 57 ms, bf16 direct copies ~157 ms (fp32 casts in RMSNorm and layout copies), fp32 mul
+  46+27+15 ms and pow 18 ms (RMSNorm), CatArrayBatchedCopy 41 ms (rotate_half), index/scatter for unpad/pad 55 ms,
+  FillFunctor 28 ms (zero pad tensors).
+- Flash-attn fwd 30 ms + bwd 39 ms: ~3%.
+- NCCL: AllGather 217 ms + ReduceScatter 213 ms. Trace overlap (rank 0): compute union 2319 ms, comm union 422 ms,
+  total busy union 2338 ms, so NCCL is almost fully hidden under compute (~19 ms exposed). ZeRO stage is not the lever.
+- GPU idle gaps ~225 ms per step (span 2563 ms vs busy union 2338 ms). Host side: aten::nonzero 744 ms CPU inclusive
+  (HF <code>_upad_input</code> syncs once per layer per pass, 96 syncs per step).
+
+Data (CPU analysis, /tmp/r1/analysis):
+- Timing fixture, image-text tokens incl. 576 image tokens: mean 843, median 760, p90 1115, max 1751.
+- Simulated sampler (upstream word-count key, first 25 steps): slowest-rank tokens per step, padded 20081 vs packed 13643
+  (ratio 0.68). Token-length key gives 13536 (no gain), so the upstream grouping key stays.
+- Upstream pads every micro-batch to its own max length, so every linear layer, RMSNorm and rotary runs on ~1/3 of
+  pad tokens.
+
+Hot-spot class for round 2: padding waste (compute on pad tokens) plus the per-layer unpad/host syncs. Kind: a
+genuinely new opportunity (flash-attn already runs varlen; the rest of the layer does not).</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 — 19:30 — packed (unpadded) training forward, switch LLAVA_PACKED=1</span></summary><pre>Change: <code>llava/model/packed_train.py</code> (new) and a 3-line hook in <code>LlavaLlamaForCausalLM.forward</code>
+(<code>llava/model/language_model/llava_llama.py</code>). When labels are given and LLAVA_PACKED=1, the valid tokens of the
+micro-batch are gathered once into [N, H]; the decoder runs on them with <code>flash_attn_varlen_func</code> over the same
+cu_seqlens the HF path builds; rotary is the upstream formula gathered by position; the loss is the mean cross entropy of
+the valid next-token targets (lm_head computed only at target positions). Sampler, data, collator, partition and
+loss normalization are unchanged.
+
+Local equivalence checks (tiny random LLaMA, /tmp/r1/unit):
+- bf16: loss rel diff 3.9e-6; grads relL2 median 7e-3, worst 1.2e-2. The padded path against itself with more padding
+  gives bitwise-identical grads, so the bf16 gap comes from GEMM row count (different cuBLAS accumulation), not a bug.
+- fp32 with reference varlen attention patched into both paths: loss identical to 8 digits, grads relL2 ≤ 1.3e-6.
+  So the packed math is exact; it is N1 (not bitwise) by construction.
+
+Switches: /submission/switches.json = {&quot;environment&quot;: {&quot;LLAVA_PACKED&quot;: &quot;1&quot;}}.</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 results (19:30–19:43)</span></summary><pre>- <code>time</code> (judge), /tmp/r2/time_packed: 1897.7 ms/step, speedup_vs_frozen_reference 1.4507, beyond_reference_noise true,
+  window_spread 0.0067, peak allocated 62.15 GiB (reference 73.5).
+- <code>check --quick</code> (/tmp/r2/quick_packed): PASS, measured tier N1 (bitwise false), exact items clean.
+- <code>check --n1</code> (/tmp/r2/n1_packed): PASS, verdict equivalent. Endpoint bias vs reference seed-0:
+  train_loss_last20 −1.1e-4 (−0.037σ), probe_loss_last20 −2.0e-4 (−0.072σ); bound 3σ.
+- Profile of the packed version (/tmp/r2/profile_packed, rank 0, 1 step): GPU kernel sum 2358 ms (reference 2757).
+  AllGather 503 ms (21%, partly waiting for the peer), GEMM ~1.2 s, elementwise/copies ~0.5 s.
+  Per-rank trace (detail_tree.r0/r1): compute union 1798 / 1772 ms, idle 80 / 291 ms; the largest idle gap is 36 ms
+  right after the last ReduceScatter (optimizer hand-off), the rest are 1–6 ms launch/sync gaps.
+- Recompute: CheckpointFunctionBackward is still ~1.2 s CPU-inclusive; all 32 layers recompute.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 — 19:40 — budgeted activation checkpointing (branch r3-act-budget, worktree /tmp/r3/wt)</span></summary><pre>Change: checkpoint only the first n_ckpt decoder layers, where keep = floor(LLAVA_PACKED_ACT_GB GiB / (N_global × 220 KB))
+and n_ckpt = 32 − keep; default budget 52 GiB. N_global = max over ranks of the micro-batch&#x27;s valid token count (one
+MAX all-reduce per micro-batch, same decision on every rank, so the ZeRO-3 collective sequence stays identical).
+Calibration (/tmp/r3/calib_act.py, 7B dims, packed path): saved activations 215 KB/token/layer at 4096 tokens,
+219 KB at 8192 tokens. (The analytic count of ~170 KB was low.)
+Unit test (/tmp/r3/unit/test_partial.py, fp32, reference varlen): budgets keep-all / 2 ckpt / all ckpt give identical
+loss and gradients (max abs diff 0).
+Time (judge, /tmp/r3/time_budget): 1700.3 ms/step, speedup_vs_frozen_reference 1.6192, beyond_reference_noise true,
+window_spread 0.0169, peak allocated 112.09 GiB (budget keeps ~17 layers at typical N).
+Next: quick check and n1 check on r3 before merging into opt.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 quick check and round 4 start (19:45)</span></summary><pre>- Round 3 <code>check --quick</code> (/tmp/r3/quick_budget): running at 19:45 (verdict recorded below when it lands).
+- Round 4 (branch r4-fused-ops, worktree /tmp/r4/wt, from r3): fused Triton ops in llava/model/fused_ops.py:
+  RMSNorm (saves input + one fp32 scalar per row), SwiGLU (saves gate and up), RoPE (saves shared cos/sin only).
+  Switches LLAVA_FUSED_NORM / LLAVA_FUSED_MLP / LLAVA_FUSED_ROPE (installed at import of packed_train).
+  Unit tests (/tmp/r4/unit/test_fused_ops.py, bf16, 4096 × 4096): RMSNorm y relL2 9e-6, dx 1.2e-5, dw 2.5e-3;
+  SwiGLU p and du exact, dg 2e-6; RoPE y exact, dx 2.7e-3. RMSNorm fwd+bwd 0.24 ms fused vs 0.83 ms eager.
+  Model test (/tmp/r4/unit/test_fused_model.py, tiny LLaMA bf16, real flash-attn): loss identical; grads relL2 median
+  3e-3, worst 7.7e-3 vs unfused packed (bf16 noise); fused with forced recompute equals fused with no recompute.
+  Triton kernels use do_not_specialize on the varying counts, so no recompile inside a timing window.
+- Calibration of the fused path (/tmp/r4/calib_fused.py) queued; ACT_BYTES_PER_TOKEN_LAYER to be set from it.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 verdict and round 4 result (19:49)</span></summary><pre>- Round 3 (budgeted checkpointing, commit 179c67a, merged into opt): <code>time</code> 1700.3 ms/step, speedup 1.6192,
+  peak 112.09 GiB. <code>check --quick</code> PASS (measured N1; the MAX all-reduce does not change exact items).
+- Round 4 (fused RMSNorm/SwiGLU/RoPE, branch r4-fused-ops): <code>time</code> (judge, /tmp/r4/time_fused) 1383.6 ms/step,
+  speedup 1.9897, window_spread 0.0287, peak 108.1 GiB, problems []. Calibration: 128–132 KB per token-layer.
+  Switch file /tmp/r4/switches_fused.json = {LLAVA_PACKED, LLAVA_FUSED_NORM, LLAVA_FUSED_MLP, LLAVA_FUSED_ROPE}.
+  quick + n1 chain running (/tmp/r4/quick_fused, /tmp/r4/n1_fused) at 19:50.</pre></details><details><summary><em class="">0.6 h</em><span>Round 4 quick check INCORRECT (rng_after) and fix (19:53–19:56)</span></summary><pre>- First round 4 quick check (/tmp/r4/quick_fused): INCORRECT on exact item rng_after at step 0 (all ranks, both cases).
+  Cause: Triton&#x27;s runtime cache write draws a temp file id from Python&#x27;s global <code>random</code> (triton/runtime/cache.py:99),
+  so the first launch (compile) of each fused kernel changed the process-wide Python RNG state, which the judge&#x27;s
+  rng fingerprint covers (numerics/record.py rng_fingerprint: torch CPU/CUDA, Python random, numpy). Found with
+  /tmp/r4/rng/test_rng.py: &#x27;py&#x27; changed on the first RMSNorm and RoPE launches, unchanged afterwards.
+  Fix (commit 8c1de8f): _RngSafeLaunch proxy around each kernel saves and restores the Python and numpy RNG states on
+  the first launch only. Re-test of test_rng.py: no change in any stream for any kernel.
+- The n1 run started on the first tree was killed (gate 2 exact failure makes it moot).
+- Judge runs for the fixed tree: /tmp/r4/quick_fused2, /tmp/r4/n1_fused2, /tmp/r4/time_fused2 (chained, started 19:55).
+- Side note: the &quot;None of the inputs have requires_grad=True&quot; torch.utils.checkpoint warning comes from the upstream
+  CLIP encoder&#x27;s gradient checkpointing (frozen inputs); the reference timing logs have the same two warnings.
+- Fixed round 4 <code>check --quick</code> (/tmp/r4/quick_fused2): PASS (19:58:53), exact items clean.
+- Fixed round 4 <code>check --n1</code> (/tmp/r4/n1_fused2): PASS (20:02:01). Endpoint bias vs reference seed 0:
+  train_loss_last20 −1.8e-4 (−0.06σ), bound 3σ.
+- Fixed round 4 <code>time</code> (/tmp/r4/time_fused2): running at 20:02 (see next entry).
+- opt fast-forwarded to 8c1de8f (round 4 fixed). /submission/switches.json = LLAVA_PACKED, LLAVA_FUSED_NORM,
+  LLAVA_FUSED_MLP, LLAVA_FUSED_ROPE = &quot;1&quot;. Full judge check queued: /tmp/final_check_r4 (log /tmp/final_check_r4.log).
+- Fixed round 4 <code>time</code> (/tmp/r4/time_fused2): 1373.2 ms/step, speedup_vs_frozen_reference 2.0049, beyond_reference_noise
+  true, window_spread 0.0151, peak 108.1 GiB, problems []. (First round 4 timing 1383.6 ms, speedup 1.9897, before the RNG fix.)
+
+### FULL JUDGE CHECK on /submission (commit 8c1de8f, switches fused) — PASS (20:09:48)
+- /tmp/final_check_r4/check.json: status PASS, correctness stage statistical, tier N1 (bitwise false, numerics NOT_BITWISE
+  with exact items clean), performance speedup 1.9984, candidate 1377.6 ms/step, reference spread 0.0013,
+  gpu_hours 0.20 (4 runs). Gate 3 (trajectory) passed (see check.json and /tmp/final_check_r4/trajectory).
+- Current submission state: /submission/llava opt = 8c1de8f; /submission/switches.json = LLAVA_PACKED, LLAVA_FUSED_NORM,
+  LLAVA_FUSED_MLP, LLAVA_FUSED_ROPE = &quot;1&quot;.
+- Next round 5: ZeRO-2 variant (branch r5-zero2 on top of 8c1de8f, scripts/zero3.json stage 2) to test exposed
+  all-gather time. Timing: /tmp/r5/time_zero2.</pre></details><details><summary><em class="">0.8 h</em><span>Round 5 — ZeRO-2 (branch r5-zero2, commit 103d49a, on top of 8c1de8f)</span></summary><pre>- Change: scripts/zero3.json &quot;stage&quot;: 3 -&gt; 2 (the judge uses this file; DeepSpeed settings may change per the task).
+- <code>time</code> (judge, /tmp/r5/time_zero2): 1258.5 ms/step, speedup_vs_frozen_reference 2.1874 (vs 2.0049 for ZeRO-3 on the same
+  switches, /tmp/r4/time_fused2), window_spread 0.0152, peak allocated 109.06 GiB (vs 108.1), problems [].
+- Verification chain started 20:11:39: check --quick (/tmp/r5/quick_zero2), then check --n1 (/tmp/r5/n1_zero2).
+- ZeRO-2 <code>check --quick</code> (/tmp/r5/quick_zero2): PASS (20:15:21). <code>check --n1</code> (/tmp/r5/n1_zero2): PASS (20:18:25), endpoints
+  train_loss_last20 0.149σ, probe_loss_last20 0.066σ (bound 3σ).
+- ZeRO-2 profile (/tmp/r5/profile_zero2, rank 0): GPU kernel sum 1299 ms/step. GEMM 857 ms (66%), NCCL AllReduce 82 ms
+  (6%), AllGather 24 ms (2%), flash fwd+bwd 61 ms (5%), fused RMS/SwiGLU/RoPE kernels ~70 ms (5%), elementwise/copies ~55 ms,
+  optimizer multi_tensor_apply ~58 ms (4.5%).
+- opt fast-forwarded to 103d49a (ZeRO-2 on the fused packed path). Full judge check on it started 20:18:30 (log
+  /tmp/final_check_r5.log, output /tmp/final_check_r5).
+
+### FULL JUDGE CHECK on /submission (commit 103d49a, ZeRO-2, switches fused) — PASS (20:24:54)
+- /tmp/final_check_r5/check.json: status PASS, speedup 2.1864 (candidate ~1259 ms/step against the frozen reference 2753 ms).
+- Current submission: /submission/llava opt = 103d49a; /submission/switches.json = LLAVA_PACKED, LLAVA_FUSED_NORM, LLAVA_FUSED_MLP, LLAVA_FUSED_ROPE = &quot;1&quot;.
+- Round 6 (in progress): fused AdamW behind LLAVA_FUSED_ADAM (branch r6-fused-adam, worktree /tmp/r6/wt, switch file /tmp/r6/switches_adam.json).</pre></details><details><summary><em class="">1.1 h</em><span>Round 6 — fused AdamW (no gain; not adopted) (20:25)</span></summary><pre>- Change tried: torch.optim.AdamW(fused=True) behind LLAVA_FUSED_ADAM in LLaVATrainer.create_optimizer (worktree /tmp/r6/wt).
+- Result: judge <code>time</code> status ERROR (/tmp/r6/time_adam): <code>fused=True requires all the params to be ... on cuda</code>. The
+  optimizer is built before the DeepSpeed engine moves the parameters, so fused AdamW cannot be constructed here.
+  Dropped. A custom Triton optimizer step would only be worth ~2% (multi_tensor_apply is ~58 ms of 1299 ms).
+- Trace check (ZeRO-2, /tmp/r5/profile_zero2): idle gaps total ~14 ms per step, so the step is GPU-bound; remaining GPU
+  work is GEMM 857 ms (66%), flash 61 ms, fused ops ~70 ms, NCCL ~106 ms (mostly overlapped), elementwise ~55 ms, optimizer ~58 ms.
+- Merged projections (no gain): microbenchmark at N=13600 tokens on this GPU: merged q/k/v GEMM 11% slower than three
+  separate; merged gate/up GEMM within noise. Not pursued.
+- ZeRO reduce_bucket_size 5e8 (instead of auto ≈ 16.7M elements), config only, /tmp/r7/time_bucket: 1254.2 ms/step, speedup
+  2.1951 vs 2.1874 for 103d49a (+0.35%, inside noise). Not adopted.
+- Triton AdamW (branch r8-triton-adamw, commit 48755d7, switch LLAVA_TRITON_ADAMW): not adopted. Unit tests pass vs
+  torch AdamW (also at 1.7e9 elements after 64-bit offsets). Judge runs fail: first attempt &quot;illegal memory access&quot; in
+  DeepSpeed initialize_optimizer_states (32-bit offset overflow, fixed in 48755d7); after the fix the run dies before the
+  first step (DataLoader worker exited, steps_seen 0; no traceback in the log). The same tree with the switch off runs
+  normally (/tmp/r8/time_noadamw: 2.1862), so the failure is in the Triton optimizer path. Expected gain was ~2%; not pursued.</pre></details><details><summary><em class="">1.5 h</em><span>Round 9 — activation budget 64 GiB (config only; screen 20:38–20:45, full check from 20:47)</span></summary><pre>- Change: LLAVA_PACKED_ACT_GB 52 -&gt; 64, switch file /tmp/r9/switches_b64.json (no code change). The profile was not re-run
+  this round; the breakdown used is /tmp/r5/profile_zero2 (GEMM 66%, flash 5%, fused ops 5%, NCCL ~8% mostly overlapped,
+  optimizer ~4.5%). Mechanism: keep = budget // (max tokens over ranks x bytes per token-layer), so 64 GiB keeps at least as
+  many decoder layers as 52 GiB for every micro-batch; recomputation can only shrink.
+- Screen <code>sweep</code> (/tmp/r9/sweep_b64, 20:38:54–20:44:37): reference runs 2750.9 and 2746.1 ms (mean 2748.5, spread 0.17%);
+  52 GiB: 1259.4 ms (window spread 1.9%, peak 109.06 GiB); 64 GiB: 1246.4 ms (window spread 3.3%, peak 117.04 GiB).
+  Gain 1.03%, inside the window noise of both runs. Not adopted on the screen alone.
+- Why a full check: the 117 GiB peak has not gone through the judge&#x27;s gate-3 sequences (the 52 GiB tree has), and the
+  headroom is about 23 GiB of 140 GiB. The full check runs the same seeds and data as the final evaluation.
+- Full check on the 64 GiB file started 20:47:53 (log /tmp/r9/final_b64.log, output /tmp/r9/final_b64). Adoption rule:
+  replace /submission/switches.json only on PASS. Backup of the current file: /tmp/r9/switches_52_backup.json.
+- RESULT (20:54): check INCORRECT at gate 3 (/tmp/r9/final_b64/check.json). Gate 2: NOT_BITWISE, no exact failure.
+  Gate 3, seed 0: both endpoints NaN (verdict &quot;different&quot;). Rank-0 trajectory losses (/tmp/r9/final_b64/trajectory/
+  traj_s0.r0.json) are finite for steps 0-4 and NaN from step 5 on; the Trainer log shows that NaN as 0.0 from step 6.
+  The 52 GiB trajectories (/tmp/final_check_r5/traj_s0.log, /tmp/r5/n1_zero2/traj_s0.log) stay near 1.0 throughout.
+  Timing of the same candidate run: 1245.5 ms/step (speedup 2.2104 vs the frozen reference), peak allocated 117.04 GiB,
+  reserved 137.7 GiB of 140.4 GiB, so the headroom is about 2.7 GiB.
+- DECISION: 64 GiB NOT adopted. /submission/switches.json unchanged (52 GiB); submission still 103d49a (PASS 2.1864).
+- Hypothesis (untested): the 64 GiB budget runs all 32 layers without recomputation for micro-batches of about 12.9k to
+  16.1k tokens, where 52 GiB recomputes a few. The NaN may come from the non-recompute path at those sizes, or from the
+  backward of a size-dependent kernel. Diagnosis probe planned (single GPU, under flock, no change to /submission).</pre></details><details><summary><em class="">1.6 h</em><span>Round 10 — diagnosis of the NaN in the 64 GiB trajectory (no change to /submission), 20:55–21:05</span></summary><pre>- Trajectory (/tmp/r9/final_b64/trajectory/traj_s0.r{0,1}.json): both ranks finite for steps 0-4 (rank 0: 1.2895, 1.4060,
+  1.1143, 0.2822, 1.2914; rank 1: 1.3872, 1.3853, 1.2121, 0.2851, 1.5047), NaN on both ranks from step 5 (rank 1: 55 of 60
+  steps NaN). NaN weights from the step-4 update, or a NaN input at step 5 on both ranks, fit this; the logs do not say which.
+- The warnings &quot;None of the inputs have requires_grad=True&quot; in traj_s0.log come from the CLIP encoder (gradient checkpointing
+  enabled, run under no_grad). They are benign and do not come from the LLM layers.
+- Probe (/tmp/r10/nan_probe/probe.py; one GPU under flock; 7B dims, random init, 16 rows; judge&#x27;s deterministic settings incl.
+  flash-attn varlen backward deterministic=True): 8192, 12288, 14000 and 16384 tokens give finite loss and gradients. At 14000
+  tokens, n_ckpt = 0, 3 and 32 give the same loss (11.183519) and grad norm (1.7657e+01) to the printed digits; at 16384
+  tokens, n_ckpt = 0 and 8 match (11.185712, 1.6194e+01). Peak at 14000 tokens: 70.8 GiB (n_ckpt 0) vs 27.2 GiB (n_ckpt 32).
+  So recomputation is numerically transparent here, and the NaN did not reproduce with random weights. Its cause (data,
+  weights or the 2-GPU ZeRO path) is not identified.
+- DECISION: 64 GiB stays rejected (gate 3 NaN; reserved 137.7 GiB of 140.4 GiB leaves ~2.7 GiB). Submission unchanged (52 GiB).
+- Follow-up started 21:00: <code>check --n1</code> on the submitted tree and 52 GiB switch file (/tmp/r10/n1_recheck, log
+  /tmp/r10/n1_recheck.log). It adds a fresh gate-3 sample for the submitted config. Any future change must pass gate 3 again.</pre></details><details><summary><em class="">1.6 h</em><span>Round 10 (cont.) — RISK: the submitted 52 GiB config FAILED gate 3 on re-check (21:02)</span></summary><pre>- <code>check --n1</code> on the submitted tree (103d49a) and switch file (/tmp/r10/n1_recheck, 21:00–21:02): INCORRECT at gate 3,
+  both endpoints NaN. Both ranks are finite for steps 0-51 and NaN for steps 52-59, so the weights were poisoned at the
+  step-51 update (persistent NaN). The earlier PASSes on this tree (/tmp/r5/n1_zero2 and /tmp/final_check_r5) had no NaN steps.
+  The 64 GiB run was poisoned from step 5 (both ranks, persistent).
+- So the trigger is intermittent: the same tree, switches and data passed twice and failed twice since 20:40. No ECC errors
+  and no retired pages on either GPU (nvidia-smi). Submission files are unchanged (HEAD 103d49a, clean, switches 52 GiB).
+- Ruled out so far: the Triton kernels (static read: every output element written or masked; no OOB stores found);
+  flash-attn varlen backward with deterministic=True (bitwise identical after NaN/0/inf poisoning of the allocator cache,
+  /tmp/r10/fa_probe/fa_uninit.py).
+- Next (bisect, /tmp/r10/sw_nofused.json and /tmp/r10/sw_upstream.json): trajectories with the fused ops off, and with the
+  packed path off (upstream forward, ZeRO-2). Outputs /tmp/r10/n1_nofused and /tmp/r10/n1_upstream.
+- 21:08 progress: fused-off trajectory at 45/60 logged steps, no NaN yet. Its first losses (1.3379 1.3959 1.1634 0.2838
+  1.3994 0.9423 ...) match the passing 52 GiB runs to about 1e-3. The failing run was poisoned at step 52, which this run
+  has not reached yet. The upstream run queues after it.</pre></details><details><summary><em class="">1.9 h</em><span>Round 11 — NaN gate-3 failures: bisect, DeepSpeed overflow path, pass-rate sampling (21:08–)</span></summary><pre>- Bisect results (<code>check --n1</code>, gate 3 only, seed 0):
+  - packed, fused ops off, ZeRO-2 (/tmp/r10/n1_nofused): PASS, verdict equivalent (21:12). Trajectory finite.
+  - upstream forward, packed and fused off, ZeRO-2 (/tmp/r10/n1_upstream): PASS, equivalent (21:15).
+  - Both are single samples. The fused ZeRO-2 config (the submission) has failed 2 of 4 runs (20:54 b64, 21:02 recheck).
+- Mechanism (read from the installed DeepSpeed 0.12.6): ZeRO-2 <code>step()</code> runs <code>check_overflow()</code> only when
+  <code>self.dtype == torch.float16</code> (deepspeed/runtime/zero/stage_1_and_2.py:1774); ZeRO-3 does the same (stage3.py:1889).
+  Under bf16 a NaN or inf gradient is therefore not skipped. It enters the fp32 master weights and Adam state, which
+  explains the persistent NaN from one step on. The trigger (a non-finite gradient in one step, intermittent) is still
+  unidentified. Both ZeRO stages have this gap, so changing the stage alone does not prevent poisoning.
+- Sampling started 21:19 (background, log /tmp/r11/*.log): <code>check --n1</code> on the submission tree (A, ZeRO-2, fused,
+  52 GiB) and on the 8c1de8f tree in worktree /tmp/r11/z3 (B, ZeRO-3, fused, 52 GiB), twice each, interleaved.
+  Outputs /tmp/r11/A_z2_{1,2} and /tmp/r11/B_z3_{1,2}.
+- Sampling results (done 21:28): ZeRO-2 fused (103d49a): 21:26 INCORRECT (NaN endpoints), 21:27 INCORRECT. ZeRO-3 fused
+  (8c1de8f, worktree): 21:26 PASS, 21:27 PASS (both equivalent). Earlier: ZeRO-2 PASS 20:18 and 20:24, FAIL 21:02;
+  ZeRO-3 PASS 20:02 and 20:09 (full check, 1.9984x). ZeRO-2 has now failed 3 runs in a row; ZeRO-3 has passed 4 of 4.
+- DECISION (21:29): committed 4822cd8 &quot;Back to ZeRO stage 3 in scripts/zero3.json (revert 103d49a)&quot;. Its tree content is
+  identical to 8c1de8f (empty diff). Cost: about 9% speed against the ZeRO-2 config (2.19x down to about 2.0x, the 20:09 full
+  check). Numerics tier N1, unchanged. Reversible: <code>git revert 4822cd8</code> restores ZeRO-2.
+- Full judge check on /submission (tree 4822cd8, switches 52 GiB fused): started 21:29, log /tmp/r11/final_revert.log,
+  output /tmp/r11/final_revert. Result below.
+- FULL CHECK on /submission, tree 4822cd8 — PASS (21:35, /tmp/r11/final_revert/check.json):
+  - Gate 2: NOT_BITWISE with no exact failure (tier N1). Gate 3, seed 0: train_loss_last20 at -0.060 sigma, probe_loss_last20
+    at +0.063 sigma (bound 3 sigma); no NaN.
+  - Gate 1 (time): candidate 1368.8 ms/step against the frozen reference 2753.0, speedup 2.0112, beyond_reference_noise
+    true, window spread 1.56%, peak allocated 108.13 GiB, problems none.
+  - Worktree /tmp/r11/z3 removed; <code>git worktree list</code> shows only the branches in use.
+- Two more <code>check --n1</code> runs on the same tree (21:37–21:41, /tmp/r11/rev_n1_{1,2}): both PASS, equivalent. Endpoints
+  -0.06 and +0.063 sigma, the same as the full check to the printed digits. With the earlier runs, ZeRO-3 has passed 7 of 7
+  gate-3 runs (20:02, 20:09, 21:26, 21:27, 21:35, 21:41 x2). Its endpoints reproduce run to run, unlike the ZeRO-2 runs.
+  The bf16 overflow gap (DeepSpeed step) still applies to ZeRO-3, so a rare NaN gradient could still poison it.</pre></details><details><summary><em class="">2.8 h</em><span>Round 13 — optimizer step (torch fused AdamW), 22:02–</span></summary><pre>- Profile of the submission 23ed472 (/tmp/r13/profile, detail, rank 0, 1 step): GPU kernel total 1222 ms/step. GEMM 66.5%
+  (813 ms). NCCL AllReduce of bf16 grads 55.1 ms (4.5%, exposed with overlap off). AllGather 28.7 ms (2.4%). Optimizer
+  foreach kernels (multi_tensor_apply) about 65 ms (5.3%). SwiGLU fwd 14.3 + bwd 31.2 ms (3.8%). Flash fwd+bwd about 50 ms.
+  Residual add 22 ms. Copies about 39 ms. Zero/fill about 19 ms.
+- Dead end 1 (no gain): <code>use_multi_rank_bucket_allreduce: false</code> in zero3.json (/tmp/r13/profile_nmr). The profile shows
+  the same AllReduce (55.1 ms). In DeepSpeed 0.12.6, <code>allreduce_bucket</code> sets <code>rank = None</code> on its first line
+  (stage_1_and_2.py:1442), so the per-owner <code>dist.reduce</code> path is never used. Even if it were used, two serial reduces on
+  two ranks would not halve the traffic. Not adopted.
+- Dead end 2 (blocked): Triton AdamW (commit 48755d7, cherry-picked as bb7398c in /tmp/r13/tadam) fails in the profile
+  run. The DataLoader worker is killed by SIGSEGV (&quot;killed by signal: Segmentation fault&quot;, /tmp/r13/profile_tadam/
+  timing_tree_detail.log). The Triton compile happens during DeepSpeed&#x27;s engine init (its first optimizer step), before the
+  loader forks its workers. The fused RMSNorm, SwiGLU and RoPE kernels compile after the fork and do not crash. Not pursued.
+- Candidate 3: torch&#x27;s fused AdamW behind LLAVA_TORCH_FUSED_ADAMW (scratch worktree /tmp/r13/fadam from 23ed472; the
+  change is in llava/train/llava_trainer.py create_optimizer: group[&quot;fused&quot;] = True after construction, so the state step
+  tensors are created on CUDA at DeepSpeed&#x27;s first step). Profile (/tmp/r13/profile_fadam): GPU kernel total 1189 ms/step
+  (vs 1222), and the fused kernel is 36.2 ms, down from about 65 ms of foreach passes. Paired sweep running (started 22:12,
+  /tmp/r13/sweep_fadam: submission switches vs the variant, bracketed by reference runs). Numerics: fused AdamW is the same
+  update in one kernel, so expect tier N1; gate-3 samples are needed before adoption.
+- Sweep result (/tmp/r13/sweep_fadam, 22:17): submission switches 1273.4 ms (2.1606) vs torch-fused 1244.7 ms (2.2104),
+  references 2750.9 and 2751.7 ms.
+- Full check of the unchunked variant: INCORRECT at GATE 2, exact check <code>cross_rank_pattern</code> (/tmp/r13/final_fadam). 28% of
+  the trainable params had identical deltas and optimizer state across ranks (reference 0%). The 2.25% &quot;gain&quot; was skipped
+  work. Probe (/tmp/r13/probe/fused_big.py): torch 2.1.2&#x27;s fused AdamW leaves 17.4% of a 2.6e9-element tensor unchanged (the
+  elements before index ~452M). A ZeRO-2 partition is about 3.4e9 elements per rank, so the unchunked op is incorrect here.
+- Fix: chunked fused AdamW (llava/train/chunked_fused_adamw.py, switch LLAVA_CHUNKED_FUSED_ADAMW=1, scratch worktree
+  /tmp/r13/cfadam). The kernel is called on views of at most 2**30 elements, with the step incremented once per step.
+  Unit test (/tmp/r13/probe/test_chunked.py): bitwise identical to torch&#x27;s fused AdamW at 2<b>27 and 2</b>30+12345 elements
+  (params, exp_avg, exp_avg_sq, step), and 0 unchanged elements at 2.6e9.
+- Full check of the chunked variant (22:31, /tmp/r13/final_cfadam): PASS, tier N1. Gate 2 NOT_BITWISE with no exact failure.
+  Gate 3 within 3 sigma (-0.110 and -0.187 sigma). Time 1263.4 ms, speedup 2.179.
+- Paired sweep (22:37, /tmp/r13/sweep_cfadam): baseline 1272.8 ms (2.162) vs chunked 1263.5 ms (2.178), +0.73%, inside the
+  1.6% window spread. Profile (/tmp/r13/profile_cfadam): GPU kernel total 1211 ms/step vs 1222 (-0.9%).
+- Decision rule: three more gate-3 samples on the chunked variant (/tmp/r13/n1_cfadam_{1,2,3}, started 22:38). Adopt (commit to
+  opt, add LLAVA_CHUNKED_FUSED_ADAMW=1 to /submission/switches.json after a backup) only if all PASS.
+- Result: 3 of 3 gate-3 samples PASS, with identical endpoints in every run (/tmp/r13/n1_cfadam_{1,2,3}, 22:38-22:47).
+- ADOPTED: commit 3e3563d &quot;Chunked torch fused AdamW behind LLAVA_CHUNKED_FUSED_ADAMW=1&quot;. /submission/switches.json now adds
+  LLAVA_CHUNKED_FUSED_ADAMW=1 (backup of the previous file: /tmp/r13/switches_pre_cfadam.json).
+- FINAL FULL CHECK on the committed tree (3e3563d, /tmp/r13/final_submission, 22:47-22:54): PASS, tier N1. Gate 2 NOT_BITWISE
+  with no exact failure. Gate 3 within 3 sigma (train -0.110, probe -0.187). Time 1263.7 ms/step, speedup 2.1786, window
+  spread 1.56%, peak allocated 109.02 GiB, problems none.
+- Round 13 summary: the optimizer path went from the foreach kernels (about 65 ms) to a single fused kernel per chunk (36 ms
+  for the 83% of elements the broken unchunked op covered; about 44 ms expected for all of them). Net gain is small
+  (+0.7% sweep, -0.9% GPU kernel time). The 2.25% of the unchunked variant was skipped work. Dead ends this round:
+  use_multi_rank_bucket_allreduce (a no-op in DeepSpeed 0.12.6) and Triton AdamW (segfault in the DataLoader workers).</pre></details><details><summary><em class="">3.9 h</em><span>Round 14 — SwiGLU kernel launch shape (23:00-23:14)</span></summary><pre>- Profile of 3e3563d (rank 0, one step): SwiGLU forward 14.2 ms and backward 31.1 ms with BLOCK 1024 and 4 warps. The
+  kernels ran at roughly 30-40% of memory bandwidth.
+- Launch-shape screen by profile (/tmp/r14/profile_s{1..5}, same tree, env switches LLAVA_SWIGLU_BLOCK / LLAVA_SWIGLU_WARPS):
+  - 4096 x 8: 17.4 + 35.1 ms (worse)
+  - 2048 x 8: 14.3 + 30.5 ms (no gain)
+  - 1024 x 8: 9.8 + 16.4 ms (best, GPU total 1189 ms)
+  - 1024 x 16: 12.3 + 15.5 ms
+  - 512 x 8: 11.6 + 14.9 ms (about equal to 1024 x 8)
+- Paired sweep (/tmp/r14/sweep_s3, 23:00-23:07): committed shape 1268.8 ms (2.1691) vs 1024 x 8 1250.4 ms (2.2011). Gain 1.45%,
+  matching the profile&#x27;s kernel saving (about 19 ms).
+- Full check of the committed change (commit 15b49a6, /tmp/r14/final_swiglu, 23:07-23:14): PASS, tier N1. Gate 2 no exact
+  failure. Gate 3 endpoints identical to the previous commit (-0.10973 and -0.18696 sigma), so the numerics did not change.
+  Time 1252.2 ms/step, speedup 2.1985, window spread 1.62%, peak 109.02 GiB.
+- ADOPTED: commit 15b49a6 sets the default to 8 warps (BLOCK stays 1024; both still switchable). Scratch worktree removed.
+- Not tried this round: the RMSNorm and RoPE kernels (about 30 ms and 8 ms) have the same 4-warp shape and may benefit from the same
+  screen. The residual add and the copies (about 40 ms) are next.</pre></details><details><summary><em class="">4.0 h</em><span>Round 15 — RMSNorm and RoPE launch shapes (no gain; nothing adopted, 23:14-23:20)</span></summary><pre>- Screen by profile (/tmp/r15/profile_r{1..5} vs the 15b49a6 profile /tmp/r14/profile_s3). Kernel times, ms per step:
+  - RMSNorm forward 13.5 (4 warps: 12.8). RMSNorm backward 8.9 (16 rows per program: 8.5; 64 rows: 8.9; 4 warps: 9.3).
+  - RoPE forward 4.7 and backward 3.5 (8 warps: 5.6 and 4.1, worse).
+  - Total gain at best about 1 ms per step, inside the profile noise. Not adopted.
+- Conclusion: these kernels already sit near their memory-bandwidth limit at this shape. The rest of the step is GEMM-,
+  optimizer- and communication-bound (see the Round 13 profile).</pre></details><details><summary><em class="">4.3 h</em><span>Round 16 — no per-micro-batch host sync in the packed path (no gain; 23:20-23:28)</span></summary><pre>- Change tried (switch LLAVA_PACKED_NOSYNC, /tmp/r16/nosync): flash-attn max_seqlen from the padded length (a Python int)
+  instead of <code>int(seqlens.max().item())</code>. Removes one host sync per micro-batch.
+- Paired sweep (/tmp/r16/sweep_nosync): 1252.1 ms (2.1977) vs 1251.7 ms (2.1985). No gain. Not adopted.
+- Finding: the fixture&#x27;s first eight steps have 3.2k-5.2k text tokens per micro-batch (/tmp/r13/final_submission/
+  loader_cand_partition.log). Images add 576 tokens each inside the model, so a rank handles about 13k tokens per step.
+  The 52 GiB budget keeps all layers at that size, so recomputation is rare and a smaller activation footprint would gain
+  little.</pre></details><details><summary><em class="">4.3 h</em><span>Round 17 — overlap on with contiguous gradients off (slower; not adopted; 23:30-23:38)</span></summary><pre>- Trace check of the current best profile (/tmp/r14/profile_s3, rank 0): the GPU is busy about 98% of the step. Idle gaps
+  total 17 ms. So the step time is kernel work, not launch gaps.
+- Change tried (scratch worktree /tmp/r17/var from 15b49a6): zero_optimization overlap_comm true, contiguous_gradients false.
+  This was meant to hide the 55 ms gradient all-reduce without the shared gradient buffer that the NaN failures pointed to.
+- Paired sweeps (/tmp/r17/sweep_base, /tmp/r17/sweep_var): committed config 1252.5 ms (2.1979) vs variant 1261.5 ms
+  (2.1842), so the variant is 0.7% slower. Not adopted, and the NaN-safe configuration is unchanged.</pre></details><details><summary><em class="">4.4 h</em><span>Round 18 — stability check of the final tree 15b49a6 (23:38-23:44)</span></summary><pre>- Two <code>check --n1</code> on /submission/llava (/tmp/r14/n1_final_{1,2}): both PASS, endpoints identical to each other and to the
+  full check (train -0.00034, probe -0.00052 means; -0.110 and -0.187 sigma). With the earlier full check, the tree has
+  three gate-3 PASSes and no failure.
+- Remaining levers, measured or estimated (for the record): residual-add fusion into the RMSNorm (about 0.5-1%, needs a
+  custom add+norm kernel and an autograd rewrite of the layer loop); Triton AdamW (under 0.5% over the chunked torch fused
+  kernel); SwiGLU is near its bandwidth limit after the launch-shape fix; NCCL all-reduce (55 ms) and all-gather (28 ms) are
+  on the compute stream with overlap off. Overlap on is the NaN path, and the variant with contiguous gradients off is 0.7%
+  slower.</pre></details><details><summary><em class="">4.4 h</em><span>Round 19 — evaluated and not pursued: residual-add fusion and concurrent per-owner gradient reduces (23:50)</span></summary><pre>- Residual-add fusion into the RMSNorm (custom add+norm kernel and a layer-loop rewrite). The 128 bf16 adds per step (forward
+  and backward) cost about 22 ms. Fusing them into the norm kernels saves about 7-8 ms per step (about 0.6%), for two new
+  kernels, a restructured layer loop, and numerical-equivalence tests. Rejected for effort against gain.
+- Concurrent per-owner gradient reduces (two dist.reduce calls on two streams, so both NVLink directions carry traffic and
+  the 55 ms all-reduce could fall to about 28 ms). This needs changes to DeepSpeed&#x27;s internal stream handling and copy-back.
+  The race class is the same one behind the NaN gate-3 failures, and the expected gain is about 2%. Rejected for risk.
+- Status: the submission remains 15b49a6 (full check PASS 2.1985, gate-3 stable). Further gains I can identify are each
+  below 1% or carry a race risk. The next decision is for the user: either accept 15b49a6 as final, or approve one of the
+  risky options above.</pre></details><details><summary><em class="">4.9 h</em><span>Round 20 — RMSNorm forward, several rows per program (no gain; 23:44-23:52)</span></summary><pre>- Bitwise check first (/tmp/r20/probe_rows.py): ROWS 2, 4, 8, 16 give forward, dx and dw bitwise identical to the one-row
+  kernel (13,217 rows, so the tail is covered).
+- Profile (/tmp/r20/profile_r{2,4,8}): RMSNorm forward 14.0, 14.2, 15.1 ms against 13.5 ms with one row per program. No gain,
+  so the kernel is not latency-bound. Not adopted.</pre></details><details><summary><em class="">4.9 h</em><span>Round 21 — ZeRO-2 fast path: skip the unused gradient norm and the unit-scale pass (ADOPTED; 23:53-00:13)</span></summary><pre>- Attribution (analysis of /tmp/r14/profile_s3 detail trace; /tmp/r20/callers_deep.py): the largest copies are DeepSpeed&#x27;s
+  step, not our code. get_grad_norm_direct copies every gradient to float64 (about 16 ms of copies plus about 8 ms of double
+  reductions, and one host read per parameter). unscale_and_clip_grads multiplies every gradient by 1.0 (about 6 ms). The zero
+  fills are only 3.3 ms of GPU time; my earlier 19 ms figure was a CPU-side inclusive time.
+- Checked before changing anything: the norm is consumed only by unscale_and_clip_grads with clip_grad &gt; 0; the recipe has no
+  clipping (fill_match leaves gradient_clipping absent, so DeepSpeed&#x27;s default 0 applies); the Trainer and DeepSpeed read
+  get_global_grad_norm nowhere in this version.
+- Change: llava/train/zero_fastpath.py, switch LLAVA_ZERO_FASTPATH=1, imported by llava_trainer.py. Both overrides fall back to
+  the original code unless clip_grad == 0 and loss_scale == 1.0 (checked at run time). The norm reads as NaN.
+- Profile (/tmp/r21/profile_zfp): GPU kernel total 1189 -&gt; 1165 ms/step. The float64 norm reductions and the unit multiply are gone.
+- Paired sweep (/tmp/r21/sweep_zfp): 1251.4 ms (2.2024) -&gt; 1223.5 ms (2.2526), -2.2%.
+- Full check, scratch tree (/tmp/r21/final_zfp): PASS. Gate 3 endpoints identical to 15b49a6 to every printed digit
+  (-0.10973386, -0.18696206 sigma), so the trajectory is unchanged. Time 1224.6 ms, speedup 2.248.
+- ADOPTED: commit 72c123c; /submission/switches.json adds LLAVA_ZERO_FASTPATH=1 (backup /tmp/r21/switches_pre_zfp.json).
+- Final full check on the committed tree (/tmp/r21/final_submission, 00:06-00:12): PASS, tier N1, gate 2 no exact failure,
+  gate 3 identical endpoints, time 1235.7 ms, speedup 2.228, window spread 3.9% (valid, below the 6% limit).
+  Round-21 range across the two checks: 2.228-2.248.</pre></details><details><summary><em class="">5.6 h</em><span>Round 22 — Triton AdamW, one kernel per partition (ADOPTED; 00:14-01:00)</span></summary><pre>- Starting point: the optimizer is about 44 ms per step (chunked torch fused AdamW, /tmp/r13/profile_cfadam). Its update moves
+  about 95 GB per step, so a single pass should be close to the memory limit.
+- Change: llava/train/triton_adamw.py (LLAVA_TRITON_ADAMW=1; block and warps via LLAVA_TRITON_ADAMW_BLOCK / _WARPS, defaults
+  1024 and 8). Same formula as torch&#x27;s AdamW, 64-bit offsets, and a zero-gradient init step that skips the kernel. The skip
+  is exact with weight_decay 0 and keeps Triton&#x27;s compile out of DeepSpeed&#x27;s init, which runs before the DataLoader forks.
+  The Round-13 segfault does not recur (profile /tmp/r22/profile_tadam completed).
+- Shape screen by profile, kernel time: 1024x4 25.2 ms; 4096x8 40.2 ms; 1024x8 22.6 ms (GPU total 1123 ms); 256x4 22.0 ms
+  (GPU total 1129 ms). Chose 1024x8.
+- Unit test (/tmp/r22/test_tadam.py): agrees with torch&#x27;s fused AdamW to one ULP at the parameter level, with and without the
+  zero-gradient init step, and covers 2.6e9 elements.
+- Gate 2 failed first: the RNG fingerprint at step 0 (4 exact failures, /tmp/r22/final_tadam, quick). Debug prints (/tmp/r22/
+  quick_dbg) showed that the Python random stream moved only at the Triton launch, and only on a later launch. Cause: Triton&#x27;s
+  cache write draws from random (triton/runtime/cache.py:99). A compile for a new specialisation after the first launch was not
+  restored, because the wrapper restored only the first launch. Fix: restore the Python and numpy streams on every launch.
+  Quick check then PASS (/tmp/r22/quick_fix).
+- Paired sweep (/tmp/r22/sweep_tc): 1227.2 ms (2.2401) vs 1184.1 ms (2.3216), +3.5%.
+- Full check, before commit (/tmp/r22/final_tadam2): PASS, tier N1. Gate 2 no exact failure. Gate 3 within 3 sigma (-0.049,
+  -0.215). Time 1186.7 ms, speedup 2.3199.
+- Two more check --n1 PASS with identical endpoints (/tmp/r22/n1_tadam_{1,2}).
+- ADOPTED: commit 0c07baf. /submission/switches.json: PACKED, FUSED_NORM/MLP/ROPE, ZERO_FASTPATH, TRITON_ADAMW=1,
+  TRITON_ADAMW_BLOCK=1024, TRITON_ADAMW_WARPS=8 (the chunked switch is no longer in the file; its module stays in the repo).
+  Backup of the previous file: /tmp/r22/switches_pre_tadam.json.
+- Final full check on the committed tree (/tmp/r22/final_submission, 00:52-00:59): PASS, tier N1, gate 2 no exact failure, gate 3
+  identical to the pre-commit run, time 1185.2 ms, speedup 2.3227, window spread 2.0%.</pre></details><details><summary><em class="">5.7 h</em><span>Round 23 — profile of 0c07baf and the remaining levers (no change adopted; 01:01-01:05)</span></summary><pre>- Profile (/tmp/r23/profile, rank 0, one step): GPU kernel total 1128 ms. GEMMs 816 ms (72%, about 650 TFLOPS in every GEMM
+  kernel, so near the practical peak). NCCL AllReduce 52.5 ms (4.7%) and AllGather 26.7 ms (2.4%). Triton AdamW 22.5 ms.
+  SwiGLU 26 ms. RMSNorm 22 ms. Flash fwd and bwd about 62 ms. Residual and gradient adds about 22 ms. Copies about 35 ms.
+- NCCL protocol screen (/tmp/r23/profile_simple, profile_simple2): NCCL_PROTO=Simple and NCCL_ALGO=Ring with NCCL_PROTO=SIMPLE.
+  The kernel names stay RING_LL and the times are unchanged (51-54 ms and 21-29 ms). The variables do not take effect in this
+  build. No gain.
+- Attribution (callers script): the bf16 multiply is DeepSpeed&#x27;s per-bucket division <code>tensor.div_</code> in average_tensor
+  (stage_1_and_2.py:1072), about 10 ms across 294 buckets. Removing it means copying average_tensor and folding the factor
+  of 2 into the optimizer, which is exact except for a subnormal edge. Invasive, about 0.9%. Not pursued.
+- Residual-add fusion into the RMSNorm (about 5 ms of traffic saved, about 0.4%). Not pursued.
+- Conclusion: the remaining levers are each below 1% and touch DeepSpeed internals or a new kernel. The submission stays at
+  0c07baf (full check PASS 2.3227).</pre></details><details><summary><em class="">6.2 h</em><span>Round 24 — flash attention for the frozen CLIP tower (rejected: first-loss band; 01:06-01:15)</span></summary><pre>- Attribution (profile /tmp/r23/profile): the CLIP tower runs eager attention per step (align1 cutlass GEMMs about 12 ms, fp32
+  softmax about 4 ms). Change tried: llava/model/clip_flash.py behind LLAVA_CLIP_FLASH=1 (flash_attn_func on the vision tower&#x27;s
+  attention, softmax scale head_dim**-0.5, no mask, no dropout).
+- Features: flash vs eager on the tower&#x27;s shapes (16 images, 577 tokens, 16 heads): mean relative difference 0.19%
+  (/tmp/r24/test_clip.py).
+- Profile (/tmp/r24/profile_clip): GPU total 1114 ms against 1128. Paired sweep (/tmp/r24/sweep_clip): the candidate&#x27;s
+  timing is marked invalid by the judge: the first logged loss, before any optimizer step, differs from the frozen reference by
+  0.00629 (&gt; 0.005). The eager bf16 rounding of the scores and probabilities is part of the reference, so flash cannot match it
+  within the band. Rejected; the worktree was removed.</pre></details><details><summary><em class="">6.2 h</em><span>Round 25 — residual adds fused into the RMSNorms (bitwise identical; slower; rejected; 01:17-01:26)</span></summary><pre>- Change (/tmp/r25/an, LLAVA_FUSED_ADDNORM): FusedAddRMSNormFn computes bf16(r + d) and its RMSNorm in one kernel; backward
+  folds the residual gradient in the norm backward kernel. The packed layer loop threads the normalised input through the layers.
+- Bitwise: the op alone (forward, dr, dd, dw) and a two-op chain match eager autograd exactly (/tmp/r25/test_op.py, test_chain.py).
+  The full model (loss and all gradients) matches the committed path bitwise at 0, 1 and 3 checkpointed layers, once flash&#x27;s
+  deterministic backward is forced (/tmp/r25/test_addnorm.py). The first comparison disagreed only because the test did not
+  force flash&#x27;s deterministic backward.
+- Profile (/tmp/r25/profile_an): GPU total 1135 ms against 1128. The fused forward kernel takes 25.5 ms against about 17 ms for
+  the add plus the norm; the fused backward saves about 1 ms. Net loss. Not adopted.
+- RMSNorm warp counts (2, 4 and 8 forward; 4 and 8 backward; /tmp/r25/profile_w{1,2,3}): forward 12.8-13.9 ms, backward 8.9-9.3 ms.
+  Hoisting the weight load ahead of the reduction: 13.2 ms (/tmp/r25/profile_hoist). No gain. The RMSNorm forward is not limited by
+  warps or by the weight latency. Not pursued further.
+
+### Gate-3 evidence on 0c07baf (01:32)
+- Three more check --n1 on /submission (/tmp/r25/n1_sub_{1,2,3}): PASS, identical endpoints (-0.0001517 train, -0.0005954 probe
+  means). With the earlier full checks and samples, the committed submission has seven gate-3 PASSes and no failure.</pre></details><details><summary><em class="">6.6 h</em><span>Round 26 — ZeRO-2 bf16 step: the optimizer reads the bf16 partition and writes the bf16 copy (ADOPTED; 01:34-02:00)</span></summary><pre>- Attribution (profile /tmp/r23/profile): DeepSpeed&#x27;s non-offload step converts each averaged gradient partition bf16 -&gt; fp32
+  (about 10.3 ms) and copies the fp32 master back into the bf16 partition (about 9.7 ms). Both are full passes. Source read:
+  stage_1_and_2.py step(), lines 1765-1870. The bit16 weight update helper only rebinds pointers.
+- Change: llava/train/zero_bf16_step.py overrides DeepSpeedZeroOptimizer.step for the eligible case (bf16, no offload, clip 0,
+  loss scale 1, no overflow, TritonAdamW). It hands the bf16 partition to the optimizer through grad_overrides (PyTorch refuses a
+  bf16 .grad on an fp32 parameter) and registers the bf16 partition as the target. llava/train/triton_adamw.py converts the
+  gradient in-register and writes the updated parameter as bf16, with the same round-to-nearest conversion DeepSpeed&#x27;s copy uses.
+  Other cases run DeepSpeed&#x27;s own step. Switch LLAVA_ZERO_BF16_STEP=1.
+- Bitwise (/tmp/r26/test_bf16.py): the fp32 master and the bf16 copy match the previous path exactly, two sizes, zero-gradient init
+  included.
+- Profile (/tmp/r26/profile_bf16, _b): DeepSpeed&#x27;s conversion and copy kernels are gone (-20.2 ms). The optimizer kernel grew
+  from 22.5 to 32.8 ms (the extra bf16 store and conversions are not bandwidth-bound; vectorisation hints did not change it). The
+  all-gather kernel grew by 7.7 ms, which is rank skew: NCCL kernel times include waiting for the peer. Net GPU total about even.
+- Paired sweep (/tmp/r26/sweep_bf16): 1185.8 ms (2.3226) vs 1175.4 ms (2.3432), -0.9%.
+- Full check on the candidate (/tmp/r26/final_bf16): PASS, tier N1. Gate 2 no exact failure. Gate 3 endpoints identical to the
+  previous commit to every printed digit (-0.04906998, -0.21471195). Time 1175.4 ms.
+- ADOPTED: commit 0c2eaef (llava_trainer.py, triton_adamw.py, zero_bf16_step.py). /submission/switches.json adds
+  LLAVA_ZERO_BF16_STEP=1 (backup /tmp/r26/switches_pre_bf16.json).
+- Final full check on the committed tree (/tmp/r26/final_submission, 01:50-01:57): PASS, tier N1, gate 2 no exact failure, gate 3
+  identical, time 1176.4 ms, speedup 2.3403, window spread 1.8%.</pre></details><details><summary><em class="">2.4 h</em><span>Round 12 — ZeRO-2 with overlap_comm off (scratch worktree /tmp/r12/z2nov, from 103d49a), 21:43–</span></summary><pre>- Change tried (not in /submission): scripts/zero3.json with stage 2, overlap_comm false (contiguous_gradients true).
+- Time screen (judge <code>time</code>, /tmp/r12/time_z2_nov): 1275.3 ms/step, speedup 2.1586, window spread 1.6%, peak 109.02 GiB,
+  beyond_reference_noise true. Compare: ZeRO-2 with overlap on 1258.5 ms (2.1874, 20:24); ZeRO-3 (submission) 1368.8 ms
+  (2.0112, 21:35). So overlap off costs about 1.3% against ZeRO-2 and still gains about 7% against ZeRO-3.
+- Gate-3 sampling: four <code>check --n1</code> runs on the variant (/tmp/r12/n1_z2nov_{1..4}, started 21:44).
+- Decision rule: adopt only if all four pass. Then commit to opt (not a revert; a config change on top of 4822cd8) and run
+  a full check on /submission before it counts. If any run is NaN, drop it and log that.
+- Result: gate-3 samples 4 of 4 PASS (equivalent), with identical endpoint means in every run (train -0.000342, probe
+  -0.000525; /tmp/r12/n1_z2nov_{1..4}).
+- FULL CHECK (finished 22:01, /tmp/r12/final_z2nov/check.json): PASS, tier N1. Gate 2 NOT_BITWISE, no exact failure.
+  Gate 3 within 3 sigma (train -0.111 sigma, probe -0.189 sigma). Time: 1272.6 ms/step, speedup 2.1634, window spread
+  1.44%, peak 109.02 GiB, problems none. It ran on the working tree before the commit; the committed file is identical
+  (checked with git show | diff).
+- COMMIT 23ed472 &quot;ZeRO stage 2 without overlap_comm (scripts/zero3.json)&quot;, on top of 4822cd8. Submission is now 23ed472
+  with the 52 GiB fused switches unchanged. Scratch worktree /tmp/r12/z2nov removed.
+- Round 9 (64 GiB budget): sweep +1.03% inside noise; full check INCORRECT at gate 3 (NaN trajectory). Not adopted.
+- RISK (21:06), addressed at 21:29: the ZeRO-2 config (103d49a + 52 GiB switches) failed gate 3 intermittently (NaN from one
+  update on). Its 2.1864 PASS is not robust. Reverted to ZeRO-3 in 4822cd8; see Round 11.
+- Full judge checks: /tmp/final_check_r5 PASS 2.1864 on 103d49a (ZeRO-2; later failed gate 3 on re-checks), and
+  /tmp/final_check_r4 PASS 1.9984 on 8c1de8f (ZeRO-3; same content as 4822cd8).
+- Gains by change (judge <code>time</code>, ms/step, reference 2753.0):
+  1. Packed (unpadded) training forward, LLAVA_PACKED: 1897.7 (1.4507×)  [N1]
+  2. Budgeted activation checkpointing (keep layers within 52 GiB): 1700.3 (1.6192×)  [N1, exact]
+  3. Fused Triton RMSNorm/SwiGLU/RoPE with minimal saves + RNG-safe launches: 1373.2 (2.0049×)  [N1]
+  4. ZeRO-2 instead of ZeRO-3 (scripts/zero3.json): 1258.5 (2.1874×)  [N1]; full check 2.1864. REVERTED in 4822cd8
+     (intermittent gate-3 NaN on ZeRO-2 with the fused path; ZeRO-3 passed 4 of 4)
+- Directions that did not work: merged q/k/v and gate/up GEMMs (qkv 11% slower; gate/up no gain); fused torch AdamW
+  (DeepSpeed builds the optimizer before params are on CUDA); reduce_bucket_size 5e8 (+0.35%, noise); token-length
+  partition key (no gain over word-count key); budget &gt; 52 GiB (memory headroom, ~1–2% at most); Triton AdamW (above).
+- Remaining GPU work per step (profile /tmp/r5/profile_zero2): GEMM ~66%, flash 5%, fused ops 5%, NCCL ~8% (mostly
+  overlapped), optimizer ~4.5%, elementwise ~4%. Idle gaps ~14 ms/step, so the step is GPU-bound.</pre></details><details><summary><em class="">6.9 h</em><span>Round 27 — launch shape of the bf16-path optimizer kernel (ADOPTED as a switch change; 02:02-02:15)</span></summary><pre>- Profile screen (/tmp/r27/profile_{a..d}, same tree, switches only): the bf16-path optimizer kernel is 23.0 ms at 512 x 8 and
+  23.0 ms at 256 x 4, against 32.8 ms at the committed 1024 x 8 and 37.1 ms at 1024 x 4 (2048 x 8: 55.1 ms).
+- Paired sweep (/tmp/r27/sweep_512): 1177.2 ms (2.3401) at 1024 x 8 vs 1168.4 ms (2.3578) at 512 x 8, -0.75%, matching the kernel
+  saving.
+- Adopted in /submission/switches.json: LLAVA_TRITON_ADAMW_BLOCK=512, LLAVA_TRITON_ADAMW_WARPS=8 (backup
+  /tmp/r27/switches_pre_512.json). No code change, so no new commit; the switch file lives outside the repo.
+- Full check on /submission (02:08-02:14, /tmp/r27/final_512): PASS, tier N1, gate 2 no exact failure, gate 3 identical to
+  the previous commit, time 1165.8 ms, speedup 2.3615, window spread 2.1%.</pre></details><details><summary><em class="">7.0 h</em><span>Round 28 — more optimizer launch shapes and the NCCL protocol (no gain; 02:17-02:20)</span></summary><pre>- Shapes (/tmp/r27/profile_{e,f,g}, bf16-path optimizer kernel): 256 x 8 23.8 ms, 512 x 4 30.1 ms, 128 x 8 31.8 ms. The best
+  remains 512 x 8 (23.0 ms) and 256 x 4 (23.0 ms). No further gain.
+- NCCL protocol (/tmp/r28/profile_nccl, NCCL_DEBUG=INFO, NCCL_PROTO=Simple): NCCL logs &quot;NCCL_PROTO set by environment to Simple&quot;,
+  so the setting is applied. The kernel names still say LL, and the all-reduce takes 51.8 ms (52.5 ms before), the all-gather
+  25.4 ms (26.7 ms). The collectives are limited by link bandwidth at this message size, so the protocol does not matter.
+  No gain; not adopted.</pre></details><details><summary><em class="">7.6 h</em><span>Round 29 — overlap_comm on, on the current stack (rejected: NaN and a changed trajectory; 02:24-02:33)</span></summary><pre>- Sweep (/tmp/r29/sweep_ov_base): 1153.3 ms (2.3859) with overlap_comm true on the 0c2eaef code (about 1.3% against the overlap-off
+  setting of the same session).
+- Gate-3 samples (/tmp/r29/n1_ov_{1,2,3}): run 1 PASS but with endpoints different from the committed run (train +0.00050 against
+  -0.00015, probe -0.00031 against -0.00060), so the overlap changes the numbers. Runs 2 and 3: NaN (INCORRECT). Two of three runs
+  failed. Not adopted. The overlap-on path is racy in this stack, as the Round 11 analysis suggested. Worktree removed.</pre></details><details><summary><em class="">7.6 h</em><span>Round 30 — ZeRO-2 reduce bucket 5e8 (ADOPTED; 02:34-02:55)</span></summary><pre>- Reasoning: with overlap off, DeepSpeed issues one all-reduce per gradient bucket, and the default bucket holds about one
+  parameter (about 294 calls per step). A larger bucket reduces the call count. The two-rank sums per element are unchanged, so
+  the numerics should be unchanged.
+- Paired sweeps on the same tree (baseline /tmp/r30/sweep_base, variants /tmp/r30/sweep_bucket and sweep_bucket1e9): baseline
+  1168.8 ms; 5e8 1163.4 ms (-0.46%); 1e9 1162.7 ms (-0.52%). Window spread about 2%, so the gain is at the noise floor.
+- ADOPTED: commit 3a1357a (scripts/zero3.json, reduce_bucket_size 500000000, config only; 5e8 chosen for the smaller buffer).
+- Full check on the committed tree (/tmp/r30/final_bucket, 02:47-02:54): PASS, tier N1, gate 2 no exact failure, gate 3 endpoints
+  identical to the previous commit (-0.04906998, -0.21471195), time 1162.7 ms, speedup 2.3677, peak 107.12 GiB (was 109.02).</pre></details><details><summary><em class="">7.8 h</em><span>Round 31 — contiguous_gradients off (no gain; slower; 03:00-03:05)</span></summary><pre>- Paired sweeps (/tmp/r31/sweep_base, /tmp/r31/sweep_contig): committed 1163.2 ms (2.3653); contiguous off 1169.3 ms (2.3553), +0.5%.
+  Not adopted.</pre></details><details><summary><em class="">7.8 h</em><span>Round 32 — allgather_bucket_size 1e9 (no gain; 03:06-03:10)</span></summary><pre>- Paired sweeps (/tmp/r31/sweep_base, /tmp/r32/sweep_ag): committed 1163.2 ms; all-gather bucket 1e9 1164.8 ms (+0.1%, noise).
+  Not adopted.</pre></details><details><summary><em class="">8.0 h</em><span>Round 33 — RMSNorm kernels as two-dimensional tiles (rejected: first-loss band; 03:12-03:22)</span></summary><pre>- Forward tile (LLAVA_RMS_TILE_ROWS, [rows, 4096] per program): kernel 13.5 ms -&gt; 8.7 ms (4 rows) and 7.4 ms (8 rows) in the
+  profiles (/tmp/r33/profile_tile{4,8}). Numerics: not bitwise, 117 of 54M elements differ by one bf16 ULP (/tmp/r33/test_tile.py).
+- Backward tile: 14.8 ms with a cross-row reduction inside the loop (/tmp/r33/profile_both); 86 ms with a per-row accumulator
+  (register spills, /tmp/r33/profile_both2). Bitwise equal in the first form, but slower. Dropped.
+- Paired sweep (/tmp/r33/sweep_tile8): committed 1164.2 ms against the forward tile 1161.5 ms (inside noise). The judge then marks
+  the candidate as a timing error: the first logged loss differs from the frozen reference by 0.556% (&gt; 0.5% band).
+- Margin finding (important): the committed tree&#x27;s first logged loss is 1.3772 against the frozen reference&#x27;s 1.3839, a 0.484%
+  difference, within the 0.5% band with almost no margin (check: /tmp/r30/final_bucket/check.json, logged_loss_max_rel_diff 0.007
+  over all steps). The committed numerics are deterministic, so this passes, but any future change to the forward numerics has to
+  be checked against this band. The RMSNorm tile is rejected for this reason.</pre></details><details><summary><em class="">8.5 h</em><span>Round 34 — ZeRO-2 overlap_comm with event-ordered gradient buckets (ADOPTED; 03:26-04:00)</span></summary><pre>- Profile (/tmp/r34/profile, one detail step, rank 0; GPU kernel total 1106 ms inside a 1162 ms step): GEMM about 833 ms
+  (75%); NCCL AllReduce 46.8 ms (4.2%, fully exposed with overlap_comm off); AllGather 24.3 ms (2.2%); flash fwd + bwd about
+  67 ms (6.1%); Triton AdamW 23.0 ms (2.1%); bf16 residual adds 22.1 ms (2.0%); SwiGLU fwd + bwd 26 ms (2.4%); RMSNorm fwd +
+  bwd 22.6 ms (2.0%); CLIP tower about 25-30 ms (align1 attention GEMMs 12.2 ms, softmax 4.2 ms, QuickGELU mul and sigmoid
+  about 11 ms). GPU gaps above 0.2 ms: 16.5 ms in total (largest 4.75 ms at the start, 4.6 ms after the last all-reduce).
+- Finding: with overlap_comm off the 47 ms gradient all-reduce is exposed. With overlap_comm on, DeepSpeed 0.12.6 alternates
+  two gradient buffers (stage_1_and_2.py:895-896, :910), but nothing makes the compute stream wait for the reduction of
+  bucket k before it writes bucket k+2 into buffer k. When the ranks are skewed, the reduction can read refilled data. This is
+  the likely mechanism of the overlap NaNs (Rounds 9-11, 29). It is a hypothesis from the code, not a reproduced failure.
+- Screen (judge <code>time</code>): overlap_comm on, unfixed, 5e8 buckets: 1144.1 ms (2.4062, /tmp/r34/time_ov1). Paired, same session
+  (/tmp/r34/pair1_base, /tmp/r34/pair1_ov): committed 1163.7 ms (2.3657) against overlap 1146.6 ms (2.4011), -1.5%.
+- Change: llava/train/zero_overlap.py wraps DeepSpeedZeroOptimizer.reduce_ipg_grads. After each bucket reduction it records an
+  event on the reduction stream, and the compute stream waits on the previous reduction of the buffer the next bucket will
+  refill. Inactive with overlap_comm off. scripts/zero3.json: overlap_comm true. Commits 02c80f4 (fix) and 41417ce (config),
+  fast-forwarded into opt. The reduction values are unchanged (the fix only adds ordering).
+- check --quick on the worktree (/tmp/r34/quick1): PASS.
+- FULL CHECK (/tmp/r34/full1, 03:43-03:48, the same tree): PASS, speedup 2.4033, candidate 1145.5 ms/step, peak allocated
+  108.06 GiB, reserved 126.0 GiB. Gate 2 NOT_BITWISE with no exact failure (N1). Gate 3, seed 0: endpoints identical to
+  3a1357a (-0.04906998 and -0.21471195; diffs -0.00015173 and -0.00059542), verdict equivalent. First logged loss 1.3772, so the
+  first-loss margin (0.484%) is unchanged.
+- /submission/llava opt = 41417ce. check --quick on /submission (/tmp/r34/quick_submission, 03:51): PASS, and its source digest
+  equals the full-checked tree (e76a2ea6b2416432...).
+- Gate-3 samples of 41417ce: three <code>check --n1</code> runs, all PASS, endpoints identical (see Round 35).
+- Note: the 64 GiB activation budget of Round 9 also ran with overlap on, so its NaN may have had the same cause. It is not
+  retested: reserved memory was 137.7 GiB against 140.4 GiB available, too close to the limit.</pre></details><details><summary><em class="">8.9 h</em><span>Round 35 — gradient average inside the all-reduce, and NCCL channel caps (no gain; 04:00-04:14)</span></summary><pre>- Gate-3 samples of 41417ce (the Round 34 adoption rule): three <code>check --n1</code> runs (/tmp/r34/n1_{1,2,3}, 03:52-04:00): all PASS,
+  verdict equivalent, endpoints identical in every run (-0.04906998127907041 and -0.2147119474179372, the committed values).
+  Round 34 is adopted.
+- Idea (profile: a bf16 pass dividing the reduced buckets, 8.5 ms): ReduceOp.AVG in the all-reduce instead of the division.
+  Branch r34-avg, commit 7f35660 (zero_reduce_avg.py, not merged). Unit test on 2 GPUs (/tmp/r34/avg_test.py): AVG equals
+  divide-then-SUM bit for bit on about 30M random bf16 elements.
+- Result: the patch never ran. The division is in average_tensor (stage_1_and_2.py:1072, tensor.div_ on the ipg buffer), and
+  the reduce path passes divide=False to allreduce_bucket for non-MoE parameters (lines 1090, 1097). Paired timings, same
+  session: 1146.6 (base) against 1144.8 (AVG); 1145.4 (base) against 1149.3 (AVG). Noise. Not adopted.
+- NCCL channel caps (sweep /tmp/r34/sweep_nccl, same switches): base 1149.4 ms (2.3951, spread 3.1%); NCCL_MAX_NCHANNELS=8:
+  1175.8 ms (2.3413, +2.3%); =4: 1225.5 ms (2.2464, +6.6%). Fewer channels slow the collectives more than they free SMs. Not
+  adopted.</pre></details><details><summary><em class="">9.2 h</em><span>Round 36 — expandable allocator segments and a 64 GiB activation budget (ADOPTED, switch change; 04:13-04:34)</span></summary><pre>- Reasoning: the activation budget decides how many decoder layers keep their activations: keep = budget // (N_max x 135 KB),
+  where N_max is the largest micro-batch token count over the ranks; the other layers recompute in backward. At 52 GiB the
+  largest micro-batches still recompute a few layers. Round 9 measured 64 GiB at +1% (inside noise) with reserved memory
+  137.7 GiB, too close to the 140.4 GiB of the GPU; that run also had overlap_comm on, so its NaN may have had the Round 34 race
+  as its cause. Fragmentation is the source of most of the reserved overhead, and expandable segments reduce it.
+- Sweep (/tmp/r34/sweep_alloc, judge <code>sweep</code>, tree 41417ce, references 2763.5 and 2753.0 ms):
+  - base (52 GiB, default allocator): 1145.9 ms (2.4024, window spread 2.5%);
+  - expandable_segments at 52 GiB: 1147.8 ms (2.3985), no gain;
+  - expandable_segments + 64 GiB: 1119.6 ms (2.4590, spread 2.0%), -2.3%.
+  Memory per rank (timing JSON): base peak allocated 108.0 GiB, reserved 126.0 GiB (rank 1); expandable + 64 GiB: allocated
+  116.6 GiB, reserved 125.6 GiB (rank 1). Headroom to the 140.4 GiB of the GPU: about 15 GiB.
+- Change: /submission/switches.json gains PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True and LLAVA_PACKED_ACT_GB=64 (the
+  previous file: /tmp/r34/switches_pre_exp64.json). No code change, so no commit in the repository.
+- FULL CHECK (/tmp/r34/full_exp64, 04:24-04:27): PASS, speedup 2.4563, candidate 1120.8 ms/step, reference 2753.0 ms. Gate 2
+  NOT_BITWISE with no exact failure (N1). Gate 3, seed 0: endpoints identical to 41417ce (-0.04906998127907041 and
+  -0.2147119474179372), verdict equivalent. First logged loss 1.3772 (unchanged).
+- Gate-3 samples of the new switch file (<code>check --n1</code>, /tmp/r34/n1x_{1,2}, 04:27-04:33): both PASS, endpoints identical.
+- Budget 72 GiB (sweep /tmp/r34/sweep_b72, 04:33-04:39): 1123.9 ms (2.4495) against 64 GiB 1119.5 ms (2.4591). The peak
+  allocated stays at 116.6 GiB, so at 64 GiB every layer already keeps its activations for the timing fixture. No gain;
+  64 GiB stays.</pre></details><details><summary><em class="">9.8 h</em><span>Round 37 — reduction-stream priority (no gain) and reduce bucket 2.5e8 (ADOPTED, commit 0afc7c9; 04:39-05:25)</span></summary><pre>- Reduction-stream priority (LLAVA_REDUCE_STREAM_PRIORITY=-1, a high-priority stream for the bucket reductions; worktree
+  r35-prio, not committed): sweep /tmp/r35/sweep_prio: 1121.2 ms (2.4553) against 1120.9 ms (2.4561). No gain; dropped.
+- Bucket size with overlap_comm on (scripts/zero3.json, worktrees r35-b250m and r35-b1b):
+  - 2.5e8: sweep /tmp/r35/sweep_b250m 1116.9 ms (2.4649) and repeat /tmp/r35/sweep_b250m_2 1115.9 ms (2.4671);
+  - 1e9: sweep /tmp/r35/sweep_b1b 1120.9 ms (2.4562), no change;
+  - base 5e8 in the same sessions: /tmp/r35/sweep_base2 1120.7 ms (2.4566) and the priority sweep&#x27;s base 1121.2 ms.
+  So 2.5e8 is about 0.4% faster in two sessions. Each element is still one two-rank sum, and the largest parameter (131M)
+  stays below the bucket size, so the numerics should not change.
+- ADOPTED: commit 0afc7c9 (reduce_bucket_size 250000000), fast-forwarded into opt. Full check on /submission (/tmp/r35/full_b250m,
+  05:13-05:19): PASS, speedup 2.4655, candidate 1116.6 ms/step, gate 2 NOT_BITWISE with no exact failure (N1), gate 3 endpoints
+  identical to 41417ce and to the 64 GiB run (-0.04906998127907041, -0.2147119474179372), first logged loss 1.3772, peak
+  allocated 116.8 GiB, reserved 124.7 GiB. The numerics block of the check (per-tensor status, bitwise and summary) equals the
+  previous full check&#x27;s (/tmp/r34/full_exp64); only the report path and the timing costs differ.</pre></details><details><summary><em class="">9.8 h</em><span>Round 38 — all-gather overlapped with the optimizer, in slices (rejected: slower; 05:00-05:08)</span></summary><pre>- Profile: the bf16 all-gather (24 ms) runs after the Triton AdamW step (23 ms), so the two are back to back on the critical path.
+- Change tried (patch /tmp/r35/agov_chunked_allgather.patch; worktree and branch removed): the partition update in 8 slices
+  (LLAVA_ZERO_AG_CHUNKS), each slice&#x27;s bf16 values all-gathered on a second stream (list-form dist.all_gather into the same
+  partition views DeepSpeed writes). The per-element arithmetic is unchanged, so the values would be identical.
+- Result (sweep /tmp/r35/sweep_ag, same tree): current config 1123.0 ms (2.4515); sliced and overlapped 1134.4 ms (2.4268,
+  spread 3.2%), +1%. The gather and the optimizer are both HBM-bound (the LL protocol moves about twice the bytes), so they
+  compete instead of overlapping. Rejected, not adopted.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-llava-sonnet.html"><small>← 2.80×</small><strong>Sonnet 5.5</strong></a><a class="up" href="llava.html">↑ LLaVA</a><a class="next" href="t-llava-mm.html"><small>2.34× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-llava-opus.html", "pts": [[0.53, 1.457, 1], [0.757, 1.723, 2], [1.111, 2.091, 3], [1.621, 2.296, 4], [2.115, 2.421, 6], [2.233, 2.452, 7], [2.36, 2.542, 8], [2.731, 2.576, 10], [2.909, 2.589, 11], [3.307, 2.615, 12], [3.307, 2.643, 13], [3.51, 2.655, 15], [3.659, 2.655, 16], [3.944, 2.68, 18], [3.979, 2.704, 19], [4.202, 2.726, 20], [4.368, 2.735, 21], [5.069, 2.735, 26], [5.337, 2.748, 27], [5.792, 2.748, 29], [6.083, 2.77, 31]], "end": 10.014, "final": 2.9153}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-llava-sonnet.html", "pts": [[0.928, 1.468, 2], [0.928, 1.704, 3], [1.148, 2.122, 4], [1.743, 2.244, 6], [2.05, 2.412, 8], [3.021, 2.498, 12], [4.63, 2.627, 14], [7.301, 2.742, 19]], "end": 9.999, "final": 2.8022}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-llava-haiku.html", "pts": [[0.355, 1.451, 2], [0.478, 1.99, 3], [0.712, 2.005, 4], [0.843, 2.187, 5], [1.611, 2.21, 9], [2.237, 2.21, 11], [2.38, 2.21, 12], [3.296, 2.21, 13], [3.884, 2.21, 14], [4.858, 2.248, 21], [5.646, 2.323, 22], [6.608, 2.34, 26], [6.892, 2.361, 27], [7.555, 2.368, 30], [8.519, 2.403, 34], [9.205, 2.456, 36], [9.987, 2.466, 37]], "end": 10.002, "final": 2.4629}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-llava-astra.html", "pts": [[0.164, 1.035, 1], [0.309, 1.035, 2], [2.235, 1.06, 7], [2.235, 1.063, 12], [2.235, 1.065, 15], [2.235, 1.067, 17], [2.235, 1.067, 19], [3.491, 1.176, 20], [3.805, 1.176, 21], [4.146, 1.192, 22], [4.485, 1.199, 23], [4.836, 1.206, 24], [5.159, 1.215, 25], [5.487, 1.224, 26], [5.813, 1.231, 27], [6.143, 1.243, 28], [6.413, 1.253, 29], [6.832, 1.255, 30], [6.832, 1.255, 31], [7.295, 1.263, 32], [7.61, 1.273, 33], [7.61, 1.273, 35], [7.994, 1.273, 36], [7.994, 1.273, 37], [8.536, 1.278, 38], [8.816, 1.287, 39], [8.889, 1.287, 40], [9.272, 1.29, 42], [9.545, 1.294, 43], [9.623, 1.294, 44], [9.703, 1.294, 45]], "end": 10.0, "final": 1.4063}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-llava-glm.html", "pts": [[0.38, 1.032, 2], [0.473, 1.05, 3], [0.839, 1.099, 4], [0.917, 1.099, 5], [1.308, 1.131, 7], [1.987, 1.139, 9], [2.367, 1.261, 10], [5.294, 1.447, 18], [5.779, 1.457, 19], [6.096, 1.466, 20], [6.413, 1.466, 21], [6.615, 1.486, 22], [7.016, 1.486, 23], [7.201, 1.491, 24], [7.563, 1.496, 25], [7.931, 1.496, 26], [8.048, 1.496, 27], [8.252, 1.502, 28], [8.574, 1.502, 30], [8.754, 1.528, 31], [8.997, 1.528, 32], [9.4, 1.528, 34], [9.434, 1.528, 35], [9.48, 1.528, 36], [9.633, 1.528, 37], [9.685, 1.528, 38], [9.929, 1.528, 39]], "end": 10.0, "final": 1.5188}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-llava-kimi.html", "pts": [[0.123, 1.036, 1], [0.57, 1.058, 3], [1.124, 1.091, 4], [1.414, 1.108, 5], [1.695, 1.221, 6], [1.914, 1.296, 7], [2.478, 1.306, 8], [3.232, 1.329, 9], [3.28, 1.329, 10], [3.874, 1.333, 11], [3.95, 1.333, 12], [4.335, 1.343, 13], [4.57, 1.343, 14], [4.871, 1.343, 15], [5.071, 1.343, 16], [5.53, 1.355, 17], [5.827, 1.364, 18], [5.919, 1.364, 19], [6.344, 1.379, 20], [6.566, 1.379, 21], [6.752, 1.379, 22], [7.004, 1.379, 23], [7.24, 1.379, 24], [7.354, 1.379, 25], [7.465, 1.379, 26], [7.65, 1.379, 27], [7.85, 1.379, 28], [8.34, 1.379, 29], [8.654, 1.379, 30], [8.885, 1.379, 31], [9.047, 1.379, 32], [9.461, 1.385, 33], [9.741, 1.385, 34], [9.872, 1.385, 35]], "end": 10.0, "final": 1.3797}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-llava-ds.html", "pts": [[0.202, 1.038, 1], [0.379, 1.24, 2], [0.751, 1.318, 3], [1.256, 1.804, 4], [1.611, 1.897, 5], [1.799, 1.925, 6], [2.261, 2.008, 7], [3.611, 2.008, 9], [4.355, 2.099, 11], [4.806, 2.146, 12], [5.315, 2.225, 14], [6.253, 2.225, 17], [6.561, 2.225, 20], [6.631, 2.225, 23], [6.78, 2.225, 24], [7.084, 2.228, 26], [7.378, 2.228, 29]], "end": 7.702, "final": 2.2194}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-llava-mm.html", "pts": [[0.918, 1.143, 2], [0.918, 1.422, 3], [1.358, 1.438, 4], [1.764, 1.438, 5], [2.471, 1.703, 9], [3.484, 1.704, 11], [3.661, 1.819, 12], [3.759, 1.895, 13], [4.067, 1.972, 15], [4.167, 1.98, 16], [4.421, 2.005, 17], [4.538, 2.04, 18], [4.718, 2.065, 19], [4.835, 2.075, 20], [4.96, 2.102, 21], [5.22, 2.102, 22], [5.22, 2.102, 23], [5.37, 2.115, 24], [5.37, 2.181, 25], [5.468, 2.215, 27], [5.664, 2.215, 28], [6.415, 2.234, 30], [6.415, 2.267, 31], [6.526, 2.288, 32], [6.832, 2.3, 33], [6.832, 2.32, 34]], "end": 10.0, "final": 2.3388}], "focus": "haiku", "xmax": 10.5, "aria": "Claude Haiku 5.5 on LLaVA: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

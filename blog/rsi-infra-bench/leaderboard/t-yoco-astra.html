@@ -1,0 +1,886 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GPT-6 Astra (suspected nerf) · YOCO · RSI-Infra Bench</title><meta name="description" content="GPT-6 Astra (suspected nerf) on YOCO: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="on">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="yoco.html">YOCO</a><span>/</span><b>GPT-6 Astra (suspected nerf)</b></nav><h1>GPT-6 Astra<span class="nerf">suspected nerf</span> <em>1.79×</em></h1><p class="lede">Harness: Codex · switches: <code>YOCO_RMSNORM_IMPL=apex</code> <code>YOCO_OSS_OVERLAP=1</code> <code>YOCO_OSS_CHUNK_MIB=256</code> <code>YOCO_FUSED_GRAD_PREP=1</code> <code>YOCO_FUSED_MASTER_REFRESH=1</code> <code>YOCO_GRAPH_DECODER=1</code> <code>YOCO_DDP_BUCKET_MIB=64</code> <code>YOCO_DDP_BUCKET_VIEWS=1</code> <code>YOCO_OPTIMIZER_CHUNK_ELEMS=524288</code> <code>YOCO_OPTIMIZER_CHUNK_SCOPE=adam</code> <code>YOCO_PIPELINED_MASTER_REFRESH=1</code> <code>YOCO_MASTER_GRAD_CLEAR=defer</code> <code>YOCO_FUSED_CROSS_ENTROPY=1</code> <code>YOCO_OSS_P2P=1</code> <code>YOCO_FUSED_RMS_AFFINE=1</code> <code>YOCO_OSS_IPC_DMA=1</code> <code>YOCO_DDP_IPC_REDUCE=1</code> <code>YOCO_ADAM_LOCAL_REFRESH=1</code> <code>YOCO_CUBLAS_LT_LIBRARY=/opt/candidate-env/cublas-12.8/nvidia/cublas/lib/libcublasLt.so.12</code> <code>YOCO_IPC_STREAM_SIGNALS=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.79×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.79×</dd></div><div class=""><dt>Rounds</dt><dd>25</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$99.7</dd></div><div class=""><dt>Input tokens · 95.5% cached</dt><dd>47 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.6 M</dd></div><div class=""><dt>Requests</dt><dd>396</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-yoco-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.68×</small></a><a class="chip" data-k="sonnet" href="t-yoco-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.26×</small></a><a class="chip self" data-k="astra" href="t-yoco-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.79×</small></a><a class="chip" data-k="haiku" href="t-yoco-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.70×</small></a><a class="chip" data-k="glm" href="t-yoco-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.60×</small></a><a class="chip" data-k="mm" href="t-yoco-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.59×</small></a><a class="chip" data-k="ds" href="t-yoco-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.55×</small></a><a class="chip" data-k="kimi" href="t-yoco-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.37×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Cross-GPU exchange via CUDA IPC + copy engine (no SMs)</dt><dd>✓ <code>YOCO_OSS_IPC_DMA</code>, 1.52× → 1.65×; grads <code>YOCO_DDP_IPC_REDUCE</code> → 1.68× (both full check)</dd><dt>Forward / backward CUDA graph</dt><dd>✓ <code>YOCO_GRAPH_DECODER</code>, per layer, 1.23× → 1.31×</dd><dt>Newer cuBLAS</dt><dd>✓ cuBLASLt from 12.8.4.1, loaded explicitly, 1.72× → 1.78×</dd><dt>Retention / attention kernel swap</dt><dd>✗ retention untouched; started compiling FlashAttention-3 in round 26, log ends there</dd><dt>Other main levers</dt><dd>Apex RMSNorm and its fused affine variant; fused cross-entropy; Adam overlapped with broadcast chunks; custom CUDA Adam + bf16 writeback</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>26 sections</small></summary><div class="rounds"><details><summary><em class="">0.0 h</em><span>Round 1 — baseline profile and first hotspot</span></summary><pre>- Start/profile launch: 2026-11-06T15:16:36Z.
+- Detached profile PID: 13132; log: <code>/tmp/r1/profile.log</code>.
+- Command: `bench.py profile --tree /submission/yoco --config
+  /submission/switches.json --out /tmp/r1/profile --iters 4`.
+- Baseline profile finished 2026-11-06T15:17:53Z. Kernel-time shares:
+  communication 31.5% (all-reduce 16.5%, broadcast 14.5%), GEMM 25.6%,
+  copies/casts 17.2%, elementwise 12.1%, fused Adam/norm 7.2%.
+  GPU union busy 72%; profile CPU 2.26 busy CPUs of 48 allowed. The large
+  OSS master-weight broadcasts use NCCL LL; no NCCL override is configured.
+- Hotspot class: communication/backend configuration. Screen <code>NCCL_PROTO</code>
+  Simple and LL128 before changing communication code. Both preserve dtypes
+  and operations; two-rank sums have only two operands. N0 hypothesis must
+  be confirmed by the judge. Official NCCL environment-variable docs reviewed.
+- Experiment configs: <code>/tmp/r1/simple.json</code>, <code>/tmp/r1/ll128.json</code>; submission
+  remains unchanged while they are screened.
+- Protocol screens completed 2026-11-06T15:22:05Z:
+  - <code>/tmp/r1/time-simple</code>: valid, 0.2367 s/update, speedup 0.9838,
+    windows 2.368/2.365 s, range 0.13%; rejected (slower).
+  - <code>/tmp/r1/time-ll128</code>: valid, 0.2356 s/update, speedup 0.9884,
+    windows 2.358/2.353 s, range 0.20%; rejected (slower).
+- Continuing the communication class in the same round: OSS performs a
+  device-wide synchronization before every weight broadcast. ProcessGroupNCCL
+  already orders its stream after the caller&#x27;s stream and <code>Work.wait()</code> orders
+  subsequent consumer work. Test removing only this redundant host barrier,
+  retaining every fp32 broadcast and wait, with the original fallback for
+  CPU or <code>broadcast_fp16</code>. Experiment <code>/tmp/r1/tree</code>, switch
+  <code>YOCO_ASYNC_OSS_BROADCAST=1</code>; baseline submission remains unchanged.
+- <code>/tmp/r1/time-async</code> finished 2026-11-06T15:24:06Z: valid,
+  0.2330 s/update, speedup 0.9994, no gain beyond reference noise.
+- Conclusion/end 2026-11-06T15:24:20Z: reject all three changes on
+  performance. No correctness check or tier claim for rejected experiments.
+  Summed NCCL kernel duration included waiting/overlap, so it overstated
+  the amount of exposed latency removable by these settings.</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 — fresh profile of unchanged best</span></summary><pre>- Profile launch: 2026-11-06T15:25:03Z; profile <code>/tmp/r2/profile</code>.
+  Initial launcher PID 19114 used the wrong working directory and exited
+  before acquiring GPUs; restarted from the judge workspace.
+- Profile finished 2026-11-06T15:26:26Z: NCCL 31.1%, GEMM 25.7%,
+  copies/casts 17.3%, elementwise 12.1%, multi-tensor optimizer 7.2%.
+  GPU union busy 75%. Copy/cast kernels include 3432 conversion calls in
+  four updates (106 ms); float fill has 1388 calls (18.6 ms).
+- Hotspot: optimizer-side gradient/parameter memory traffic and launch
+  overhead (missed existing foreach paths). Adam is already fused; the
+  surrounding conversions, gradient scaling, and master zeroing are not.
+- Experiment copy <code>/tmp/r2/tree</code> adds three independent, default-off switches:
+  <code>YOCO_FOREACH_MASTER</code> batches dtype-preserving copies;
+  <code>YOCO_MASTER_GRAD_SET_TO_NONE</code> avoids clearing gradients immediately
+  overwritten by the next BF16-to-fp32 sync; <code>YOCO_FOREACH_GRAD_SCALE</code>
+  batches the existing scalar multiplies. Flat-parameter mode keeps the
+  reference implementation. N0 hypotheses, not yet judged.
+- Individual screens completed 2026-11-06T15:31:00Z (all valid, no gain):
+  <code>/tmp/r2/time-copy</code> 0.2346 s/update, 0.9926x;
+  <code>/tmp/r2/time-zero</code> 0.2347 s/update, 0.9922x;
+  <code>/tmp/r2/time-scale</code> 0.2339 s/update, 0.9956x.
+- CPU setup confirms all three overrides are installed. A combined profile
+  will verify whether PyTorch actually uses multi-tensor CUDA fast paths
+  for the cross-dtype copies, rather than silently falling back.
+- Combined profile <code>/tmp/r2/profile-combined</code> finished 15:34:32Z:
+  copy/cast time and conversion kernel counts are unchanged (3432 calls,
+  106 ms), confirming the cross-dtype foreach path falls back to individual
+  copies. Float fills decrease, but this does not improve the update time.
+- <code>/tmp/r2/time-combined</code> finished 2026-11-06T15:35:44Z: valid,
+  0.2385 s/update, 0.9764x. Reject the combination and all individual screens.
+- End 2026-11-06T15:36:30Z. No numerical verdict requested for rejected
+  performance directions. Submission still has unchanged training code.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 — model normalization</span></summary><pre>- Start/profile launch: 2026-11-06T15:36:30Z; <code>/tmp/r3/profile</code>.
+- Fresh best-version profile precedes choosing the normalization rewrite.
+- Profile actually launched 2026-11-06T15:37:07Z and finished 15:38:24Z:
+  GEMM 26.1%, copies/casts 17.7%, elementwise 12.4%, reductions 1.5%.
+  GPU busy 75%. Sixty-seven RMSNorm calls per update use eager FP32
+  square/mean/rsqrt/multiply, conversion, and affine operations; backward
+  repeats several memory passes. No fused norm path exists in the tree.
+- Hotspot class: normalization memory/launch overhead. Test the installed
+  Apex non-affine RMSNorm (keep the separate BF16 affine multiply to
+  preserve that rounding boundary), then regional <code>torch.compile</code> of the
+  original formula including its casts. Both use the same precision and
+  real-valued operation; expect N1 reduction-order changes, subject to
+  exact gates and trajectory validation. CPU keeps the original path.
+- <code>/tmp/r3/tree</code> has default-off <code>YOCO_RMSNORM_IMPL</code> values <code>apex</code> and
+  <code>compile</code>; baseline submission unchanged.
+- Screens finished 2026-11-06T15:41:43Z:
+  - <code>/tmp/r3/time-apex</code>: valid, 0.2190 s/update, 1.0633x, windows
+    2.188/2.192 s (range 0.18%), peak allocated 60.96 GiB.
+  - <code>/tmp/r3/time-compile</code>: valid, 0.2227 s/update, 1.0457x, windows
+    2.237/2.216 s (range 0.95%), peak allocated 60.32 GiB.
+- Selected Apex. <code>/tmp/r3/apex-tree</code> removes the unused compile alternative
+  before validation. The normalization remains separate from the affine
+  multiply. Deterministic operator comparisons precede the judge quick
+  check; a successful quick check is followed by the full check. The full
+  check is outside the round budget.
+- Deterministic operator probe passed shape/dtype/finite assertions at
+  widths 3072 and 128 and scales 0.1/1/10. Maximum input-gradient relative
+  L2 2.03e-5, maximum affine-gradient relative L2 1.03e-4 (diagnostic only).
+- <code>/tmp/r3/quick/check.json</code>: PASS, completed 15:47:34Z; exact items pass,
+  tensors not bitwise, so statistical validation required.
+- <code>/tmp/r3/check/check.json</code>: full PASS/N1, completed 2026-11-06T15:55:26Z.
+  Timing 0.2185 s/update, 1.0658x, windows 2.185/2.184 s (0.04% range).
+  RNG, structural/loader, exact-item, and six trajectory endpoint gates pass.
+- End/promotion 2026-11-06T15:56:00Z: promote only the validated Apex path;
+  keep compile alternative out. Switch mirrored in the git tree.</pre></details><details><summary><em class="">0.7 h</em><span>Round 4 — profile the validated Apex version</span></summary><pre>- Profile launch: 2026-11-06T15:56:30Z, PID 39949,
+  <code>/tmp/r4/profile.log</code>, output <code>/tmp/r4/profile</code>.
+- Actual profile start 15:57:13Z, finish 15:58:30Z. Summed kernel shares:
+  broadcast 16.1%, gradient all-reduce 14.0%, GEMM 28.6%, copies/casts
+  14.4%, elementwise 11.1%, Adam 6.2%. Fused RMSNorm reduces the previous
+  conversion/reduction work. The OSS optimizer still runs Adam (~14 ms)
+  followed by full fp32 broadcasts (~37 ms), with no overlap between them.
+- Hotspot: exposed optimizer communication. Earlier protocol/barrier-only
+  switches had no gain. This round instead chunks the *existing Apex Adam
+  dispatch* and asynchronously broadcasts each completed chunk while later
+  chunks update. The same kernel, fp32 states/masters, scalar arguments,
+  single optimizer step and broadcasts are retained. No precision change.
+- Experiment <code>/tmp/r4/tree</code>, default-off <code>YOCO_OSS_OVERLAP</code>; screen 256 and
+  1024 MiB. A two-rank deterministic optimizer probe checks exact weights,
+  states and steps with split parameters, partial chunks and odd sizes.
+  Unsupported optimizers/layouts retain the original method and are counted.
+- Initial probe launcher exited immediately: the candidate environment has
+  no standalone <code>torchrun</code> script. Restarted with its Python and
+  <code>-m torch.distributed.run</code>; no training measurement was produced by
+  the failed launcher.
+- Two-rank deterministic probe: all four updates on both ranks have
+  bitwise-equal fp32 weights, Adam moments and step counters; fast-path
+  count is four, with odd sizes, partial chunks and split parameters.
+- Screens finished 2026-11-06T16:04:13Z:
+  <code>/tmp/r4/time256</code>: valid, 0.2095 s/update, 1.1116x;
+  <code>/tmp/r4/time1024</code>: valid, 0.2101 s/update, 1.1084x.
+  Both beat the Apex-only version. The small difference between chunk
+  settings is not resolved; select 256 MiB and do not claim it is optimal.
+- Cache key also includes all remote bucket addresses/sizes, so changes
+  to the optimizer&#x27;s bucket storage invalidate every retained view.
+- Next: profile selected overlap; quick check with eager RMSNorm as an
+  N0 stand-in, then full validation of Apex+overlap. Submission remains
+  the previously validated Apex-only version.
+- Selected profile completed 16:06:59Z; overlapping Adam/broadcast kernels
+  appear under <code>fairscale::oss::overlap_adam_broadcast</code>.
+- <code>/tmp/r4/quick-standin/check.json</code> completed 16:11:28Z: PASS/N0,
+  all upstream tensors bitwise identical with original eager RMSNorm.
+- <code>/tmp/r4/check/check.json</code> completed 2026-11-06T16:19:26Z: full PASS/N1,
+  1.0892x, 0.2138 s/update. All six trajectory endpoints pass.
+  This timing is slower than the 1.1116x screening run; report both rather
+  than substituting the screening result for the full-check verdict.
+- End/promotion 2026-11-06T16:20:00Z: add validated overlap to the Apex
+  baseline, keep 256 MiB chunks. The result-summary helper had an error
+  reading the quick check&#x27;s null performance field *after* both checks
+  completed; the actual judge reports both PASS and is unaffected.</pre></details><details><summary><em class="">1.1 h</em><span>Round 5 — profile the validated overlap stack</span></summary><pre>- Profile launch: 2026-11-06T16:21:00Z, PID 52864,
+  <code>/tmp/r5/profile.log</code>, output <code>/tmp/r5/profile</code>.
+- Actual profile start 16:21:21Z, finish 16:22:38Z. Summed kernel time:
+  GEMM 273 ms, copies/casts 133 ms, elementwise 103 ms, fused optimizer
+  81 ms over four updates. NCCL time includes overlap/waiting and is not
+  counted as entirely exposed. Master conversion kernels still account
+  for about 87 ms; separate fp32 gradient multiplication about 49 ms.
+- Hotspot class: optimizer memory traffic. The installed Apex binary has
+  BF16-input, fp32-output L2-norm and cast/scale kernels. Unlike the failed
+  torch foreach path, these are actual fused CUDA implementations.
+  First compare BF16-input norm against widening then the same norm,
+  and fused widening/scaling against the existing two operations.
+- Primitive probe: <code>/tmp/r5/probe_primitives.py</code>. Source fetch from GitHub
+  failed (connection reset); installed binary exports confirm BF16 support,
+  and numerical probes will verify arithmetic rather than assume it.
+- Primitive probe passes bitwise for all comparisons: norm from BF16
+  equals norm after fp32 widening; widening plus scaling equals the fused
+  kernel; master refresh equals the original cast. Production FFN shape,
+  small/odd lengths, three input magnitudes and three coefficients tested.
+- Experiment <code>/tmp/r5/tree</code>: <code>YOCO_FUSED_GRAD_PREP</code> computes the same
+  fp32 norm directly from BF16 gradients, computes the unchanged clipping
+  factor, then widens and scales into the fp32 gradients in one pass.
+  It keeps the fp32 master gradients/state and original Adam call intact.
+  A first-call live equality check compares the BF16-input norm with the
+  original fp32-input norm before enabling this path. Unsupported layouts,
+  scaling modes, and non-BF16 models use the original implementation.
+- Independent <code>YOCO_FUSED_MASTER_REFRESH</code> uses Apex&#x27;s batched fp32-to-BF16
+  scale-by-one conversion. Both default off; counters/logs identify use.
+- Screens completed 2026-11-06T16:29:05Z:
+  <code>/tmp/r5/time-grad</code>: valid, 0.2106 s/update, 1.1057x (no resolved gain
+  over the earlier 0.2095 overlap screen; faster than its 0.2138 full run).
+  <code>/tmp/r5/time-refresh</code>: valid, 0.2060 s/update, 1.1304x.
+- Next screen the combination and profile it to check whether the expected
+  memory passes actually disappear. Judge checks and round end pending.
+- <code>/tmp/r5/time-combined</code> (16:30:45Z): 0.2060 s/update, 1.1304x. Profile
+  <code>/tmp/r5/profile-combined</code> confirms only master refresh was active:
+  copies fall from 133 to 93 ms, but separate multiplication remains.
+- Found the missed guard: fairseq&#x27;s logging-statistics all-reduce converts
+  sample size to float64, so the scaling factor is a float64 scalar. The
+  original multiply of an N-dimensional fp32 gradient by that scalar uses
+  fp32 arithmetic (confirmed by the profile&#x27;s <code>MulFunctor&lt;float&gt;</code> and
+  PyTorch promotion rules). Permit zero-dimensional float64 factors while
+  preserving their original float64 norm/clipping arithmetic, and convert
+  to float32 only at the same point as the original gradient multiply.
+  Exclude scalar gradients to retain that exact promotion rule.
+- <code>/tmp/r5/probe_double_scale.py</code> verifies this path, including rounding
+  halfway cases, before re-timing. Fallbacks now log their reason once.
+- Corrected screen <code>/tmp/r5/time-fixed</code> completed 2026-11-06T16:34:02Z:
+  valid, 0.1900 s/update, 1.2256x. Both activation logs are present and the
+  live norm equality check passed. The float64-scalar probe is bitwise,
+  including both tie-rounding cases. Add a guard for noncontiguous/sparse
+  master gradients before the formal checks.
+- Next: quick check of overlap+both fusions with eager RMSNorm (N0 target),
+  followed by the full check of the complete stack. Submission stays at R4.
+- While that check runs, prepare (CPU only) a separate, disabled GEMM
+  backend draft under <code>/tmp/r6/tree</code>. It uses an exact zero-bias addmm
+  identity to access PyTorch 2.3&#x27;s cuBLASLt route without changing
+  parameters or RNG. No GPU test, timing, or result is claimed yet; a fresh
+  profile of the accepted version is required before screening it.
+- <code>/tmp/r5/quick-standin/check.json</code> completed 16:40:07Z: PASS/N0 for the
+  entire optimizer stack with original eager RMSNorm; every recorded
+  tensor and exact item matches upstream.
+- <code>/tmp/r5/check/check.json</code> completed 2026-11-06T16:47:53Z: full PASS/N1,
+  1.2276x, 0.1897 s/update; all six trajectory endpoints pass.
+- End/promotion 2026-11-06T16:48:00Z: promote both default-off fusions,
+  committing gradient preparation and master refresh separately. Preserve
+  the round-4 overlap and round-3 RMSNorm settings.</pre></details><details><summary><em class="">1.6 h</em><span>Round 6 — GEMM backend screening</span></summary><pre>- Profile launch: 2026-11-06T16:49:00Z, PID 68902,
+  <code>/tmp/r6/profile.log</code>, output <code>/tmp/r6/profile</code>.
+- CPU-only draft prepared while R5 validated; no GPU measurements yet.
+- Actual profile start 16:54:13Z, finish 16:55:25Z. The optimizer
+  fusions remove the expected passes: elementwise drops to 53 ms and
+  copies/casts to 51 ms over four updates. GEMM is 261 ms (30.8% of summed
+  kernel time), now the largest non-communication category. GPU union
+  busy is 71% in the instrumented run; it includes profiler launch gaps.
+- Screen the prepared default-off <code>YOCO_LINEAR_BACKEND</code>: zero-bias
+  <code>addmm</code> identity in forward, and then forward/backward. This selects a
+  different installed GEMM-library route without changing trainable
+  parameters, input sizes, accumulation precision, or RNG. Tensor-parallel
+  sizes other than one and non-BF16 inputs keep the reference implementation.
+- A deterministic production-shape forward/gradient probe runs before
+  both timings. Submission remains the fully validated R5 stack.
+- Primitive probe: bitwise forward, input and weight gradients for both
+  3072-to-8192 and 8192-to-3072 production projections.
+- <code>/tmp/r6/time-forward</code> completed 16:58:06Z: valid, 0.1888 s/update,
+  1.2334x. <code>/tmp/r6/time-backward</code> completed 16:59:18Z: valid,
+  0.1897 s/update, 1.2276x. Less than 1% improvement over R5 and not
+  resolved from noise. Reject both as added complexity without clear gain.
+- End 2026-11-06T17:00:00Z. No whole-model numerical verdict claimed for
+  these rejected alternatives; operator probes alone are not a verdict.</pre></details><details><summary><em class="">1.8 h</em><span>Round 7 — launch overhead / regional CUDA graphs</span></summary><pre>- A fresh profile of the validated R5 stack precedes implementation.
+- Profile start 17:01:47Z, finish 17:03:04Z. GPU union busy is 75% in
+  the instrumented run; GEMM 270 ms, elementwise 54 ms, copies 51 ms and
+  multi-tensor optimizer work 125 ms over four updates. Standard GEMM
+  substitution did not materially help in R6. Test whether repeated
+  Python/autograd launch overhead is exposed using per-layer CUDA graphs.
+- Experiment <code>/tmp/r7/tree</code>, default-off <code>YOCO_GRAPH_DECODER=1</code>. A proxy
+  captures each original decoder layer&#x27;s forward and backward with PyTorch
+  <code>make_graphed_callables</code>. It shares the existing parameters, does not
+  register new parameters/buffers in the training model, and uses cloned
+  sample activations rather than aliasing a prior layer&#x27;s output. Replay
+  supplies current inputs and uses the same live model-weight addresses.
+  Training, full-sequence, dtype, shape/stride and parameter-address guards
+  retain the original path for unsupported calls; counters log capture/use.
+- Capture warmup performs no optimizer steps. The judge will verify the
+  per-update RNG stream and all call-count/numerical contracts; no verdict
+  is claimed from the design alone. Timing/checks/end pending.
+- First screen <code>/tmp/r7/time/time.json</code> ended 17:06:18Z: ERROR during
+  backward graph capture (legacy stream depends on a capturing stream).
+  No time or speedup was produced; PID 74858 has exited. Try constructing
+  DDP on a side stream to avoid default-stream accumulator ownership.
+  This is still an isolated experiment; the validated submission is intact.
+- Side-stream construction fixed capture. <code>/tmp/r7/time-side/time.json</code>
+  completed 17:13:33Z: valid, 0.1882 s/update, 1.2374x, window spread 1.2%.
+  Only the 13 cross layers captured: upstream calls the self decoder with
+  <code>is_prefilling=True</code> even during training. Since incremental state is
+  absent this uses the same full-sequence math. Capture the actual boolean
+  and include it in the signature, rather than rejecting those self layers.
+- <code>/tmp/r7/time-all/time.json</code> completed 17:15:58Z: valid, 0.1787
+  s/update, 1.3031x, windows 1.786/1.788 s (0.11% spread), peak 62.21 GiB.
+  All layers captured before timing. This is enough incremental gain to
+  justify numerical checks, starting with eager RMSNorm as an N0 stand-in.
+- <code>/tmp/r7/quick-standin/check.json</code> completed 17:21:05Z: PASS/N0,
+  all 9,616 recorded tensors bitwise identical and all exact items pass.
+  The graph change plus optimizer stack is bitwise with eager RMSNorm.
+  Add CPU/unsupported-DDP-backend guards (unchanged CUDA recipe path),
+  then run the full check with Apex RMSNorm. Submission remains R5.
+- Full <code>/tmp/r7/check/check.json</code> completed 17:29:53Z: PASS/N1,
+  1.3075x, 0.1781 s/update, windows 1.779/1.784 s, peak 62.21 GiB.
+  All exact/RNG checks pass; all six trajectory endpoints are identical
+  to the R5 candidate and within the frozen bounds (largest 0.7303 sigma).
+- End/promotion 2026-11-06T17:30:00Z. Full-check time is excluded from
+  the round budget; active profile/implementation/screens took ~20 minutes.
+  Promote the exact checked graph implementation and enabling switch.</pre></details><details><summary><em class="">2.3 h</em><span>Round 8 — profiling the accepted graph stack</span></summary><pre>- A fresh profile precedes hotspot selection. The submission remains the
+  fully checked R7 stack while the next experiment is prepared separately.
+- Profile started 2026-11-06T17:30:44Z, PID 86155,
+  log &quot;/tmp/r8/profile.log&quot;, output &quot;/tmp/r8/profile&quot;.
+- Profile finished 17:32:14Z: five instrumented updates, GPU union busy
+  80%. Summed kernel time: NCCL 421.8 ms (36%), GEMM 335.1 ms (28.5%),
+  optimizer 155.9 ms (13.3%), elementwise 106.8 ms and copies 64.3 ms.
+  BF16 gradient all-reduce has 595 calls (119 per update), 211 ms.
+  Select communication scheduling/copy overhead: screen larger DDP buckets
+  (64/256 MiB) and bucket gradient views as separate default-off switches.
+  No parsed recipe, gradient dtype, reduction operation or optimizer changes.
+- Sequential judge screens started 2026-11-06T17:33:14Z,
+  PID 87636, log &quot;/tmp/r8/screens.log&quot;, outputs
+  &quot;/tmp/r8/time-bucket64&quot;, &quot;/tmp/r8/time-bucket256&quot;, &quot;/tmp/r8/time-views&quot;.
+- Screens finished 17:37:06Z, all valid: 64 MiB 0.1768 s/update,
+  1.3171x; 256 MiB 0.1763, 1.3209x; views only 0.1755, 1.3269x.
+  Screen the 256 MiB+views combination and compare two-rank BF16 DDP
+  gradients/updates against the original layout, over four updates.
+- Combination time plus non-timing probe started 2026-11-06T17:37:58Z,
+  PID 92025, log &quot;/tmp/r8/combined.log&quot;, probe log &quot;/tmp/r8/probe_ddp.log&quot;.
+- Combined <code>/tmp/r8/time-combined/time.json</code> finished 17:39:15Z:
+  valid, 0.1732 s/update, 1.3445x, windows 1.732/1.732 s (0.04% spread).
+  The two-rank production-shape DDP probe is bitwise for every parameter&#x27;s
+  gradient and update across four updates, including bucket rebuilds.
+  Validate with quick eager-RMSNorm stand-in, then full Apex stack check.
+- Validation queue started 2026-11-06T17:39:59Z, PID 93707,
+  log &quot;/tmp/r8/validation.log&quot;; quick output &quot;/tmp/r8/quick-standin&quot;,
+  full output &quot;/tmp/r8/check&quot;. Full-check time excluded from round budget.
+- Quick finished 17:44:29Z: PASS/N0. Full check finished 17:52:26Z:
+  PASS/N1, 1.3437x, 0.1733 s/update. The independent two-rank probe
+  additionally covers the DDP-only path not exercised by single-rank records.
+- End/promotion 2026-11-06T17:53:00Z: promote the exact checked DDP
+  module and 256 MiB+views configuration. Active round duration excluding
+  full check is about 14 minutes; no other hotspot was changed.</pre></details><details><summary><em class="">2.6 h</em><span>Round 9 — profiling the accepted DDP stack</span></summary><pre>- Profile current best before selecting the next hotspot. The passing R8
+  submission remains unchanged while experiments use a separate tree.
+- Profile started 2026-11-06T17:53:34Z, PID 100628,
+  log &quot;/tmp/r9/profile.log&quot;, output &quot;/tmp/r9/profile&quot;.
+- Profile completed 17:55:04Z. Five updates: NCCL 353.6 ms (33.1%),
+  GEMM 321.8 ms (30.1%), optimizer 156.7 ms (14.7%), elementwise 103.4 ms.
+  DDP tuning reduces all-reduce calls from 119 to 21 per update and copies
+  from 64.3 to 43.1 ms. BF16 scalar multiplications still take 61.4 ms:
+  390 calls at the 25M-element FFN weight size and 455 at the 9M projection
+  size, confirming per-parameter pre-reduction gradient averaging.
+- Select gradient averaging: screen PyTorch&#x27;s standard bucket all-reduce
+  hook and NCCL&#x27;s averaging operation, replacing separate per-parameter
+  scaling. Both retain BF16 gradients and average across the same group.
+  NCCL AVG is guarded to two CUDA/NCCL ranks with BF16 buffers; unsupported
+  cases use the standard pre-divide bucket hook. Switch defaults off.
+  Run two-rank production-shape bitwise probes before timing either mode.
+- Probe/screen queue started 2026-11-06T17:57:20Z, PID 102129,
+  log &quot;/tmp/r9/screens.log&quot;; outputs &quot;/tmp/r9/time-bucket&quot; and
+  &quot;/tmp/r9/time-nccl&quot;; probe logs &quot;/tmp/r9/probe-{bucket,nccl}.log&quot;.
+- Both two-rank probes are bitwise across four updates. Screens valid:
+  <code>/tmp/r9/time-bucket</code> completed 17:58:48Z, 0.1768 s/update, 1.3171x;
+  <code>/tmp/r9/time-nccl</code> completed 18:00:17Z, 0.1733 s/update, 1.3437x.
+  Standard bucket hook regresses; NCCL AVG exactly matches the previous
+  full-check time and supplies no gain. Reject both without promoting.
+- End 2026-11-06T18:01:00Z. N0 operator probes only; no quick/full
+  whole-model verdict claimed for rejected code. Submission remains R8.</pre></details><details><summary><em class="">2.8 h</em><span>Round 10 — next hotspot profile</span></summary><pre>- Re-profile current best before selecting a new class of optimization.
+- Profile started 2026-11-06T18:01:05Z, PID 105508,
+  log &quot;/tmp/r10/profile.log&quot;, output &quot;/tmp/r10/profile&quot;.
+- Profile finished 18:02:35Z: five updates, NCCL 357.2 ms (33.4%), GEMM
+  319.2 ms (29.9%), multi-tensor optimizer work 156.8 ms (14.7%). Adam
+  dispatch uses 510 kernels; each conversion uses 825 kernels (165/update).
+  Screen launch granularity in these elementwise optimizer kernels: 256K
+  and 1M elements per block chunk instead of 64K. Norm reductions retain
+  their original chunk size and reduction tree. The original Apex formulas,
+  dtypes, states, and optimizer steps remain unchanged. Default-off switch.
+- Production-shape cast/scale/refresh and Adam state probes precede each
+  timing, covering partial chunks and four step/bias-correction values.
+- Probe/screen queue started 2026-11-06T18:04:16Z, PID 107067,
+  log &quot;/tmp/r10/screens.log&quot;, outputs &quot;/tmp/r10/time-{chunk256k,chunk1m}&quot;.
+- Both primitive probes are bitwise. Valid screens: 256K chunks regress
+  to 0.1749 s/update (1.3314x); 1M chunks give 0.1712 (1.3602x), about
+  1.2% beyond R8. Isolate scale versus Adam dispatch to avoid retaining a
+  regressive half of the same launch-granularity change.
+- Isolated screens started 2026-11-06T18:08:02Z, PID 110195,
+  log &quot;/tmp/r10/isolation.log&quot;, outputs &quot;/tmp/r10/time-{scale1m,adam1m}&quot;.
+- Isolation screens completed 18:10:37Z, valid: scale-only 1M gives
+  0.1722 s/update, 1.3523x; Adam-only 1M gives 0.1713, 1.3594x.
+  Most gain comes from Adam; combined 1M is indistinguishable from Adam
+  alone. Finish the bounded search with neighboring Adam-only 512K/2M.
+- Neighbor screens started 2026-11-06T18:11:52Z, PID 113147,
+  log &quot;/tmp/r10/neighbors.log&quot;, outputs &quot;/tmp/r10/time-{adam512k,adam2m}&quot;.
+- Neighbor screens finished 18:14:26Z, valid: Adam 512K regresses to
+  0.1766 s/update (1.3186x); Adam 2M gives 0.1710 (1.3618x), windows
+  1.710/1.709 s (0.07% spread). 1M and 2M are nearly tied; select 2M.
+  Conversion and norm kernels keep their existing chunk sizes. Re-probe
+  selected setting, then quick stand-in and full checks before promotion.
+- Validation queue started 2026-11-06T18:15:14Z, PID 116087,
+  log &quot;/tmp/r10/validation.log&quot;, outputs &quot;/tmp/r10/quick-standin&quot; and
+  &quot;/tmp/r10/check&quot;. Full-check time is excluded from round budget.
+- Selected primitive probe is bitwise. Quick completed 18:19:47Z:
+  PASS/N0. Full <code>/tmp/r10/check/check.json</code> completed 18:27:34Z:
+  PASS/N1, 1.3602x, 0.1712 s/update. All exact/RNG/trajectory gates pass.
+- End/promotion 2026-11-06T18:28:00Z. Promote the exact checked dispatch
+  override with Adam-only 2M chunks. Excluding the full check, the round
+  takes about 19 minutes. Norm and conversion granularity remain unchanged.</pre></details><details><summary><em class="">3.2 h</em><span>Round 11 — current-best critical-path profile</span></summary><pre>- Profile the accepted stack before selecting the next rewrite. All GPU
+  tests and edits will use a separate experiment tree until validated.
+- Profile started 2026-11-06T18:28:30Z, PID 123131,
+  log &quot;/tmp/r11/profile.log&quot;, output &quot;/tmp/r11/profile&quot;.
+- Profile finished 18:30:00Z: five updates, NCCL 348.2 ms (30.7%), GEMM
+  321.7 ms (28.4%), multi-tensor optimizer 226.7 ms (20.0%). Larger Adam
+  chunks use fewer kernels (135 vs 510) and overlap longer kernels with
+  broadcasts. Master refresh remains an exposed 6.20–6.23 ms after the
+  final broadcast on every profiled update (165 conversion kernels).
+- Select that tail: pipeline unchanged scale-by-one fp32-to-BF16 refresh
+  on a side stream as each OSS chunk broadcast completes. Keep every
+  original broadcast/wait, and wait for refresh before the step returns.
+  Cache plans by live master/model pointers; validate complete coverage.
+  No optimizer formula, dtype, tensor, step, or RNG changes. The switch is
+  default off; single-rank and unsupported layouts use the existing path.
+- A two-rank four-update probe covers partial chunks, split parameters,
+  fp32 masters/states and the BF16 model refresh before judge timing.
+- Probe/time queue started 2026-11-06T18:31:50Z, PID 124621,
+  log &quot;/tmp/r11/screen.log&quot;, probe &quot;/tmp/r11/probe_pipeline.log&quot;,
+  timing output &quot;/tmp/r11/time&quot;.
+- The two-rank probe is bitwise for masters, BF16 model weights and Adam
+  states across all four updates. <code>/tmp/r11/time/time.json</code> completed
+  18:33:18Z: valid, 0.1686 s/update, 1.3812x, 0.03% window spread.
+- Screen one scheduling refinement behind <code>YOCO_PIPELINE_EARLY_LOCAL</code>:
+  locally owned chunks can refresh after their Adam kernel, while NCCL
+  reads them, without waiting for their broadcast to finish. Remote chunks
+  still wait for receipt. Both transfers and refresh complete before return.
+- Early-local probe/time started 2026-11-06T18:34:38Z, PID 126320,
+  log &quot;/tmp/r11/early-local.log&quot;, output &quot;/tmp/r11/time-early-local&quot;.
+- Early-local probe is bitwise; timing finished 18:36:06Z, valid,
+  0.1686 s/update, 1.3812x: no extra gain on one refresh stream.
+  Local refresh still queues behind earlier remote waits on that stream.
+  Try independent local/remote refresh streams with separate overflow
+  buffers, preserving dependencies and waiting for both before return.
+- Two-stream probe/time started 2026-11-06T18:36:37Z, PID 128008,
+  log &quot;/tmp/r11/two-streams.log&quot;, output &quot;/tmp/r11/time-two-streams&quot;.
+- Two-stream probe is bitwise, but its valid time is 0.1687 s/update,
+  1.3804x (18:38:06Z), no gain over the simpler 0.1686/1.3812x path.
+  Remove both early-local variants and their switch from the experiment.
+  Validate the simpler pipeline with quick eager-RMSNorm stand-in and full
+  check before promotion. The main submission remains the checked R10 stack.
+- Validation queue started 2026-11-06T18:38:59Z, PID 129688,
+  log &quot;/tmp/r11/validation.log&quot;, outputs &quot;/tmp/r11/quick-standin&quot; and
+  &quot;/tmp/r11/check&quot;. Full-check time excluded from the round budget.
+- Quick completed 18:43:30Z: PASS/N0. Full completed 18:51:21Z:
+  PASS/N1, but timing is 0.1712 s/update, 1.3602x, equal to R10 rather
+  than the three 0.1686–0.1687 pipeline screens. Before promotion, repeat
+  current submitted R10 and the pipeline back-to-back with judge <code>time</code>.
+  No new change is made while resolving this measurement difference.
+- Repeat queue started 2026-11-06T18:52:14Z, PID 136559,
+  log <code>/tmp/r11/repeat.log</code>, outputs <code>/tmp/r11/time-{control,repeat}</code>.
+- Controlled repeat completed 18:54:59Z, both valid: submitted R10
+  0.1712 s/update (1.3602x); pipeline 0.1686 (1.3812x). This reproduces
+  the incremental gain. The full check is PASS despite its slower timing
+  sample; promote with that distinction explicitly recorded.
+- End/promotion 2026-11-06T18:56:00Z. Same checked simple pipeline; no
+  early-local switch or extra stream is retained. Active round time is
+  about 20 minutes excluding the full check.</pre></details><details><summary><em class="">3.7 h</em><span>Round 12 — current-best memory-work profile</span></summary><pre>- Profile the accepted pipeline stack before selecting the next hotspot.
+- Profile started 2026-11-06T18:56:26Z, PID 139511,
+  log &quot;/tmp/r12/profile.log&quot;, output &quot;/tmp/r12/profile&quot;.
+- Profile finished 18:57:56Z: five updates, NCCL 345.3 ms (29.8%), GEMM
+  317.8 ms (27.5%), optimizer 259.8 ms (22.4%). Pipelined refresh overlaps
+  transfers; fp32 fills still contribute 22.9 ms in 1,735 kernels.
+  Select master-gradient clearing, not a new optimizer formula: compare
+  batched foreach zeroing and deferring master initialization to the next
+  BF16-to-fp32 synchronization, which overwrites every used gradient and
+  explicitly writes zeros for missing model gradients in the reference.
+- Both modes clear BF16 model gradients exactly as before, preserve the
+  scaling/pending-sync bookkeeping, and guard unsupported layouts. Probe
+  missing-gradient cases before time; the complete stack must pass checks.
+- Probe/time queue started 2026-11-06T18:59:16Z, PID 140992,
+  log &quot;/tmp/r12/screens.log&quot;, outputs &quot;/tmp/r12/time-{foreach,defer}&quot;.
+- Both missing-gradient probes pass bitwise. Screens valid: foreach
+  0.1688 s/update, 1.3796x (19:00:37Z), no gain over R11; deferred
+  initialization 0.1666, 1.3978x (19:01:58Z), 0.32% window spread.
+  Select defer and run quick stand-in plus full check before promotion.
+- Validation queue started 2026-11-06T19:02:47Z, PID 144068,
+  log &quot;/tmp/r12/validation.log&quot;, outputs &quot;/tmp/r12/quick-standin&quot; and
+  &quot;/tmp/r12/check&quot;. Full-check time excluded from round budget.
+- Quick completed 19:07:15Z: PASS/N0. Full completed 19:15:08Z:
+  PASS/N1, 1.3986x, 0.1665 s/update. Every exact, RNG, and trajectory
+  gate passes. Promote the exact checked deferred-clearing implementation.
+- End/promotion 2026-11-06T19:15:30Z. Active round time excluding the
+  full check is about 11 minutes. No other hotspot changed.</pre></details><details><summary><em class="">4.0 h</em><span>Round 13 — current-best profile and loss-path investigation</span></summary><pre>- Profile the accepted R12 stack before selecting the next hotspot.
+  Experiments remain isolated from the submitted, fully passing version.
+- Profile started 2026-11-06T19:16:15Z, PID 151016,
+  log &quot;/tmp/r13/profile.log&quot;, output &quot;/tmp/r13/profile&quot;.
+- Profile finished 19:17:45Z. Five updates: NCCL 345.6 ms (30.4%), GEMM
+  319.8 ms (28.1%), optimizer 259.8 ms (22.8%), elementwise 80.8 ms.
+  Deferred clearing removes the expected ~23 ms of fills. Loss kernels
+  total 8.8 ms, in addition to logit widening and full-size temporary
+  tensors. Screen the installed FlashAttention fused cross-entropy, a
+  standard memory-pass fusion on the 100,352-wide vocabulary loss.
+- Preserve the criterion&#x27;s module forward, token normalization and ignored
+  labels; only replace its softmax/NLL computation. FP32 loss/accumulation
+  and BF16 logit gradients remain. The deterministic Triton kernels have
+  no atomic reductions. Guard to the YOCO single-model-parallel CUDA BF16
+  path, default off. This reduction/order change is an N1 candidate.
+- Probe production vocabulary sizes, ignored labels, three magnitudes,
+  output/gradient dtypes, and loss error versus fp64 before judge timing.
+- Probe/time queue started 2026-11-06T19:19:20Z, PID 152508,
+  log &quot;/tmp/r13/screen.log&quot;, probe &quot;/tmp/r13/probe_loss.log&quot;, timing
+  output &quot;/tmp/r13/time&quot;.
+- Primitive probe: FP32 losses/BF16 gradients and ignored-token zeros are
+  correct. Maximum per-token loss difference is 3.81e-6 across scales;
+  gradient relative L2 is at most 2.74e-7. Reference/candidate loss errors
+  versus fp64 are comparable. These are diagnostics, not a verdict.
+- <code>/tmp/r13/time/time.json</code> completed 19:20:41Z: valid, 0.1639 s/update,
+  1.4208x, windows 1.639/1.639 s (0.01% spread). Fast-path log is present.
+  Run quick exact-invariant gates and the full statistical check with the
+  real fused loss and Apex norm. No bitwise claim is made for this kernel.
+- Validation queue started 2026-11-06T19:21:47Z, PID 154118,
+  log &quot;/tmp/r13/validation.log&quot;, outputs &quot;/tmp/r13/quick&quot; and
+  &quot;/tmp/r13/check&quot;. Full-check time excluded from round budget.
+- Quick completed 19:26:17Z: PASS exact gates, N1. Full completed
+  19:34:21Z: PASS/N1, all six endpoints within 0.637 sigma of reference.
+  The full timing is 0.1666 s/update (1.3978x), slower than the 0.1639
+  screen. As in R11, confirm the incremental gain with a controlled
+  current-submission versus candidate judge-time pair before promotion.
+- Controlled repeat started 2026-11-06T19:35:48Z, PID 161173,
+  log &quot;/tmp/r13/repeat.log&quot;, outputs &quot;/tmp/r13/time-{control,repeat}&quot;.
+- Controlled repeat completed 19:38:23Z, valid: R12 0.1662 s/update
+  (1.4011x), fused loss 0.1645 (1.4156x). This supports a modest incremental
+  gain. Preserve the distinction from the full check&#x27;s 1.3978x timing.
+- End/promotion 2026-11-06T19:39:00Z: promote the exact checked fused loss.
+  Full PASS/N1; all six endpoints within 0.637 sigma. Future N0 stand-ins
+  must disable both fused RMSNorm and fused cross-entropy.</pre></details><details><summary><em class="">4.4 h</em><span>Round 14 — communication critical-path profile</span></summary><pre>- Profile the accepted R13 stack before selecting the next rewrite.
+  Submission remains fully checked while experiments use a separate tree.
+- Profile started 2026-11-06T19:40:45Z, PID 164208,
+  log &quot;/tmp/r14/profile.log&quot;, output &quot;/tmp/r14/profile&quot;.
+- Profile finished 19:42:15Z. Five updates: NCCL 351.7 ms (31.1%), GEMM
+  318.2 ms (28.2%), optimizer 260.6 ms (23.1%). Owner-by-owner broadcasts
+  take 203.0 ms in 260 kernels; Adam takes 168.9 ms in 135 kernels.
+  Select exchange scheduling: batch both directions with NCCL point-to-
+  point operations for exactly two ranks, rather than serial broadcasts.
+  All fp32 bytes still reach their original master-weight destinations.
+- Keep Adam arithmetic/states, complete transfer waits, and pipelined BF16
+  refresh unchanged. PyTorch coalescing can return one shared work handle;
+  a completion wrapper waits every returned handle before either refresh.
+  Other world sizes/backends retain the broadcast path. Default-off switch.
+- The communication/compute balance can change, so screen the accepted 2M
+  Adam chunk and previously tested 64K/512K settings within this exchange
+  stage. A two-rank split/partial-chunk bitwise probe precedes the screens.
+- Probe/screen queue started 2026-11-06T19:43:23Z, PID 165744,
+  log &quot;/tmp/r14/screens.log&quot;, probe &quot;/tmp/r14/probe_p2p.log&quot;, outputs
+  &quot;/tmp/r14/time-p2p-{2m,64k,512k}&quot;.
+- Two-rank probe: bitwise masters, BF16 weights and Adam states for four
+  updates, with fast-path counters verified. All three screens valid:
+  2M Adam 0.1564 s/update (1.4889x); 64K 0.1558 (1.4947x); 512K 0.1555
+  (1.4976x). Last screen finished 19:47:36Z. The 64K/512K gap is small;
+  select 512K, whose window spread is 0.09%.
+- Re-probe the selected setting, then N0 stand-in check with both RMSNorm
+  and loss eager, followed by the full real-stack check. Submission stays
+  at the checked R13 version throughout validation.
+- Validation queue started 2026-11-06T19:50:38Z, PID 170485,
+  log &quot;/tmp/r14/validation.log&quot;, outputs &quot;/tmp/r14/quick-standin&quot; and
+  &quot;/tmp/r14/check&quot;. Full-check time excluded from round budget.
+- Selected two-rank probe is bitwise. Quick completed 19:55:19Z:
+  PASS/N0 with eager norm/loss. Full completed 20:03:06Z: PASS/N1,
+  1.4985x, 0.1554 s/update. All exact/RNG/statistical gates pass.
+- End/promotion 2026-11-06T20:04:00Z: promote the exact checked exchange
+  and select 512K Adam chunks. Round active time is about 15 minutes,
+  excluding the full check. No precision change in the exchange.</pre></details><details><summary><em class="">4.8 h</em><span>Round 15 — current-best communication profile</span></summary><pre>- Profile the accepted R14 stack before selecting another optimization.
+- Profile started 2026-11-06T20:04:45Z, PID 177669,
+  log &quot;/tmp/r15/profile.log&quot;, output &quot;/tmp/r15/profile&quot;.
+- Profile finished 20:06:15Z: five updates, NCCL 339.0 ms (32.0%), GEMM
+  319.5 ms (30.2%), optimizer 197.9 ms (18.7%). Weight send/receive totals
+  159.9 ms; BF16 gradient all-reduce is now the largest single kernel
+  category, 178.3 ms across 105 calls.
+- Test direct two-rank gradient exchange: retain BF16 pre-division by two,
+  exchange matching buffers, then add the peer buffer in BF16. CUDA-aware
+  Futures are completed on the postprocessing stream so DDP consumers wait
+  for the addition. Per-bucket receive buffers avoid reuse races. Other
+  worlds/backends/dtypes retain the standard reduction. Default-off switch.
+- Check the installed Torch Future stream contract and compare two-rank
+  gradients/updates over bucket rebuilds before judge timing. No reduced
+  precision, loss, optimizer, or RNG change is intended.
+- Probe/time queue started 2026-11-06T20:08:21Z, PID 179204,
+  log &quot;/tmp/r15/screen.log&quot;, probe &quot;/tmp/r15/probe_pair.log&quot;, timing
+  output &quot;/tmp/r15/time&quot;.
+- Two-rank probe is bitwise for gradients and parameter updates, with
+  active-hook/fallback counters checked. Judge screen completed 20:09:50Z:
+  valid, 0.1648 s/update, 1.4130x, 0.18% window spread. This regresses
+  substantially from R14; reject the direct gradient reduction.
+- End 2026-11-06T20:12:00Z. Native DDP all-reduce remains in the submission.
+  Only operator probes, not a full numerical verdict, are claimed here.</pre></details><details><summary><em class="">5.0 h</em><span>Round 16 — current-best profile for further fusion</span></summary><pre>- Re-profile the accepted R14 stack before choosing another hotspot.
+- Profile started 2026-11-06T20:13:51Z, PID 180996,
+  log &quot;/tmp/r16/profile.log&quot;, output &quot;/tmp/r16/profile&quot;.
+- Profile finished 20:15:21Z: five instrumented updates, GEMM 319.4 ms
+  (31.2%), NCCL 307.2 ms (30.0%), optimizer kernels 197.8 ms (19.3%).
+  Adam is 91.5 ms and master-weight BF16 refresh is 60.2 ms. Fusion of
+  locally owned refresh into Adam may remove a master-weight read pass.
+- Experiment only in /tmp/r16/tree: custom CUDA Adam with the pinned
+  Apex 70018365 FP32 formula/compiler flags and one additional BF16 store.
+  Remote chunks retain existing pipelined refresh; transfer waits remain.
+  Default-off YOCO_ADAM_LOCAL_REFRESH, guarded with first-use equality
+  check. Submitted R14 code/config remain unchanged during investigation.
+
+- Custom-kernel probe / two-rank probe / judge-time queue started
+  2026-11-06T20:22:13Z, PID 182739, log /tmp/r16/screen.log. Probe logs:
+  /tmp/r16/probe_adam_refresh.log and /tmp/r16/probe_p2p.log; timing
+  output /tmp/r16/time. Wait for completion before other GPU work.
+
+- Primitive CUDA probes pass bitwise over both Adam modes, five step
+  indices, three data scales, two block chunk sizes, odd/partial slices,
+  and metadata overflow boundaries. Initial two-rank probe found stale
+  cached gradient pointers on the second update. Fix plan invalidation
+  to include gradients and states, not just master-weight pointers.
+  No judge timing ran before that correction.
+
+- Corrected two-rank probe and timing started 2026-11-06T20:23:40Z,
+  PID 183129, log /tmp/r16/screen-fixed.log; probe output
+  /tmp/r16/probe_p2p_fixed.log and timing output /tmp/r16/time.
+
+- Corrected two-rank probe passes all masters, BF16 model weights, Adam
+  states and steps bitwise for four updates. /tmp/r16/time/time.json:
+  valid 0.1550 s/update, 1.5024x, essentially tied with R14&#x27;s 1.4985x.
+  Further test vectorized FP32 memory accesses within the same fused
+  kernel; unaligned/tail elements retain scalar accesses and identical math.
+
+- Vectorized-kernel probes and time started 2026-11-06T20:26:27Z,
+  PID 184884, log /tmp/r16/vector-screen.log; timing /tmp/r16/time-vector.
+
+- Vectorized path remains bitwise in primitive/two-rank probes. Its judge
+  time is valid 0.1552 s/update, 1.5005x, 0.82% window spread, again
+  unresolved versus R14. Screen 64K and 256K kernel chunks, then run the
+  stand-in quick check; no promotion justified yet.
+
+- Tuning/stand-in validation started 2026-11-06T20:29:57Z, PID 186867,
+  log /tmp/r16/tune.log. Outputs /tmp/r16/time-64k,
+  /tmp/r16/time-256k, /tmp/r16/quick-standin.
+
+- 64K chunks: /tmp/r16/time-64k/time.json, valid 0.1545 s/update,
+  1.5072x. 256K chunks: /tmp/r16/time-256k/time.json, valid 0.1552,
+  1.5005x. Stand-in /tmp/r16/quick-standin/check.json passes N0.
+  The new multi-rank path is covered by separate bitwise probes. The
+  apparent gain remains under 1%; run current submission then 64K again
+  with the judge to distinguish a repeatable gain from drift.
+
+- Confirmation queue started 2026-11-06T20:38:52Z, PID 192141,
+  log /tmp/r16/confirm.log; outputs /tmp/r16/time-control and
+  /tmp/r16/time-repeat. Submission remains checked R14 throughout.
+
+- Confirmation completed 20:41:41Z: control valid 0.1553 s/update,
+  1.4995x, 0.03% window spread; candidate valid 0.1549, 1.5034x,
+  0.35% spread. Only a 0.26% incremental gain in the controlled pair.
+  Reject the extra custom-kernel complexity: no resolved benefit and no
+  full check justified. End 2026-11-06T20:42:15Z, under 30 minutes.
+  Submitted implementation and configuration remain R14.</pre></details><details><summary><em class="">5.5 h</em><span>Round 17 — current-best profile for remaining model work</span></summary><pre>- Profile the unchanged accepted R14 stack before selecting another
+  hotspot. Started 2026-11-06T20:42:39Z, PID 195202,
+  log /tmp/r17/profile.log, output /tmp/r17/profile.
+
+- Profile finished 20:44:09Z: NCCL 353.9 ms (32.8%), GEMM 323.1 ms
+  (30.0%), optimizer 197.4 ms (18.3%). RMSNorm forward/backward totals
+  15.9 ms, with surrounding broadcast multiply and reduction kernels.
+  Per-parameter scalar BF16 scaling remains 61.5 ms, but its alternative
+  communication routes were already rejected. Target affine RMSNorm
+  memory passes instead, in /tmp/r17/tree only.
+- Default-off YOCO_FUSED_RMS_AFFINE combines norm and affine forward,
+  then affine/input-gradient backward. Preserve explicit BF16 rounding
+  of normalized activations, normalized gradients and affine-gradient
+  products. Keep PyTorch&#x27;s weight-gradient reduction. FP32 reductions
+  are reordered (intended N1); deterministic path is the same kernel.
+  Existing non-affine head norms and unsupported inputs retain Apex.
+
+- Probe, timing and quick-check queue started 2026-11-06T20:48:14Z,
+  PID 196831, log /tmp/r17/screen.log; outputs /tmp/r17/probe_rms.log,
+  /tmp/r17/time and /tmp/r17/quick.
+
+- First probe stopped before GPU execution: this pinned Triton exposes
+  rsqrt in triton.language.math, not directly in triton.language. Correct
+  the import; include non-unit affine weights in the operator probe.
+  No timing or quick check ran before this compatibility correction.
+
+- Corrected probe/time/quick started 2026-11-06T20:49:30Z, PID 197018,
+  log /tmp/r17/screen-fixed.log; probe /tmp/r17/probe_rms_fixed.log.
+
+- Operator probes pass at widths 128/3072/4096, rows 7/2048, three
+  activation scales and non-unit weights. Maximum errors are small;
+  explicit BF16 boundaries and gradient dtypes are preserved.
+- /tmp/r17/time/time.json: valid 0.1529 s/update, 1.5230x.
+  /tmp/r17/quick/check.json passes all exact items; not bitwise (N1).
+  About 1.6% incremental gain merits full validation. Add first-use
+  enabled/fallback logging and device/empty-input guards before the full
+  check. Submission remains R14 until the experimental tree passes.
+
+- Full check started 2026-11-06T20:56:10Z, PID 200930,
+  log /tmp/r17/check.log, output /tmp/r17/check. Full-check time is
+  excluded from the round budget. No code/config promotion yet.
+
+- Full check completed 21:04:17Z: /tmp/r17/check/check.json is PASS/N1,
+  1.5230x, 0.1529 s/update. Every structure, RNG, exact-item and
+  statistical gate passes. Promote the exact checked kernel/module and
+  switch file. End/promotion 2026-11-06T21:05:00Z; active round time
+  about 14 minutes, excluding the full check.</pre></details><details><summary><em class="">5.9 h</em><span>Round 18 — profile the accepted fused-normalization stack</span></summary><pre>- Profile started 2026-11-06T21:08:04Z, PID 205988,
+  log /tmp/r18/profile.log, output /tmp/r18/profile. The submission is
+  the fully validated R17 stack; select the next hotspot from this trace.
+
+- Profile finished 21:09:34Z: five updates, GEMM 321.6 ms (31.8%),
+  NCCL 307.5 ms (30.4%), optimizer 195.8 ms (19.4%). Weight exchange
+  remains the largest kernel, 161.3 ms/130 calls. Fused affine RMSNorm
+  forward/backward now totals 5.2 ms; more local norm fusion has a low
+  ceiling. Hardware topology reports NV18 between the two devices.
+- Experiment /tmp/r18/tree: direct CUDA IPC DMA copies of each updated
+  FP32 master chunk into the peer&#x27;s existing replica. A tiny NCCL
+  all-reduce after each rank&#x27;s copy establishes completion of both DMA
+  transfers before either rank refreshes BF16 weights. All final waits,
+  master buffers and optimizer arithmetic remain. Default-off
+  YOCO_OSS_IPC_DMA, same-host/two-rank/static-allocation guards; no math
+  or RNG change intended. Probe exactness before timing.
+
+- IPC probe and judge timing started 2026-11-06T21:12:41Z, PID 207573,
+  log /tmp/r18/screen.log; /tmp/r18/probe_ipc.log and /tmp/r18/time.
+
+- Initial two-rank probe passes every master, BF16 model weight, Adam
+  moment and step bitwise across four updates. /tmp/r18/time/time.json:
+  valid 0.1414 s/update, 1.6469x, a substantial improvement over R17.
+- Before validation, add CUDA device guards and remove an optimizer
+  reference cycle. Extend probes to twelve updates with asynchronous
+  rank skew and changing learning rates, plus offsets spanning 4 GiB.
+  Queue stand-in quick and full validation; no promotion until PASS.
+
+- Extended probes, stand-in quick and full check started
+  2026-11-06T21:16:40Z, PID 209369, log /tmp/r18/validation.log.
+  Outputs /tmp/r18/probe_stress.log, /tmp/r18/probe_large.log,
+  /tmp/r18/quick-standin and /tmp/r18/check. Full portion is excluded
+  from the round budget. The submitted tree remains validated R17.
+
+- Extended two-rank and 4-GiB-offset probes pass bitwise. Stand-in quick
+  completed 21:22:05Z, PASS/N0. Full check ran 21:22:05Z–21:30:34Z:
+  /tmp/r18/check/check.json PASS/N1, 1.6469x, 0.1414 s/update; all
+  exact, RNG and statistical gates pass. Screening window spread 0.24%.
+- Promote the exact checked IPC implementation and configuration.
+  End/promotion 2026-11-06T21:31:30Z; active round time about 15 minutes,
+  excluding the full check. No custom Adam arithmetic is submitted.</pre></details><details><summary><em class="">6.3 h</em><span>Round 19 — current-best communication profile</span></summary><pre>- Profile accepted R18 before choosing another hotspot. Started
+  2026-11-06T21:33:43Z, PID 217094, log /tmp/r19/profile.log,
+  output /tmp/r19/profile.
+
+- Profile finished 21:35:43Z: GEMM 324.0 ms, optimizer 242.6 ms,
+  NCCL 172.7 ms, copies 119.4 ms across five instrumented updates.
+  BF16 gradient all-reduce is the largest kernel at 145.1 ms, plus
+  61.9 ms in per-parameter BF16 pre-scaling. IPC weight copies are
+  91.7 ms and their small handshakes 27.3 ms, overlapped with Adam.
+- Test IPC DMA for gradient buckets in /tmp/r19/tree only. Exchange
+  unscaled BF16 gradients, wait for both copies with an integer NCCL
+  handshake, then fuse separate BF16 pre-divisions and the BF16 sum.
+  CUDA-aware Futures preserve DDP stream dependencies. Receive storage
+  is retained across bucket rebuilds; the reduction has 64-bit offsets
+  and a first-use bitwise check. Default-off YOCO_DDP_IPC_REDUCE.
+
+- Averaging/DDP probes and time started 2026-11-06T21:37:51Z,
+  PID 218676, log /tmp/r19/screen.log; /tmp/r19/probe_average.log,
+  /tmp/r19/probe_ddp.log and /tmp/r19/time. Submitted R18 is unchanged.
+
+- Primitive averaging passes bitwise for odd/large sizes and scales from
+  1e-38 to 1e35. Twelve-update, two-rank DDP gradient/parameter probes
+  are bitwise across bucket rebuilds. /tmp/r19/time/time.json is valid,
+  0.1389 s/update, 1.6765x. Check graph compatibility and 64-bit indexing,
+  then screen 64/128 MiB DDP buckets and run the stand-in quick check.
+
+- Graph/large-index probes, tuning and quick queue started
+  2026-11-06T21:42:45Z, PID 220682, log /tmp/r19/tune.log.
+  Outputs /tmp/r19/probe_graphs.log, /tmp/r19/probe_large_average.log,
+  /tmp/r19/time-64, /tmp/r19/time-128, /tmp/r19/quick-standin.
+
+- Graph/DDP probe passes all gradients and weights bitwise for twelve
+  updates. Large averaging probe passes across the signed 32-bit index
+  boundary. Stand-in /tmp/r19/quick-standin/check.json passes N0.
+- 64 MiB DDP buckets: /tmp/r19/time-64/time.json, valid 0.1378 s/update,
+  1.6899x. 128 MiB: /tmp/r19/time-128/time.json, valid 0.1384, 1.6826x.
+  Select 64 MiB for the full check; its extra gain over 256 MiB is small,
+  but the complete IPC gradient path improves on submitted R18.
+
+- Full check started 2026-11-06T21:52:14Z, PID 226384,
+  log /tmp/r19/check.log, output /tmp/r19/check. Full-check time is
+  excluded from the round budget. Submission remains checked R18.
+
+- Full check completed 22:00:47Z: /tmp/r19/check/check.json PASS/N1,
+  1.6838x, 0.1383 s/update. All exact, RNG and trajectory gates pass.
+  Promote the exact checked gradient hook/kernel and 64 MiB bucket
+  configuration. End/promotion 2026-11-06T22:02:00Z; active round time
+  about 20 minutes, excluding the full check.</pre></details><details><summary><em class="">6.8 h</em><span>Round 20 — current-best optimizer/communication balance</span></summary><pre>- Re-profile accepted R19 before selecting another hotspot. Started
+  2026-11-06T22:03:25Z, PID 231554, log /tmp/r20/profile.log,
+  output /tmp/r20/profile.
+
+- Profile finished 22:05:25Z: GEMM 307.1 ms, copies 260.8 ms,
+  optimizer 242.0 ms (22.8%) across five updates. Adam totals 105.7 ms
+  and master refresh 90.5 ms, up from 91.5/60.2 ms in R16 before IPC.
+  The new communication overlap changes the bandwidth balance enough
+  to re-screen the previously unresolved local Adam/refresh fusion.
+- Experiment /tmp/r20/tree reuses the corrected, bitwise-probed R16
+  CUDA kernel and gradient/state-aware cache. Integrate it with the IPC
+  transfer branch, preserving all handshakes and remote refresh. Keep
+  submitted R19 unchanged; screen 64K and 512K work chunks.
+
+- Primitive/two-rank probes and timing queue started
+  2026-11-06T22:06:57Z, PID 233178, log /tmp/r20/screen.log.
+  Outputs /tmp/r20/probe_adam.log, /tmp/r20/probe_fused.log,
+  /tmp/r20/time-64k, /tmp/r20/time-512k.
+
+- Primitive Adam/refresh and twelve-update skewed IPC probes pass
+  bitwise. 64K: /tmp/r20/time-64k/time.json, valid 0.1361 s/update,
+  1.7110x. 512K: /tmp/r20/time-512k/time.json, valid 0.1357, 1.7161x.
+  Unlike R16, the fusion now has a measurable gain. Select 512K (the
+  existing launch setting), add unsupported-path logging, and validate.
+
+- Selected probe, stand-in quick and full validation started
+  2026-11-06T22:13:19Z, PID 236757, log /tmp/r20/validation.log.
+  Outputs /tmp/r20/probe_selected.log, /tmp/r20/quick-standin and
+  /tmp/r20/check. Full portion excluded from round budget.
+
+- Selected two-rank probe passes. Stand-in quick completed 22:18:42Z,
+  PASS/N0. Full check completed 22:28:06Z: /tmp/r20/check/check.json
+  PASS/N1, 1.7211x, 0.1353 s/update; all gates pass. Promote the exact
+  checked custom Adam/refresh kernel and 512K configuration.
+- End/promotion 2026-11-06T22:29:00Z. Active round time about 16 minutes,
+  excluding the full check. The R16 direction is accepted only after the
+  changed IPC balance and fresh probes/timing/full validation in R20.</pre></details><details><summary><em class="">7.2 h</em><span>Round 21 — profile the accepted fused optimizer stack</span></summary><pre>- Profile started 2026-11-06T22:29:21Z, PID 244412,
+  log /tmp/r21/profile.log, output /tmp/r21/profile. The submission
+  remains the fully checked R20 stack.
+
+- Profile finished 22:31:21Z: GEMM 307.7 ms (30.5%), copies 260.2 ms,
+  optimizer 184.4 ms, small NCCL handshakes 123.6 ms across five updates.
+  Target the remaining dense GEMMs with a newer library backend.
+- Loader override variables are reserved, so do not use LD_PRELOAD or
+  LD_LIBRARY_PATH. Instead investigate a direct cuBLASLt API backend,
+  loading an isolated library explicitly without changing ambient Torch
+  or the submitted path. Download CUDA-12.8 cuBLAS into candidate-env
+  isolation; choose deterministic non-split-K algorithms if viable.
+
+- Isolated library install started 2026-11-06T22:36:58Z, PID 246084,
+  log /tmp/r21/install.log. No submitted library path or code is changed.
+
+- Isolated cuBLAS &lt;ip&gt; is installed under
+  /opt/candidate-env/cublas-12.8, outside the active Python package path.
+  Its Lt library has no CUDA-library DT_NEEDED dependencies. Implement
+  a direct API backend in /tmp/r21/tree with explicit local dlopen,
+  BF16 inputs/outputs and FP32 accumulation. Non-split-K/no-reduction
+  algorithms are selected for deterministic execution in every mode;
+  the old Torch backend and all reserved environment values are untouched.
+  Default-off YOCO_CUBLAS_LT_LIBRARY selects the explicit backend.
+
+- Lt primitive probe and judge time started 2026-11-06T22:40:47Z,
+  PID 246125, log /tmp/r21/screen.log; /tmp/r21/probe_lt.log and
+  /tmp/r21/time. Submitted R20 remains unchanged.</pre></details><details><summary><em class="">7.2 h</em><span>Round 21 conclusion — 2026-11-06T23:08:30Z</span></summary><pre>- Start 22:29:21Z; end 23:08:30Z, excluding the full check from
+  22:52:38Z through 23:02:42Z. Active round time is about 29 minutes.
+- Profile /tmp/r21/profile: GEMMs 307.7 ms/5 updates (30.5% of summed
+  kernel durations), copies 260.2 ms, optimizer 184.4 ms, small NCCL
+  handshakes 123.6 ms. Target: GEMM library backend, N1.
+- Isolated cuBLASLt &lt;ip&gt;, explicit dlopen with local symbol scope,
+  BF16 inputs/outputs and FP32 accumulation, cached non-split-K plans.
+  All six production shapes pass finite eager and repeated graph probes;
+  only the 24-wide primitive differs from native Torch bitwise.
+- /tmp/r21/time/time.json: valid 1.7776x, 0.1310 s/update, 0.28% spread.
+- Excluding narrow projections caused NaN gradients before update zero
+  (/tmp/r21/time-filtered/time.json, ERROR); that variant was discarded.
+- /tmp/r21/check-all/check.json: PASS, N1, 1.7763x. Exact items and RNG
+  match, with no dtype or math-mode changes; the statistical gate passes.
+  /tmp/r21/quick-all-standin/check.json passes exact checks, not bitwise.
+- Validation PID 249801 completed; all R21 jobs have ended.</pre></details><details><summary><em class="">8.4 h</em><span>Round 22 conclusion — 2026-11-06T23:42:20Z</span></summary><pre>- Start 23:09:08Z; end 23:42:20Z, excluding the full check from
+  23:31:37Z through 23:41:40Z. Active round time: about 23 minutes.
+- Profile /tmp/r22/profile: GEMMs 29.7%, copies 25.6%, optimizer 20.1%,
+  NCCL 10.9% of summed kernel durations. Target: IPC completion costs.
+- Add default-off YOCO_IPC_STREAM_SIGNALS for driver sequence-counter
+  handshakes with local publication, remote waits and CUDA event ordering.
+  Keep NCCL as the collectively selected unsupported-device fallback.
+- Initial serialized-copy-stream version: /tmp/r22/time/time.json,
+  valid 1.7831x at 0.1306 s/update, insufficiently resolved incremental
+  gain. Restore full lookahead by waiting on consumer streams instead.
+- /tmp/r22/time-async/time.json and /tmp/r22/time-repeat/time.json both
+  measure 1.7899x, 0.1301 s/update. No skipped updates or RNG failures.
+- Two-rank payload, pipeline/wraparound, eager/graphed DDP and Adam
+  probes are bitwise. /tmp/r22/quick-standin/check.json passes N0.
+- /tmp/r22/check/check.json: PASS/N1, 1.7858x, 0.1304 s/update.
+  The complete stack retains the previously accepted norm/loss/Lt
+  rounding differences. All exact, RNG and trajectory gates pass.
+- Validation PID 264092 and all other round-22 jobs have completed.</pre></details><details><summary><em class="">8.8 h</em><span>Round 23 conclusion — 2026-11-07T00:04:40Z</span></summary><pre>- Start 2026-11-06T23:42:41Z; end 2026-11-07T00:04:40Z. About
+  22 minutes; no full-check exclusion is needed.
+- Target: paired FFN GEMMs, selected from /tmp/r23/profile with
+  GEMMs 32.6%, copies 28.8%, optimizer 23.2% of summed kernel durations.
+- Packed forward/wgrad: /tmp/r23/time/time.json, valid 1.7443x,
+  0.1335 s/update. Forward-only: /tmp/r23/time-forward/time.json,
+  valid 1.7602x, 0.1323 s/update. Contiguous activation outputs with
+  independent backward nodes: /tmp/r23/time-independent/time.json,
+  valid 1.7628x, 0.1321 s/update. All regress relative to R22.
+- /tmp/r23/profile-packed shows almost unchanged aggregate GEMM time;
+  extra copying and missed vectorized SwiGLU paths explain the loss.
+  Restoring those paths still fails to reach the baseline.
+- Primitive and repeated graph probes pass bitwise; the quick check
+  /tmp/r23/quick-independent/check.json passes exact checks, N1 stack.
+  No full check is run because performance rejects the whole direction.
+- All R23 jobs, including PID 280364, have completed. Only this negative
+  result is committed; experimental code and switches remain outside
+  the submission.</pre></details><details><summary><em class="">9.3 h</em><span>Round 24 conclusion — 2026-11-07T00:34:30Z</span></summary><pre>- Start 00:05:00Z; end 00:34:30Z, about 29.5 minutes. No full check.
+- Profile /tmp/r24/profile: GEMMs 32.7%, copies 29.1%, optimizer 22.9%
+  of summed kernel durations. Target optimizer/transfer chunk granularity.
+- Screened seven settings plus a repeat and one refinement, all through
+  the judge. Results are /tmp/r24/time-*/time.json and the table above.
+- Best initial 128 MiB/256K: 1.7927x, 0.1299 s/update. Its repeat is
+  1.7886x, 0.1302, indistinguishable from the 1.7872x, 0.1303 baseline.
+  Refinement 128 MiB/128K regresses to 1.7844x, 0.1305.
+- /tmp/r24/quick-standin/check.json passes N0. No full check is run
+  because no incremental gain is resolved. Keep current settings.
+- All jobs, including confirmation PID 297692, are complete. Commit
+  only the negative-result inventory; no code/configuration is changed.</pre></details><details><summary><em class="">9.8 h</em><span>Round 25 conclusion — 2026-11-07T01:04:20Z</span></summary><pre>- Start 00:34:57Z; end 01:04:20Z, about 29.4 minutes. No full check.
+- Profile /tmp/r25/profile: GEMMs 32.7%, copies 29.1%, optimizer 22.9%
+  of summed durations. Target the fused Adam kernel&#x27;s launch geometry.
+- Tested threads/vector widths 256/4, 768/4, 1024/4, 1024/2, 512/8,
+  256/8. All primitive checks are bitwise. Times range from 1.7340x
+  to 1.7886x initially; see /tmp/r25/time-*/time.json and the table above.
+- Leading 768/4 repeats at 1.7927x, 0.1299 s/update, versus its initial
+  1.7886x, 0.1302. This is not resolved against the existing 512/4
+  baseline. Larger vectors and most block sizes clearly regress.
+- Twelve skewed two-rank optimizer updates are bitwise. The final
+  /tmp/r25/quick-standin/check.json passes N0. No full check is justified.
+- All jobs, including final confirmation PID 315723, completed.
+  Only the negative-result inventory is committed; source and switches
+  stay at the previously passing implementation.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-yoco-sonnet.html"><small>← 2.26×</small><strong>Sonnet 5.5</strong></a><a class="up" href="yoco.html">↑ YOCO</a><a class="next" href="t-yoco-haiku.html"><small>1.70× →</small><strong>Haiku 5.5</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-yoco-opus.html", "pts": [[0.491, 1.524, 2], [1.129, 2.08, 4], [1.646, 2.439, 5], [2.109, 2.502, 6], [2.833, 2.567, 7], [3.079, 2.628, 8], [3.482, 2.646, 9], [5.413, 2.682, 12]], "end": 10.002, "final": 2.6793}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-yoco-sonnet.html", "pts": [], "end": 10.003, "final": 2.2623}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-yoco-haiku.html", "pts": [[0.287, 1.22, 1], [0.877, 1.239, 3], [1.431, 1.311, 4], [1.844, 1.376, 5], [2.064, 1.51, 7], [2.127, 1.51, 8], [2.629, 1.51, 9], [2.702, 1.51, 10], [3.221, 1.528, 11], [3.996, 1.547, 12], [4.638, 1.578, 14], [5.435, 1.587, 17], [6.321, 1.637, 18], [6.755, 1.637, 19], [8.068, 1.662, 20], [8.068, 1.671, 21], [9.364, 1.712, 24]], "end": 10.003, "final": 1.7033}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-yoco-astra.html", "pts": [[0.682, 1.066, 3], [0.834, 1.112, 4], [1.633, 1.228, 5], [1.77, 1.233, 6], [2.246, 1.308, 7], [2.406, 1.345, 8], [2.759, 1.345, 9], [2.995, 1.362, 10], [3.321, 1.381, 11], [4.004, 1.399, 12], [4.104, 1.421, 13], [4.81, 1.498, 14], [4.972, 1.498, 15], [5.39, 1.507, 16], [5.677, 1.523, 17], [6.014, 1.647, 18], [6.612, 1.69, 19], [7.222, 1.721, 20], [7.558, 1.778, 21], [8.445, 1.79, 22], [8.822, 1.79, 23], [9.321, 1.793, 24], [9.835, 1.793, 25]], "end": 10.003, "final": 1.7905}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-yoco-glm.html", "pts": [[0.89, 1.085, 1], [1.57, 1.104, 2], [1.955, 1.144, 3], [3.23, 1.207, 5], [5.059, 1.257, 8], [5.059, 1.598, 22]], "end": 10.002, "final": 1.5959}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-yoco-kimi.html", "pts": [[0.68, 1.013, 3], [0.886, 1.03, 4], [1.164, 1.091, 5], [1.47, 1.091, 6], [1.757, 1.184, 7], [2.105, 1.198, 8], [2.231, 1.198, 9], [2.601, 1.201, 10], [2.778, 1.204, 11], [3.118, 1.218, 12], [3.372, 1.218, 13], [3.536, 1.218, 14], [3.717, 1.218, 15], [4.456, 1.22, 16], [4.772, 1.236, 17], [4.912, 1.236, 18], [5.241, 1.237, 19], [5.479, 1.237, 20], [5.769, 1.237, 21], [6.278, 1.244, 22], [6.454, 1.244, 23], [6.853, 1.244, 24], [6.969, 1.244, 25], [7.355, 1.261, 26], [7.768, 1.293, 27], [8.078, 1.296, 28], [8.287, 1.296, 29], [8.648, 1.312, 30], [8.906, 1.318, 31], [9.426, 1.375, 32], [9.798, 1.375, 33]], "end": 10.001, "final": 1.3683}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-yoco-ds.html", "pts": [[0.229, 1.115, 1], [0.69, 1.15, 2], [1.051, 1.188, 4], [1.606, 1.206, 5], [1.883, 1.288, 6], [2.17, 1.351, 7], [2.564, 1.47, 8], [2.713, 1.47, 9], [2.863, 1.482, 11], [3.311, 1.533, 13], [3.505, 1.533, 14], [3.885, 1.534, 17], [4.352, 1.534, 23], [4.581, 1.535, 29], [4.843, 1.565, 30], [5.467, 1.566, 34], [5.712, 1.566, 35], [5.74, 1.566, 36], [5.803, 1.566, 38], [5.866, 1.68, 41], [5.884, 1.68, 42], [5.986, 1.68, 43], [6.13, 1.68, 44], [6.187, 1.68, 45], [6.194, 1.68, 46], [6.569, 1.68, 47], [6.675, 1.68, 49], [6.86, 1.68, 51], [7.094, 1.68, 54], [7.259, 1.68, 56], [7.266, 1.68, 57], [7.281, 1.68, 58], [7.285, 1.68, 59], [7.306, 1.68, 61], [7.336, 1.68, 62], [7.475, 1.68, 63], [7.528, 1.68, 65], [7.665, 1.68, 66], [7.696, 1.68, 67], [7.706, 1.68, 69], [7.779, 1.68, 72], [7.829, 1.68, 73], [7.832, 1.68, 74], [7.837, 1.68, 75], [7.853, 1.68, 76], [7.879, 1.68, 77], [7.891, 1.68, 80]], "end": 7.897, "final": 1.5531}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-yoco-mm.html", "pts": [[0.404, 1.114, 2], [0.869, 1.176, 4], [1.354, 1.296, 5], [2.286, 1.337, 6], [2.286, 1.401, 7], [3.126, 1.413, 9], [3.126, 1.432, 10], [3.126, 1.45, 11], [3.569, 1.481, 14], [5.415, 1.553, 19], [6.204, 1.554, 21], [6.743, 1.567, 23], [6.743, 1.567, 24], [8.49, 1.567, 28], [8.886, 1.588, 29]], "end": 10.002, "final": 1.5872}], "focus": "astra", "xmax": 10.5, "aria": "GPT-6 Astra (suspected nerf) on YOCO: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

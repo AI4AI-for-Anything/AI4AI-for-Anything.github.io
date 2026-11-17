@@ -1,0 +1,180 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Opus 5.5 · Slime OPD · RSI-Infra Bench</title><meta name="description" content="Claude Opus 5.5 on Slime OPD: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="on">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_opd.html">Slime OPD</a><span>/</span><b>Claude Opus 5.5</b></nav><h1>Claude Opus 5.5 <em>1.64×</em></h1><p class="lede">Harness: Claude Code · switches: <code>OPDX_SKIP_DEAD_REF=1</code> <code>OPDX_OPD_ADV_IN_LOSS=1</code> <code>OPDX_GDN_ULYSSES=1</code> <code>OPDX_KEEP_PROCESS_GROUPS=1</code> <code>OPDX_TRAIN_CPU_THREADS=16</code> <code>OPDX_VP_LOGPROBS=1</code> <code>OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 8192 --enable-symm-mem --disable-radix-cache</code> <code>OPDX_PARTIAL_OFFLOAD=1</code> <code>OPDX_PARTIAL_RESTORE=1</code> <code>OPDX_NO_RECOMPUTE=1</code> <code>OPDX_GDN_CHECKPOINT=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.64×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.63×</dd></div><div class=""><dt>Rounds</dt><dd>13</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$86.8</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>296 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.8 M</dd></div><div class=""><dt>Requests</dt><dd>619</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-slime_opd-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.76×</small></a><a class="chip self" data-k="opus" href="t-slime_opd-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.64×</small></a><a class="chip" data-k="kimi" href="t-slime_opd-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.59×</small></a><a class="chip" data-k="glm" href="t-slime_opd-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.46×</small></a><a class="chip" data-k="ds" href="t-slime_opd-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.43×</small></a><a class="chip" data-k="mm" href="t-slime_opd-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.40×</small></a><a class="chip" data-k="astra" href="t-slime_opd-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.30×</small></a><a class="chip" data-k="haiku" href="t-slime_opd-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.23×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>92.3 / 96.8 / 92.1</dd><dt>Rollout side</dt><dd>1.34×</dd><dt>Teacher side</dt><dd><b>1.20×</b></dd><dt>Train side</dt><dd><b>2.23×</b></dd><dt>Per-step sampler sync</dt><dd>✓ (round 2, rollout 1.27×)</dd><dt>Train-side main levers</dt><dd>✓ skip zero-coefficient reference forward, advantages computed directly from training-forward logprobs (saves one actor forward pass), <b>GDN split in Ulysses layout with forward bitwise identical</b>, comm groups kept, 16 CPU threads, only grad buffers swapped out during sleep with weights restored on wake, no recompute but separate checkpointing for GDN modules; train side 2.23×, highest overall<br><span class=cap>Rounds 11–13 further removed the memory probe before each all_reduce and one sync in TE's CP backward, pinned fp32 master weights, train side measured 2.48×; but step-1 grads in the record run were anomalous again, still investigating when time ran out, not committed</span></dd><dt>Teacher-side changes</dt><dd>✓ teacher input logprobs vocab-parallel, prefill chunk 8192, symmetric-memory all-reduce, teacher radix cache off (GDN prefill switched to CP-parallel kernel); teacher side 1.20×, highest overall</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>13 sections</small></summary><div class="rounds"><details><summary><em class="">0.1 h</em><span>Round 1 — profile the unchanged reference</span></summary><pre>- start 18:46 UTC: rollout profile, PID see below, log /tmp/r1/profile_rollout.log
+- end 18:55 UTC. Output: /tmp/r1/profile_rollout (kernel_report.md, traces of TP0/TP1 of both engines).
+- Findings (engine TP0, 200 decode steps at bs 32):
+  - GPU busy only 41% of the profiled window; kernels ≈ 4.6 ms/step vs ≈ 6.5 ms/step real (4.9k tok/s at bs 32).
+  - <code>sampler.py:321</code> does <code>bool(sampling_info.return_top_p_log_probs.any().item())</code> on EVERY step: a GPU-&gt;CPU sync
+    (aten::item 780 ms over 200 steps in the trace) that serializes the scheduler&#x27;s CPU work with the GPU and defeats
+    the overlap scheduler. Hotspot kind 1/2 (missed overlap path).
+  - GEMMs (nvjet) ≈ 3.1 ms/step at ~60-65% of HBM BW: gate_up 34 us, in_proj_qkvz 17 us, down 16 us (splitK),
+    o/out_proj 8.4 us (~2 TB/s), LM head 250 us (~4 TB/s); a tiny in_proj_ba GEMM with 3 blocks (12.7 us x 24 layers
+    = 0.3 ms/step, under-filled).
+  - GDN decode kernel 20 us x 24 = 0.48 ms/step (~3.3 TB/s), allreduce (flashinfer oneshot) 6.4 us x 64 = 0.4 ms/step,
+    sampling path (softmax 77 us, TP all-gather 57 us, elementwise/log/argmax ~130 us) ≈ 0.3 ms/step.
+- Train side (from the bootstrap record run&#x27;s perf log): ref_log_probs ≈ 11 s/step of dead work (kl_loss_coef 0),
+  actor log_probs ≈ 10 s, sleep ≈ 4.7 s, wake_up ≈ 1.3 s.</pre></details><details><summary><em class="">0.3 h</em><span>Round 2 — remove the per-step GPU-&gt;CPU sync in the sglang sampler (rollout + teacher side)</span></summary><pre>- start 18:58 UTC
+- change: SamplingBatchInfo carries a host-side <code>need_return_top_p_log_probs</code> (any() of the per-request CPU list,
+  OR-ed on merge, conservative on filter); the sampler only reads the device tensor back when it is True. Semantics
+  unchanged (the device check still runs whenever a request might want top-p log-probs). No switch (pure sync removal).
+- end 19:13 UTC. <code>time --side rollout</code> (/tmp/r2/time_rollout): windows 60.1/59.4/59.9 s vs reference 75.6/76.1/75.6
+  → rollout speedup <b>1.267</b>, projected step speedup <b>1.116</b>. Decode 4.97k → 7.05k tok/s per engine at the start of a
+  rollout (6.44 → 4.54 ms/step); teacher tail unchanged (16.8/16.2/16.0 s). Committed sglang d186a97 (tier N0).</pre></details><details><summary><em class="">0.5 h</em><span>Round 3 — remove redundant forward passes from the train step (train side)</span></summary><pre>- start 19:15 UTC. Three switches (each off by default), timed together in /tmp/r3/switches.json:
+  - OPDX_SKIP_DEAD_REF=1: kl_coef == 0 and kl_loss_coef == 0 ⇒ no reference model (no load, no per-step weight swaps,
+    no ref forward); the KL-loss term (0 × kl) is skipped. Grad-identical (N0 expected).
+  - OPDX_NO_RECOMPUTE=1: drop full activation recompute (memory strategy; same math, N0 expected). RISK: memory in the
+    full loop (teacher resident, 35 GB) is not exercised by <code>time --side train</code>.
+  - OPDX_OPD_ADV_IN_LOSS=1: one optimizer step per rollout ⇒ old policy == current policy; the OPD advantage
+    adv − coef·(lp_student − lp_teacher) is computed in the loss from the training forward&#x27;s detached log-probs
+    (bitwise equal to the separate forward&#x27;s, per the reference&#x27;s ppo_kl == 0.0), skipping the separate actor forward.
+- <code>time --side train</code> (/tmp/r3/time_train, switches /tmp/r3/switches.json): windows 45.3/44.4/46.5 s vs reference
+  73.8/72.3/72.5 → train speedup <b>1.606</b>, projected step <b>1.218</b> (with round 2&#x27;s rollout: ≈1.39 projected).
+  Per step now: actor_train ≈ 37.2 s, sleep ≈ 4.7 s, wake_up ≈ 1.3 s; no ref_log_probs / log_probs phases.
+  Step-0 loss 0.05341373383998871 = the reference record&#x27;s step 0 (bitwise).
+- check --quick on a train-only tree copy (/tmp/trees/train_only = my slime + Megatron, reference sglang):
+  /tmp/r3/quick_train (running).
+- check --quick train-only (/tmp/r3/quick_train): <b>PASS, tier N1</b> (not bitwise: the reference is not repeatable
+  either, 6324 vs 6342 differing tensors). Step-0 loss and train/rollout mismatch bitwise equal to the reference.
+  Statistical: update_norm d=-1.7e-4 (tol 1.2e-3), exp_avg_sq_norm d=+1.7e-4 (tol 4.4e-4, closest to its limit),
+  loss_mean d=1.2e-9, grad_norm_first d=-1.5e-4 (tol 1.65e-3), cos 0.9915 (min 0.957).
+- end 19:45 UTC. Committed slime 3cb46720; /submission/switches.json now enables the 3 switches.</pre></details><details><summary><em class="">1.0 h</em><span>Round 4 — GDN layers: split heads over TP x CP instead of computing them replicated (train side)</span></summary><pre>- start 19:46 UTC. Profile basis: slime&#x27;s HF wrapper all-gathers the whole sequence and computes all 32 GDN heads on
+  every one of the 4 ranks (24/32 layers; GDN projections ≈ half of per-rank forward FLOPs).
+- change (switch OPDX_GDN_HEAD_SHARD=1, slime_plugins/models/{hf_attention,qwen3_5}.py): each rank of the TP x CP
+  group computes 8 of the 32 value heads (4 of 16 key heads) over the whole sequence through slices of the same
+  replicated weights (names/shapes unchanged); input all-gathered over the group (backward reduce-scatter); the
+  out-projection partials are computed and reduce-scattered in fp32 and rounded to bf16 once (custom autograd
+  Function); params marked <code>sequence_parallel</code> so finalize_model_grads sums their partial grads over TP.
+  Unit test (/tmp/tools/test_gdn_shard.py, 1 GPU): forward rel diff 1.5e-4 (≈1 ulp) vs the replicated layer.
+- <code>time --side train</code> with OPDX_GDN_HEAD_SHARD=1 (/tmp/r4/time_train): windows 41.2/38.2/37.5 s → train 1.871×
+  (projected step 1.283 from train alone), actor_train ≈ 31 s (vs ≈ 37 s). BUT numerics wrong: step-0 grad_norm
+  1.1001 vs 0.9966 (reference/round 3), step-0 loss 0.0534666 vs 0.0534137 → would fail the N1 gate.
+- 4-GPU single-layer test (/tmp/tools/test_gdn_dist.py, TP2×CP2): head-sharded layer == replicated layer (output
+  rel 2e-4, all param grads norm ratio 1.000 after TP+CP sums). So the discrepancy comes from the integration in
+  training; debugging with per-parameter reduced grad norms (OPDX_DEBUG_GRADS=1, 1-step train runs, /tmp/dbg).
+  Not enabled in /submission/switches.json.
+- Root cause (debug runs /tmp/dbg, OPDX_DEBUG_GRADS=1): NOT a bug. Layer-level tests with real layer-0..2 weights and
+  real tokens match (grad-norm ratios within ±0.5%), but in the full model the per-token log-probs differ by mean
+  |Δ| ≈ 5e-3 (max 0.25) — 1-ulp changes in the GDN layers compound through the bf16 network — and the early-layer
+  / embedding gradients are dominated by a few sensitive tokens (layer-0..2 grads up to 2×, layers 8..31 ±0.2%).
+  The reference forward is deterministic (only its backward is noisy), so the N1 gate (grad_norm_first ±0.00165)
+  effectively requires a BITWISE-identical training forward. Lesson: train-side changes must keep the forward bitwise.
+  A bitwise head-sharded GDN would need an all-to-all (Ulysses) layout: full-K projections on local tokens, heads
+  exchanged before conv/delta-rule and back before out_proj. Parked (OPDX_GDN_HEAD_SHARD stays off).
+- end 20:22 UTC. Round 4 rejected (no change to the submission).</pre></details><details><summary><em class="">3.2 h</em><span>Round 5 — bisect the exp_avg_sq anomaly (train side)</span></summary><pre>- 21:31-21:54 UTC. Record runs (deterministic) on a train-only tree:
+  - A = SKIP_DEAD_REF + OPD_ADV_IN_LOSS, recompute ON (/tmp/r5/quick_A): PASS, step-1 grad_norm 1.0115,
+    exp_avg_sq_norm d=-1.8e-5, cos 0.9942 → reference-like.
+  - B = NO_RECOMPUTE only (/tmp/r5/quick_B): PASS, step-1 grad_norm 0.9981, exp_avg_sq_norm d=+1.8e-5 → normal.
+  - all three (r3 quick, check 1): step-1 grad_norm 1.055 / 1.120, exp_avg_sq_norm d=+1.7e-4 / +3.4e-4 (varies).
+  ⇒ the anomaly needs &quot;no recompute AND no forward-only pass before the train step&quot;; varies run to run → suspect a
+  read of uninitialized memory whose garbage depends on allocation history. To investigate.
+- Decision (risk): /submission/switches.json reverted to config A (SKIP_DEAD_REF + OPD_ADV_IN_LOSS, recompute ON),
+  whose record run is clean. NO_RECOMPUTE parked until the root cause is found.
+- Bitwise feasibility (/tmp/tools/test_bitwise_ulysses.py, test_ba_pad.py): cuBLAS rows are M-independent for the
+  GDN in_proj_qkv/in_proj_z/out_proj shapes; conv1d per channel, gated delta rule per head, gated norm and input
+  RMSNorm per row are bitwise; only the N=32 in_proj_b/a GEMMs change algorithm with M → run them on a zero-padded
+  whole-sequence M. 4-GPU 3-layer test (/tmp/tools/test_gdn_ulysses.py): Ulysses GDN output BITWISE identical to
+  the replicated layer; grads at rounding level (norm ratios ≈ 1.000).</pre></details><details><summary><em class="">3.3 h</em><span>Round 6 — train: Ulysses-layout GDN (bitwise forward) + keep process groups + CPU threads</span></summary><pre>- start 22:05 UTC. <code>time --side train</code> with config A + OPDX_GDN_ULYSSES=1 + OPDX_KEEP_PROCESS_GROUPS=1 +
+  OPDX_TRAIN_CPU_THREADS=16 (/tmp/r6/switches.json) → /tmp/r6/time_train.
+
+- <code>time --side train</code> (/tmp/r6/time_train): windows 39.9/39.9/43.7 s → train <b>1.773×</b> (projected step 1.260 alone;
+  ≈1.44 with the rollout side). actor_train ≈ 34.5-35 s with recompute ON (Ulysses GDN), sleep 2.4-3.0 s (keep PGs),
+  wake 1.3 s; log confirms &quot;torch intra-op threads: 1 -&gt; 16&quot;. Step-0 loss/mismatch bitwise equal to the reference.
+- 22:19 UTC: check --quick train-only PASS N1 (/tmp/r6/quick_train): step-1 grad_norm 0.9998, exp_avg_sq_norm d=-7.3e-5,
+  update_norm d=-5.8e-5, loss d=-8.5e-6, grad_norm_first d=-2.3e-5, cos 0.9946. Promoted to /submission/switches.json;
+  committed slime 27cd06db.
+- Functional full loop with the round-6 switches (/tmp/dbg/full2): rc 0, no OOM; update_weights 1.0 s (was 2.0 s),
+  sleep 2.6-3.1 s, actor_train ≈ 35 s; untimed step interval ≈ 102 s (reference ≈ 154 s). (Not a timing.)
+- end round 6 22:31 UTC.</pre></details><details><summary><em class="">3.8 h</em><span>Round 7 (screening) — decode GEMMs (rollout) and teacher prefill</span></summary><pre>- Decode GEMM microbenchmark (/tmp/tools/smallm_bench.py, M=32, graph replay, cold weights): cuBLAS 28.4/15.9/
+  17.1/13.3/6.9 us (gate_up/qkvz/down/attn_qkv/o_proj, 3.0-3.55 TB/s); best Triton split-K 27.0/16.7/16.6/16.1/7.6;
+  flashinfer tinygemm 3x slower (tuned for 1-8 rows); cuBLASLt only helps <code>down</code> (15.1). → closed, no change.
+- Teacher screening (<code>time --side teacher</code>, /tmp/r7): OPDX_VP_LOGPROBS=1 → 16.8/16.7/16.4 s (1.089×);
+  OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 8192 → 1.033×; both → 16.0/16.3/15.9 s (<b>1.127×</b>).
+  Committed sglang 19e9e58 (VP logprobs, switch off by default).
+- end round 7 22:41 UTC.</pre></details><details><summary><em class="">7.7 h</em><span>Round 9 — screening ReplaySSM GDN decode (rollout side)</span></summary><pre>- 02:23 UTC <code>time --side rollout</code> with the promoted config + OPDX_REPLAYSSM=1 → /tmp/r14/time_rollout.
+
+- 02:26 UTC: ReplaySSM rejected at engine start: &quot;requires --mamba-radix-cache-strategy no_buffer ... extra_buffer
+  not yet supported&quot; (the student engines resolve to extra_buffer). Run stopped, override removed. Dead end.</pre></details><details><summary><em class="">7.7 h</em><span>Round 10 — profile the current train step</span></summary><pre>- 02:28 UTC <code>profile --side train</code> with /submission/switches.json → /tmp/r15/profile_train.
+
+- 02:51 UTC profile done (/tmp/r15/profile_train/kernel_report.md, rank 2, profiler window 59 s incl. python
+  tracer): GPU busy 63%; ncclDevKernel_SendRecv 30% (10752 = 64 micro-batches x 168: 144 Ulysses all-to-alls +
+  24 CP p2p; median 787 us vs 72-156 us for the same all_to_all in an isolated microbenchmark -&gt; mostly waiting on
+  peers), AllGather/AllReduce f32/ReduceScatter RING_LL 20%, GEMMs ~25%, elementwise/fill/add ~6%.
+- Host side (trace reduced with /tmp/tools/trace_reduce.py + trace_analyze2.py / trace_ops_at.py, /tmp/r16):
+  - slime&#x27;s reloadable process group probes free memory (cudaMemGetInfo, ~0.9 ms each) before EVERY dist.all_reduce:
+    2184 calls/step (vocab-parallel log-prob all-reduces in ppo_utils, ~34 per micro-batch) = 2.0 s of host stall.
+  - TE AttnFuncWithCPAndKVP2P.backward ends with dq[cu_seqlens_q_padded[-1]:].fill_(0) (x3): a .item() sync,
+    24 per micro-batch, 1536/step, 1.06 s of blocking that drains the GPU queue mid-backward.
+  - smaller: fla prepare_chunk_indices sync (128/step), get_batch torch.tensor H2D sync (64/step).</pre></details><details><summary><em class="">8.4 h</em><span>Round 11 — remove host stalls from the train step (train side)</span></summary><pre>- start 03:00 UTC. Two switches (off by default):
+  - OPDX_COMM_NO_MEMCHECK=1 (slime/utils/reloadable_process_group.py): no free-memory probe before all_reduce
+    (all_gather_into_tensor, reduce_scatter_tensor, all_to_all_single, isend/irecv were already exempt upstream).
+  - OPDX_TE_CP_NOSYNC=1 (slime/backends/megatron_utils/te_cp_nosync.py): TE&#x27;s CP P2P attention backward always
+    takes its own capture-safe zero-fill path (arange &gt;= cu_seqlens[-1] mask) instead of slicing with a device
+    scalar. Unit test (/tmp/tools/test_mask_fill.py): bitwise-identical result, host time 0.07 ms instead of a
+    full queue drain. Both N0 by construction (no arithmetic change).
+- 03:08 UTC <code>time --side train</code> with /tmp/r16/switches.json (= submission + both) -&gt; /tmp/r16/time_train
+  (PID in /tmp/r16/pid).
+
+- 03:18 UTC <code>time --side train</code> (/tmp/r16/time_train): windows 31.4/31.4/31.0 s → train <b>2.329×</b> (check 4: 2.228×;
+  projected step from train alone 1.371). actor_train ≈ 28.5-29.0 s (was ≈ 30-31 s); log confirms the TE patch on
+  all 4 ranks. Committed slime 8fa5db26 (tier N0 by construction; record-run check pending, to bundle with the next
+  train change). Not yet in /submission/switches.json.
+- end round 11 03:20 UTC.
+
+- 03:25-03:40 UTC: two aborted record runs (killed): the judge also counts <code>git status</code> changes, so the train-only
+  tree with reloadable_process_group.py reverted but uncommitted judged all three sides; and OPD_TEACHER_SERVER_ARGS
+  in --config always adds the teacher side. Fixed: revert committed inside the throwaway tree, train-only config.</pre></details><details><summary><em class="">9.0 h</em><span>Round 12 — exact backward for the Ulysses GDN regroup / row permutations (train side)</span></summary><pre>- start 03:30 UTC. Profile basis (/tmp/r15 rank-2 trace, kernels attributed to their launching autograd node with
+  /tmp/tools/trace_kernel_owner.py): SliceBackward0 ≈ 0.95 s/step (≈ 1500 kernels per micro-batch: project_local&#x27;s
+  24 column slices per GDN layer each become a zero-filled full-size gradient + copy, then ~20 full-size adds),
+  IndexSelectBackward0 (index_add into zeros) 0.48 s/step.
+- change (switch OPDX_GDN_FAST_REGROUP=1, slime_plugins/models/{qwen3_5,hf_attention}.py): <code>_RegroupHeadColumns</code>
+  (six strided block copies forward, six back: each gradient element written once) and <code>_PermuteRows</code> (index_select
+  forward, index_select with the inverse permutation backward). CPU unit test (/tmp/tools/test_regroup.py): forward
+  and all gradients bitwise equal to the original slicing code (fp32 and bf16).
+- 03:41 UTC queue /tmp/r17/queue.sh (PID in /tmp/r17/qpid): <code>time --side train</code> with /tmp/r17/switches.json
+  (= round-11 config + regroup) -&gt; /tmp/r17/time_train; then <code>check --quick</code> record run on /tmp/trees/train_only with
+  /tmp/r17/switches_train.json (validates rounds 11+12 together) -&gt; /tmp/r17/quick_train.
+
+- 03:50 UTC <code>time --side train</code> (/tmp/r17/time_train): windows 30.4/30.2/29.9 s → train <b>2.414×</b> (round 11: 2.329×;
+  check 4: 2.228×); actor_train ≈ 27.5-28.0 s (round 11: 28.5-29.0). Committed slime dc4885fb (tier N0 by
+  construction). Record run for rounds 11+12 running (/tmp/r17/quick_train).
+- Side finding (rollout, no GPU run): sglang&#x27;s packed qkvz+ba decode GEMM is ROCm-only; enabling it on CUDA would
+  gain nothing: in the round-1 decode trace the 3-block in_proj_ba GEMM runs on the GDN alt stream fully hidden
+  under the qkvz GEMM (overlap 1.00, ~0 us exposed; /tmp/tools/overlap_check.py). Dropped before any run.
+- end round 12 03:52 UTC.</pre></details><details><summary><em class="">9.3 h</em><span>Round 13 — CPU-offloaded optimizer: pageable fp32 master copy (train side)</span></summary><pre>- start 03:55 UTC. Profile basis (/tmp/r15 rank-2 trace; /tmp/tools/trace_memcpy.py): the optimizer step is ≈ 2.8 s
+  (profiled) and its parameter copy-back is <code>Memcpy HtoD (Pageable -&gt; Device)</code>: 192 copies, 1.89 s per step
+  (≈ 4.8 GB/s, synchronous: cudaMemcpyAsync blocks the host 1.9 s). Cause (Megatron hybrid_optimizer.py
+  _get_sub_optimizer_param_groups): the CPU copy is pinned, but <code>param.detach().clone().float()</code> then makes the fp32
+  master copy (the CPU AdamW&#x27;s param and the copy-back source) a new pageable tensor. Grad D2H is pinned (0.42 s).
+- change (switch OPDX_PIN_FP32_MASTER=1, Megatron-LM): pin the fp32 CPU master copy when pin_cpu_params (default
+  True). Values unchanged (N0 by construction).
+- queued (/tmp/r18/queue.sh, PID in /tmp/r18/qpid; after the rounds-11/12 record run): the sampler unit test
+  (next rollout round) and <code>time --side train</code> with /tmp/r18/switches.json -&gt; /tmp/r18/time_train.
+
+- 03:58 UTC record run rounds 11+12 (/tmp/r17/quick_train, train-only tree, config /tmp/r17/switches_train.json):
+  <b>PASS N1</b> but with the step-1 anomaly: step-1 grad_norm 1.0668 (reference 1.0002), exp_avg_sq_norm d +3.48e-4
+  (80% of tol 4.36e-4), update_norm d −2.1e-4, loss d +9e-6, grad_norm_first d −1.4e-4, mismatch ratio 1.000.
+- Anomaly analysis (all my record runs; per-rank records vs task/train_ref.json, /tmp/tools/rec_cmp.py): step 0 is
+  always right (grad_norm 0.9966 in every run; after update 0 all ranks&#x27; update/v ratios 1.000, rank 2 v ±0.5%).
+  Step 1: grad_norm 0.998-1.120 across my runs (reference 1.0002) while the step-1 LOSS matches to noise ⇒ the forward
+  is fine, the step-1 gradients are not. After update 1, rank 2 (TP0, CP1) Adam-v ratio is 2.007 (r17), 0.812 (c4,
+  the &quot;normal&quot; run!), 0.511 (c3); ranks 0-1 move together (0.88/1.005/0.877), rank 3 ≈ 1. Also seen without my
+  GDN code (c1, r5 quick_A) ⇒ timing/allocation-dependent corruption of step ≥ 1 gradients, masked by host syncs.
+  Next: per-parameter local grad norms (pre-reduce) at steps 0-2, reference vs candidate, deterministic env
+  (debug patch only in /tmp/dbgtree copies; runs queued in /tmp/r19/queue.sh).
+- Sampler unit test (/tmp/tools/test_vp_sampler.py, /tmp/r18/sampler_test.log): the split-vocab kernel is 3.9x
+  faster (56 vs 220 us) but BIASED: mean sampled log-prob −9.129 vs exact −9.189 (z≈+3.7), P(lp&lt;−12) 0.190 vs 0.199;
+  reference path unbiased. Cause: Triton&#x27;s fast tl.log near 1 (where Gumbel-max winners live). Fixed to libdevice
+  log; re-test queued.
+
+- 04:09 UTC <code>time --side train</code> with OPDX_PIN_FP32_MASTER=1 (/tmp/r18/time_train): windows 29.6/29.5/29.1 s →
+  train <b>2.480×</b> (round 12: 2.414×); actor_train ≈ 26.6-27.1 s. Committed Megatron-LM 5906a48 (N0 by construction).
+  The timing run&#x27;s own grad norms again show the corruption (step 1 1.0590; step 4 = dump 1 again: 0.868 here vs
+  1.013 in /tmp/r17) — present in timing runs too, so it also affects the real loop.
+- end round 13 04:10 UTC.</pre></details><details><summary><em class="">9.9 h</em><span>Round 14 — rollout sampler: split-vocab Gumbel-max kernel (rollout side) + step-1 anomaly investigation</span></summary><pre>- 04:15 UTC sampler diagnostics (/tmp/tools/test_sampler_diag.py, /tmp/r19/sampler_diag.log; one strong token vs
+  248k weak tokens with exact P(tail)): fused kernel P(tail) 0.1104 vs exact 0.1192 (z −4.35), torch Gumbel with
+  torch.rand −2.3σ, reference exponential race +2.1σ. Cause: fp32 U near 1 has 2^-24 steps, and Gumbel-max winners
+  have tiny E = −log U: my mapping makes E stochastically too large (tail under-sampled), the reference&#x27;s clamp makes
+  it slightly too small. The libdevice-log change was a no-op (bit-identical draws). Fix: E = −log1p(−V) with V from
+  31 random bits, exact near 0. Re-tests queued (/tmp/r20/queue.sh).
+- Anomaly: reference repeats (task/train_ref.json trajectory) vary only ±5% in exp_avg_sq_norm; mine −17%…+21%, and
+  step-1 grad norms are bimodal (≈1.000 or 1.015-1.12) ⇒ an intermittent discrete event. Debug trees /tmp/dbgtree
+  (patch only there): per-parameter grad dumps + OPDX_DEBUG_DOUBLE=1 (each step&#x27;s forward/backward run twice on the
+  same params/data; a race shows up as a pass-to-pass difference). Runs queued after the sampler tests.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_opd-sonnet.html"><small>← 1.76×</small><strong>Sonnet 5.5</strong></a><a class="up" href="slime_opd.html">↑ Slime OPD</a><a class="next" href="t-slime_opd-kimi.html"><small>1.59× →</small><strong>Kimi k3.1</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_opd-opus.html", "pts": [[0.532, 1.116, 2], [0.761, 1.39, 3], [2.833, 1.39, 4], [3.465, 1.44, 6], [4.781, 1.496, 7], [7.52, 1.63, 8]], "end": 10.0, "final": 1.6416}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_opd-sonnet.html", "pts": [[2.209, 1.208, 2], [4.303, 1.208, 3], [6.164, 1.676, 4], [6.95, 1.676, 5]], "end": 10.0, "final": 1.7587}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_opd-haiku.html", "pts": [[0.842, 1.21, 1], [9.901, 1.245, 3]], "end": 10.002, "final": 1.2273}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_opd-astra.html", "pts": [[0.704, 1.025, 1], [2.689, 1.175, 6], [3.29, 1.175, 7], [5.072, 1.2, 8], [5.072, 1.204, 10], [6.257, 1.204, 13], [6.344, 1.204, 14], [6.869, 1.375, 15]], "end": 10.0, "final": 1.3044}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_opd-glm.html", "pts": [[0.171, 1.39, 1], [1.038, 1.39, 2], [1.272, 1.424, 3], [1.479, 1.581, 4], [2.48, 1.581, 5], [3.956, 1.581, 7], [4.436, 1.581, 8], [4.85, 1.581, 9], [7.574, 1.581, 14], [7.917, 1.581, 15], [9.001, 1.581, 17]], "end": 10.0, "final": 1.4556}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_opd-kimi.html", "pts": [[1.477, 1.139, 5], [2.246, 1.427, 6], [2.841, 1.427, 7], [3.126, 1.427, 8], [4.521, 1.427, 11], [4.816, 1.427, 12], [5.084, 1.427, 13], [5.429, 1.427, 14], [5.743, 1.427, 15], [6.184, 1.427, 16], [6.555, 1.427, 17], [6.589, 1.427, 18], [7.546, 1.575, 19], [8.333, 1.575, 20], [9.421, 1.575, 21], [9.513, 1.575, 22], [9.635, 1.575, 23]], "end": 10.008, "final": 1.5881}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_opd-ds.html", "pts": [[1.107, 1.169, 2], [2.487, 1.169, 3], [4.183, 1.169, 6], [5.366, 1.169, 8], [6.826, 1.255, 9], [9.157, 1.434, 12]], "end": 10.0, "final": 1.4336}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_opd-mm.html", "pts": [[0.945, 1.109, 1], [1.555, 1.368, 4], [2.15, 1.368, 6], [3.524, 1.368, 8], [4.451, 1.368, 9], [4.451, 1.39, 10], [5.957, 1.39, 12], [6.179, 1.39, 13], [6.394, 1.39, 14], [6.799, 1.39, 15], [6.799, 1.489, 16], [7.218, 1.489, 17], [7.992, 1.489, 20], [8.226, 1.489, 21], [8.917, 1.503, 23], [9.234, 1.503, 25]], "end": 10.0, "final": 1.3997}], "focus": "opus", "xmax": 10.5, "aria": "Claude Opus 5.5 on Slime OPD: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

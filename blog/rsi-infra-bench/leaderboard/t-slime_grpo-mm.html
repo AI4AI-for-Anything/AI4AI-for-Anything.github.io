@@ -1,0 +1,470 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · Slime GRPO · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on Slime GRPO: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="on">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_grpo.html">Slime GRPO</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>1.91×</em></h1><p class="lede">Harness: Codex · switches: <code>SLIME_OPT_KEEP_NCCL_GROUPS=1</code> <code>SLIME_OPT_NO_RECOMPUTE=1</code> <code>SLIME_OPT_SGLANG_RECV_INTERVAL=8</code> <code>SLIME_OPT_KEEP_PARAMS_ON_GPU=1</code> <code>SLIME_OPT_SKIP_WAKE_GC=1</code> <code>SLIME_OPT_MAX_TOKENS_PER_GPU=8192</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.91×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.90×</dd></div><div class=""><dt>Rounds</dt><dd>17</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$5.73</dd></div><div class=""><dt>Input tokens · 97.4% cached</dt><dd>259 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.5 M</dd></div><div class=""><dt>Requests</dt><dd>1,753</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-slime_grpo-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.40×</small></a><a class="chip" data-k="opus" href="t-slime_grpo-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.35×</small></a><a class="chip self" data-k="mm" href="t-slime_grpo-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.91×</small></a><a class="chip" data-k="ds" href="t-slime_grpo-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.88×</small></a><a class="chip" data-k="haiku" href="t-slime_grpo-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.85×</small></a><a class="chip" data-k="glm" href="t-slime_grpo-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.79×</small></a><a class="chip" data-k="kimi" href="t-slime_grpo-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.35×</small></a><a class="chip" data-k="astra" href="t-slime_grpo-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>99.0 / 95.8 / 94.3</dd><dt>Rollout side</dt><dd>2.07×</dd><dt>Train side</dt><dd>1.60×</dd><dt>Rollout host-side fixes</dt><dd>✓ sampler desync, flat base64 top-k, single D2H, request intake polled every 8 steps (1.95 → 2.07×)</dd><dt>Skip zero-coefficient reference forward</dt><dd>✓</dd><dt>Train-side main levers</dt><dd>partial: NCCL groups kept (train 1.22×), no recompute (→ 1.49×), params resident on GPU, micro-batch 8192 tokens (→ 1.60×)</dd></dl></section><section class="sec"><div class="section-label"><span>§ 03</span>Step by step</div><div class="tbl-wrap"><table class="plain kn steps"><thead><tr><th class="n">Round</th><th>Change</th><th>Measured</th><th class="n">Step</th><th class="n">Side, cumulative</th><th>Status</th></tr></thead><tbody><tr><th colspan="6" class="side">Rollout side</th></tr><tr title="rollout side speedup 1.297 (min window ratio), projected step speedup 1.1662"><td class="n">1</td><td>sampler top-p check moved to host, per-step GPU sync removed</td><td>rollout-side speedup: — → 1.3</td><td class="n"><b>×1.30</b></td><td class="n">1.30×</td><td>kept</td></tr><tr title="rollout side speedup 1.8756, projected step speedup 1.4094 (train side unchanged at ~1.15-1.20)"><td class="n">3</td><td>return only flat base64 top-k logprob arrays, no nested JSON</td><td>rollout-side speedup: 1.3 → 1.88</td><td class="n"><b>×1.45</b></td><td class="n">1.88×</td><td>kept</td></tr><tr title="window ratios [2.1891, 2.2533, 1.9482] -&gt; rollout side speedup 1.9482"><td class="n">7</td><td>decode top-k as one bulk D2H + one tolist</td><td>rollout-side speedup: 1.88 → 1.95</td><td class="n">×1.04</td><td class="n">1.95×</td><td>kept</td></tr><tr title="interval 8 | 53.571 / 53.213 / 54.002 | 2.0652 (was 1.9482)"><td class="n">12</td><td>sglang request intake polled every 8 steps (recv_interval=8)</td><td>rollout-side speedup: 1.95 → 2.07</td><td class="n"><b>×1.06</b></td><td class="n">2.07×</td><td>kept</td></tr><tr class="off" title="interval 32 ... 1.9023 ... Interval 8 is the sweet spot: 32 delays the pickup of the requests too much"><td class="n">12</td><td>recv_interval=32 (requests fetched too late, worse than 8)</td><td>rollout-side speedup: 2.07 → 1.9</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="speedup 1.8891, i.e. *not* better than the 2.0669 of the unchanged tree ... REVERTED"><td class="n">16</td><td>CUDA graph fill via foreach_copy, bypassing Triton small copy (no gain, reverted)</td><td>rollout-side speedup: 2.07 → 1.89</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr><th colspan="6" class="side">Train side</th></tr><tr title="window ratios [1.148, 0.892, 1.206] -&gt; train side speedup 0.892 because window 2 (step 5) was an outlier"><td class="n">2</td><td>skip useless reference forward when kl_coef=0</td><td>train-side speedup (window 2 is a host-anomaly outlier): — → 0.892</td><td class="n">—</td><td class="n">0.89×</td><td>kept</td></tr><tr title="window ratios [1.2571, 1.2646, 1.2221] -&gt; train side speedup 1.2221 (was 1.148-1.206 in round 2, which was noisy"><td class="n">5</td><td>keep NCCL process groups across offload/onload instead of destroying and rebuilding</td><td>train-side speedup: — → 1.22</td><td class="n">—</td><td class="n">1.22×</td><td>kept</td></tr><tr title="window ratios [1.4974, 1.4918, 1.5453] -&gt; train side speedup 1.4918 (was 1.2221 in round 5)"><td class="n">6</td><td>activation recompute off (SLIME_OPT_NO_RECOMPUTE)</td><td>train-side speedup: 1.22 → 1.49</td><td class="n"><b>×1.22</b></td><td class="n">1.49×</td><td>kept</td></tr><tr class="off" title="Outcome: the change was a NO-OP and was REVERTED (no commit) ... measured gain was therefore 0.0 s"><td class="n">8</td><td>skip the separate actor log-prob forward (reference wasn&#x27;t running anyway, reverted)</td><td>train window s (no change): — → —</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="baseline 1.5081 | batch+pin 1.4903 | batch only 1.4711 — Conclusion: no gain, both switches left off"><td class="n">10</td><td>per-param-group batched CPU Adam + pinned fp32 master (no gain, turned off)</td><td>train-side speedup: 1.51 → 1.49</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr title="baseline (r12) 1.5081 | 14a (params on the GPU) 42.189 / 42.902 / 41.719 | 1.5426"><td class="n">14</td><td>params stay on GPU during rollout, only grad_buffer released</td><td>train-side speedup: 1.51 → 1.54</td><td class="n">×1.02</td><td class="n">1.54×</td><td>kept</td></tr><tr title="SLIME_OPT_SKIP_WAKE_GC=1 skips the cyclic garbage collection of the wake-up path ... gc 0.41-0.63"><td class="n">14</td><td>skip cyclic GC on the wake path (SKIP_WAKE_GC)</td><td>sleep/wake timing (no separate side speedup): — → —</td><td class="n">—</td><td class="n">—</td><td>kept</td></tr><tr title="train side speedup 1.6014 (was 1.5426) ... The projected step speedup goes 1.7778 -&gt; 1.844"><td class="n">16</td><td>per-GPU token budget raised to 8192, micro-batches halved (64→32)</td><td>train-side speedup: 1.54 → 1.6</td><td class="n">×1.04</td><td class="n">1.60×</td><td>kept</td></tr></tbody></table></div></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>18 sections</small></summary><div class="rounds"><details><summary><em class="">0.4 h</em><span>Round 1 — 2026-11-13 04:35 → 05:35 UTC</span></summary><pre><b>Profile (reference, unchanged):</b> <code>bench.py profile --side rollout</code> → /tmp/r1/profile/kernel_report.md
+- 200 decode steps, window 3078 ms; GPU busy only 32% (990 ms of kernel time, ~4.95 ms/step) but the real step is
+  ~10.3 ms (sglang &quot;gen throughput&quot; 3400 tok/s over 35 running reqs).
+- CPU side of the trace: <b>cudaStreamSynchronize 811 ms / 260 calls (3.1 ms each)</b> and <code>aten::item</code> 818 ms / 643 calls.
+  200 of the syncs (811 ms) come from <code>sglang/srt/layers/sampler.py</code> <code>Sampler.forward</code> → <b>one GPU sync per decode step</b>.
+- Cause: <code>sampler.py:321</code> <code>bool(sampling_info.return_top_p_log_probs.any().item())</code> — the mask is a device tensor, so
+  the check stalls the step. The value is known on the host (per-request <code>custom_params</code>).
+- Other per-step CPU cost: <code>copy_result_to_cpu</code> 2.2 ms/step (10 async D2H enqueues), <code>step[DECODE]</code> 1.98 ms,
+  <code>get_next_batch_to_run</code> 0.35 ms, <code>recv_requests</code> 0.3 ms.
+- Top-128 topk chain (mbtopk) = 107 µs/step; LM-head GEMM 248 µs/step; TP allreduce ~0.42 ms/step (64/step).
+
+<b>Change 1 (rollout side, sglang):</b> host-side <code>need_return_top_p_log_probs</code> flag replaces the device <code>.any().item()</code>.
+- sglang/python/sglang/srt/sampling/sampling_batch_info.py: new field + <code>any(...)</code> at construction, <code>|=</code> on merge,
+  exact re-derivation on filter.
+- sglang/python/sglang/srt/layers/sampler.py:321: <code>if sampling_info.need_return_top_p_log_probs:</code>
+- Numerics: N0 (host bookkeeping only; GPU op order unchanged). Commit in sglang repo.
+
+<b>Change 1 result (rollout side):</b> <code>bench.py time --side rollout</code> → /tmp/r1b/time/time.json
+- candidate windows [86.276, 86.737, 85.117] s vs frozen reference [111.899, 116.057, 111.527] s
+- <b>rollout side speedup 1.297</b> (min window ratio), projected step speedup <b>1.1662</b> (train side unchanged)
+- sglang &quot;gen throughput&quot; rose from ~3400 tok/s (10.3 ms/decode step) to ~5800 tok/s (6.2 ms/decode step):
+  the CPU no longer waits for the GPU inside the sampler, so the scheduler&#x27;s CPU work overlaps the
+  GPU work again (the overlap scheduler can only overlap if nothing blocks the CPU).
+- Commit: sglang 64305b5 &quot;sglang: keep the top-p logprob eligibility on the host&quot; (tier N0, rollout 1.297).</pre></details><details><summary><em class="">0.7 h</em><span>Round 2 — 2026-11-13 06:10 → (running) UTC</span></summary><pre><b>Profile (reference):</b> the reference&#x27;s own perf metrics (runs/bootstrap/full/full_ref_a/train.log) give the
+train step breakdown: train_time 59.1 s = ref_log_probs_time 11.58 s + actor_train_time 47.1 s;
+the rest of the RL step is rollout 109.5 s, sleep 4.6 s, wake_up 1.3 s, update_weights 1.9 s.
+
+<b>Change 2 (train side, slime):</b> the recipe runs <code>--use-kl-loss --kl-loss-coef 0.00</code> with the reward KL
+coefficient at 0, so the reference log-probs are consumed by nothing:
+- <code>compute_advantages_and_returns</code> (loss.py:764) already uses <code>kl = zeros</code> when <code>args.kl_coef == 0</code>;
+- the loss-level KL is multiplied by <code>kl_loss_coef = 0.0</code>.
+The reference forward (+ the weight round trip) is dead work worth 11.6 s of the 59 s train step.
+- actor.py: <code>_ref_log_probs_needed()</code> (kl_coef != 0 or use_kl_loss and kl_loss_coef != 0) gates the
+  reference forward; loss.py: the KL term is only computed when its coefficient is non-zero.
+- The loss value and the gradient are unchanged (the KL term contributed exactly 0.0).
+- Commit: slime 8a161b13 (tier N0).
+
+<b>Change 2 result (train side):</b> <code>bench.py time --side train</code> → /tmp/r2/time/time.json
+- candidate windows [57.15, 74.24, 55.30] s vs frozen reference [65.599, 66.182, 66.715] s
+- window ratios [1.148, 0.892, 1.206] → <b>train side speedup 0.892</b> because window 2 (step 5) was an outlier
+  (actor_train 65.4 s instead of 46 s; the neighbouring steps took 47.9/46.3 s and the reference&#x27;s step 5 took
+  46.9/45.6 s, so the outlier is not explained by the change - it is a step where the host was slow).
+- The log confirms the ref forward is gone: the perf dict no longer has <code>perf/ref_log_probs_time</code> and
+  <code>perf/actor_train_time</code> dropped from ~47.1 s (reference, with the 11.6 s ref forward) to 46.3 s.
+- The reference&#x27;s own warm-up steps are 222/119/67/119 s (steps 0-3: the ref forward is 31 s there because the
+  dump&#x27;s shapes are compiled twice); our steps 0-3 are 209/112/57/109 s - the same pattern without the ref
+  forward.
+- Commit: slime 8a161b13 (tier N0).</pre></details><details><summary><em class="">1.1 h</em><span>Round 3 — 2026-11-13 05:30 → (running) UTC</span></summary><pre><b>Profile (reference, rollout client side):</b> the reference rollout window (109.5 s) is much longer than the
+engine&#x27;s own decode phase (~53 s) and its own per-request e2e latency (max 84.9 s): ~25 s of every rollout is
+spent *after* the engines finished, in the client. Cause: sglang returns the top-128 logprobs of every token
+twice - as the flat base64 arrays (<code>output_topk_token_ids</code>/<code>output_topk_log_probs</code>, which is what the trainer
+uses) and as the nested per-position lists (<code>output_top_logprobs</code>, one JSON object per (token, top-k) pair).
+For 8192 tokens x 128 that is ~1M JSON objects (~25 MB) per response, which the engine serializes, the client
+parses and Ray pickles - all of it discarded.
+
+<b>Change 3 (rollout side, sglang + slime):</b> a request can now ask for the flat top-k arrays only.
+- sglang io_struct.py: <code>return_flat_output_top_logprobs</code> on GenerateReqInput/TokenizedGenerateReqInput.
+- sglang tokenizer_manager.py: the nested <code>output_top_logprobs</code> list is not built when the request asks for the
+  flat form and the response is not streamed (the nested lists are only used by the streaming chunks and by the
+  OpenAI-compatible endpoints).
+- slime rollout/sglang_rollout.py: the score-centering request sets the flag.
+- The values that reach the trainer are unchanged (the trainer already reads the flat arrays).
+
+<b>Change 3 result (rollout side):</b> <code>bench.py time --side rollout</code> -&gt; /tmp/r3/time/time.json
+- candidate windows [53.888, 57.467, 59.462] s vs frozen reference [111.899, 116.057, 111.527] s
+- <b>rollout side speedup 1.8756</b>, projected step speedup <b>1.4094</b> (train side unchanged at ~1.15-1.20)
+- Commit: sglang d9db56a + slime b953a6ea (tier N0: the flat top-k arrays the trainer reads are unchanged).</pre></details><details><summary><em class="">1.6 h</em><span>Round 4 - 2026-11-13 05:40 -&gt; 06:12 UTC (verification of rounds 1-3)</span></summary><pre><b>Check (the verdict):</b> <code>bench.py check --quick</code> -&gt; /tmp/r4/quick/check.json: <b>status PASS, tier N1</b>
+- rollout side: PASS. Token forcing: candidate mean|d| 0.0077768 vs the reference&#x27;s 0.0076856 (ratio 1.0119 &lt; 2),
+  the |d|&gt;tau event rate 2.9e-6 vs the reference&#x27;s 8.2e-6 (binomial p=0.997), the sampler paired t=-1.41 (|t|&lt;4),
+  top-k overlap 0.98800 vs 0.98806 (deficit ratio 1.004), the top-k mean|diff| ratio 0.998, bias t=0.51.
+  Train-inference mismatch 0.008036 vs the reference&#x27;s 0.008119 (ratio 0.99).
+- train side: PASS at N1 (the reference itself is not bitwise repeatable: 6400 tensors differ).
+  Statistical gate: update_norm d=-6.9e-5 (tol 6.6e-4), exp_avg_sq_norm d=2.0e-7 (tol 1.9e-6),
+  loss_mean d=2.6e-6 (tol 2.5e-5), grad_norm_mean d=6.0e-4 (tol 3.4e-2), update direction cos 0.9932 &gt;= 0.9554.
+- The judge&#x27;s rollout windows (from the check run): [53.34, 51.85, 56.50] s vs the reference&#x27;s
+  [111.899, 116.057, 111.527] -&gt; the rollout side is ~2.0-2.2x here.
+- Note: the judge materializes the tree once per check, so edits made while a check runs are not measured.
+
+<b>Changes since round 3 (diagnostics only, no behaviour change):</b> timing instrumentation for the actor&#x27;s
+sleep/wake (clear_memory / destroy_pg / pause / resume / reload_pg) and for the HybridDeviceOptimizer step
+(D2H enqueue / CPU Adam / state sync), to locate the next hotspot in the 47 s actor_train.</pre></details><details><summary><em class="">2.6 h</em><span>Round 5 - 2026-11-13 06:12 -&gt; 07:07 UTC (train side: the offload/optimizer overhead)</span></summary><pre><b>Profile (train side, <code>bench.py profile --side train</code> -&gt; /tmp/r5/profile/kernel_report.md):</b>
+- The train step is 47-50 s. The torch-profiler trace of one step shows the GPU busy 63.5% of the window
+  (47.3 s of kernels) and, inside that, <b>the TP/CP collectives are 30% of the kernel time</b>:
+  <code>ncclDevKernel_AllGather_RING_LL</code> 9.66 s (19.9%, 18113 calls, median 156 us, SM cov 0.18 - latency bound,
+  not bandwidth bound: NVLink is 18x per GPU pair), <code>ReduceScatter_Sum_bf16</code> 3.23 s (6.7%),
+  <code>AllReduce_Sum_f32</code> 1.01 s, <code>SendRecv</code> 0.93 s. The GEMMs (nvjet) are ~17 s and the rest ~7 s.
+  The collectives run on the main stream, so they are exposed, but they are latency/synchronization bound;
+  the recipe fixes TP2 x CP2 and the SP layout, so this is hard to attack quickly.
+- The host-side costs, measured with the new instrumentation in the same run:
+  <b>sleep</b> = clear_memory 0.70 + destroy_pg 1.79 + pause 1.68 + stack 0.00 = 4.2 s,
+  <b>wake_up</b> = resume 0.47 + clear_memory 0.50 + reload_pg 0.13 = 1.1 s,
+  <b>optimizer (HybridDeviceOptimizer.step)</b> = d2h_enqueue 0.003 + cpu_adam 4.75 s.
+  The CPU Adam is at the machine&#x27;s memory-bandwidth limit: 4 ranks x 4.5 Gparams x 28 B = 504 GB of
+  traffic per step at ~106 GB/s. A 4-process benchmark with 96/48/24/16 threads per rank gives the same
+  aggregate (1.8-2.0 Gparam/s), so thread-count tuning is useless -&gt; that direction was dropped.
+
+<b>Change 4 (train side, slime):</b> the actor destroyed and recreated its ~65 registered process groups twice
+per train step (in <code>sleep()</code> and again in <code>update_weights()</code>); the destroy alone costs ~1.8 s per
+occurrence, i.e. ~3.6 s of the 55 s train window. The communicator memory is not needed by the rollout
+engines (their KV cache is allocated at engine start-up), so the groups now stay alive; a gloo barrier keeps
+the rank synchronization that the destroy provided.
+- Behind the switch <code>SLIME_OPT_KEEP_NCCL_GROUPS</code> (off by default, on in /submission/switches.json).
+- Numerics: N0 (no arithmetic change; the collectives and their order are unchanged).
+
+<b>Change 4 result:</b> <code>bench.py time --side train</code> -&gt; /tmp/r6/time/time.json
+- candidate windows [52.181, 52.336, 54.592] s vs the frozen reference [65.599, 66.182, 66.715] s
+- window ratios [1.2571, 1.2646, 1.2221] -&gt; <b>train side speedup 1.2221</b> (was 1.148-1.206 in round 2,
+  which was noisy because of one host outlier step).
+- The log confirms the change: <code>sleep breakdown: destroy_pg 0.001</code> (was 1.794) and <code>reload_pg 0.000</code>.
+- Commit: slime fd5d0625.</pre></details><details><summary><em class="">3.1 h</em><span>Round 6 - 2026-11-13 07:15 -&gt; 07:40 UTC (train side: the activation recompute)</span></summary><pre><b>Profile (train side, the round-5 profile /tmp/r5/profile/kernel_report.md):</b> the step is 63.5% GPU busy,
+47.3 s of kernels; the TP/CP collectives are 30% of the kernel time, the GEMMs ~17 s. The kernel report cannot
+separate the forward from its recompute, so the recompute&#x27;s share was derived from the work structure: with
+<code>--recompute-granularity full --recompute-method uniform --recompute-num-layers 1</code> every transformer layer is
+checkpointed, so the layer&#x27;s forward runs twice (once grad-enabled, once no_grad in the backward) and its SP
+all-gathers run twice as well: 2/3 of the 18113 all-gathers belong to the forward, i.e. ~11 s of the 47 s of
+kernels is the recompute pass.
+
+<b>Change 6 (train side, slime):</b> <code>SLIME_OPT_NO_RECOMPUTE=1</code> (off by default, on in switches.json) drops the
+activation recompute: <code>slime/backends/megatron_utils/model_provider.py::_apply_recompute_override</code> sets
+<code>recompute_granularity/method/num_layers = None</code> on the TransformerConfig.
+- The recompute is a memory-for-compute trade, not a change of the mathematics: the recomputed activations are
+  the ones the forward pass produced.
+- Memory: with the recompute the step&#x27;s peak allocation is ~32 GB of 139.8 GB (the log&#x27;s <code>allocated_GB</code> 30.87 /
+  <code>reserved_GB</code> 32.15 at the end of the step, <code>free_GB</code> 102 while the engines are offloaded), so keeping the
+  activations (~20 GB more) fits. The run confirms it: no OOM, the peak allocation rises as expected.
+- Numerics: N1. The forward is bitwise identical (step 0&#x27;s loss -0.0007013520690397197, its entropy and its
+  train/inference mismatch 0.008164666641911946 are exactly the reference&#x27;s), but the backward now uses the
+  grad-enabled forward&#x27;s saved activations instead of the no_grad recomputed ones: the step-0 gradient norm moves
+  from 0.04709615930914879 to 0.04716501384973526 (1.5e-3 relative). Against the judge&#x27;s statistical gate
+  (loss_mean tol 2.5e-5, grad_norm_mean 0.034, exp_avg_sq_norm 9.3e-7, update_norm 6.6e-4, cos_min 0.9554) the
+  shift of the 3-step loss mean is 2.0e-7, of the gradient norm 3.4e-5 and of the second moment 6e-10; the
+  update direction cosine stays &gt; 0.999. The train/inference mismatch at step 0 is bitwise the reference&#x27;s.
+
+<b>Change 6 result:</b> <code>bench.py time --side train</code> -&gt; /tmp/r8/time/time.json
+- candidate windows [43.810, 44.363, 43.174] s vs the frozen reference [65.599, 66.182, 66.715] s
+- window ratios [1.4974, 1.4918, 1.5453] -&gt; <b>train side speedup 1.4918</b> (was 1.2221 in round 5)
+- the log confirms it: actor_train_time 45.5 s -&gt; 37.2 s, actor_train_tflops 144 -&gt; 175, step_time 52.5 -&gt; 43.9.
+- Commit: slime 74de0bf0 (tier N1).</pre></details><details><summary><em class="">3.7 h</em><span>Round 7 - 2026-11-13 07:40 -&gt; 08:15 UTC (rollout side: the per-step host transfers)</span></summary><pre><b>Check of rounds 1-6</b> (<code>bench.py check --quick</code> -&gt; /tmp/r9/quick/check.json): <b>PASS, tier N1</b> (both sides
+judged).  The rollout&#x27;s token forcing is statistically equivalent (mean_abs_ratio 0.9994, the event rate is
+below the reference&#x27;s, the sampler&#x27;s paired t is -0.011), the top-k overlap is 0.98803 vs the reference&#x27;s
+0.98806, and the training side passes the statistical gate.
+
+<b>Profile (the round-7 rollout trace /tmp/r7/profile):</b> the decode step is GPU-bound (the kernels of one
+step take 4.8 ms of GPU time) but the step itself takes ~6.6 ms.  The CPU trace of the scheduler shows why:
+<b>66 <code>async_d2h</code> calls per decode step (1.94 ms of inclusive CPU time)</b> - 64 of them the top-128 rows of the
+log-probabilities (one pinned allocation + one D2H copy per row) - plus 68 <code>tolist</code> and 165 <code>slice</code>/<code>select</code>
+calls per step.
+
+<b>Change 7 (rollout side, sglang):</b> every request of the batch asks for the same number of top-k entries
+(128), so <code>get_top_logprobs_raw</code> keeps the (bs, k) block instead of splitting it into bs rows, the copy to
+the host is one D2H for the whole block, and the rows are converted with one <code>tolist</code> per step.
+- Files: sglang/python/sglang/srt/layers/logprob_processor.py, managers/utils.py,
+  managers/scheduler_components/batch_result_processor.py.
+- Numerics: N0 (the same numbers are returned, only the transfer and the conversion are batched).
+
+<b>Change 7 result:</b> <code>bench.py time --side rollout</code> -&gt; /tmp/r10/time/time.json
+- candidate windows [51.116, 51.506, 57.245] s vs the frozen reference [111.899, 116.057, 111.527] s
+- window ratios [2.1891, 2.2533, 1.9482] -&gt; <b>rollout side speedup 1.9482</b> (the previous state measured
+  [53.523, 56.806, 54.154] s in the round-9 check, i.e. the same within the run-to-run spread of the
+  rollout windows, which is +-6 s).
+- The remaining gap to the GPU: the request e2e latency gives 5.57 ms per decode step against 4.8 ms of GPU
+  kernel time, so ~0.8 ms/step (6 s per rollout) of scheduler overhead is left.
+- Commit: sglang 6cce324 (tier N0).</pre></details><details><summary><em class="">4.2 h</em><span>Round 8 - 2026-11-13 08:10 -&gt; 09:05 UTC (train side: the redundant actor log-prob forward) - NO-OP, REVERTED</span></summary><pre><b>Check of rounds 1-7</b> (<code>bench.py check --quick</code> -&gt; /tmp/r11/quick/check.json): <b>PASS, tier N1</b> (both sides
+judged).  The rollout&#x27;s token forcing is statistically equivalent (mean_abs 0.007713 vs the reference&#x27;s
+0.007686, i.e. 1.003x), the top-k overlap is within the reference&#x27;s own, and the training side passes the
+statistical gate.  This is the fallback state (commit slime 74de0bf0 + sglang 6cce324).
+
+<b>Profile finding (from the round-5 train trace and the source):</b> the actor runs *two* full forward passes
+over the batch per train step: <code>compute_log_prob()</code> (a no-grad forward that fills
+<code>rollout_data[&quot;log_probs&quot;]</code>) and the training forward+backward.  The first one recomputes the log-probs of
+the sampled tokens <b>with the same weights the training forward uses</b> (the reference forward was already
+removed in round 2, and the actor&#x27;s weights do not change between the two passes), so it is a third of the
+compute of the step (fwd+bwd+logprob-fwd = 4 forward-equivalents; the log-prob forward is 1 of them) and it
+also repeats all the SP/CP collectives of the forward.
+
+What the separate forward&#x27;s values actually feed (checked in <code>slime/backends/megatron_utils/loss.py</code>):
+- the TIS importance ratio: <code>train_log_probs_for_tis</code> is overwritten with the *training* forward&#x27;s log-probs
+  when the PG objective is <code>reinforce</code> (line 1183) - our recipe;
+- the mismatch metric <code>train_rollout_logprob_abs_diff</code>: uses the training forward&#x27;s log-probs whenever
+  score centering is on (line 1352) - our recipe;
+- the loss itself: <code>pg_loss = -advantages * log_probs</code> for <code>reinforce</code> - <code>ppo_kl</code> (the only consumer of
+  <code>old_log_probs</code>) does not enter it;
+- the advantages: the KL term is exactly zero when <code>kl_coef == 0</code> (our recipe);
+- the KL loss term: exactly zero when <code>kl_loss_coef == 0</code> (our recipe);
+- only diagnostics: <code>ppo_kl</code>, <code>ois</code>, <code>correct_entropy</code>.  In the reference these are already <b>exactly 0 / 1</b>
+  (the two forwards compute the same values bit for bit), so they do not change either.
+
+<b>Change 8 (train side, slime):</b> skip the separate actor log-prob forward when it cannot reach the loss
+(<code>SLIME_OPT_SKIP_ACTOR_LOGPROB=1</code>, off by default).  The guard covers every consumer of the old-policy
+log-probs (kl_coef, kl_loss_coef, a non-reinforce PG objective, OPSM/GSPO, the critic/OPD/routing-replay
+paths and <code>use_rollout_logprobs</code>); with any of them active the forward still runs.  The <code>correct_entropy</code>
+diagnostic tolerates the missing log-probs.
+- Files: slime/slime/backends/megatron_utils/actor.py, slime/slime/observability/train_metric_utils.py.
+
+<b>Outcome: the change was a NO-OP and was REVERTED (no commit).</b>  While reading the code it turned out that
+the separate forward never runs in the reference either: <code>can_reuse_log_probs_in_loss</code> is already True because
+it tests <code>len(num_microbatches) == 1</code>, and <code>num_microbatches</code> counts the *VPP* stages, not the micro-batches
+(our recipe has no pipeline parallelism).  The reference logs have no <code>Timer log_probs end</code> line, <code>ppo_kl</code> is
+already exactly 0.0 and <code>ois</code> exactly 1.0, which confirms that the log-prob forward is skipped in the
+reference as well.  The measured gain was therefore 0.0 s (within the +-0.5 s noise of the train windows), and
+the guard was removed with <code>git checkout</code> of the two files so the tree stays minimal.  Lesson recorded here:
+read the Megatron-side guard conditions before assuming a redundant forward.</pre></details><details><summary><em class="">4.5 h</em><span>Round 9 - 2026-11-13 09:00 -&gt; (running) UTC (full check of rounds 1-7)</span></summary><pre>Started the full check of the accumulated state (rounds 1-7, commits slime 74de0bf0 + sglang 6cce324, switches
+<code>SLIME_OPT_KEEP_NCCL_GROUPS=1</code>, <code>SLIME_OPT_NO_RECOMPUTE=1</code>):
+
+```
+cd /opt/researchboost/ws
+/opt/sglang/bin/python3 bench/bench.py check --tree /submission/slime_grpo --config /submission/switches.json --out /tmp/r13/check
+```
+
+(log: /tmp/r13/check.log, detached, PID 875057).  The check runs the rollout side and the training side with
+cold compile caches and applies every correctness gate; it is the verdict the final evaluation re-runs.</pre></details><details><summary><em class="">4.5 h</em><span>Round 9 - 2026-11-13 09:00 -&gt; 09:25 UTC (full check of rounds 1-7) - the judge crashed, not the tree</span></summary><pre>Started the full check of the accumulated state (rounds 1-7, slime 74de0bf0 + sglang 6cce324):
+
+```
+cd /opt/researchboost/ws
+/opt/sglang/bin/python3 bench/bench.py check --tree /submission/slime_grpo --config /submission/switches.json --out /tmp/r13/check
+```
+
+The rollout candidate (381 s wall) and the train candidate (743 s wall) both ran fine, and the check then died
+in the judge&#x27;s own code:
+
+```
+File &quot;/opt/researchboost/ws/bench/bench.py&quot;, line 996, in judge_rollout
+    st, why = score(dumps, ids, out / &#x27;scores.npz&#x27;, out / &#x27;score.log&#x27;)
+FileNotFoundError: [Errno 2] No such file or directory: &#x27;/tmp/r13/check/rollout/score.log&#x27;
+```
+
+<code>judge_rollout()</code> writes <code>score.log</code> into <code>&lt;out&gt;/rollout</code>, but in the non-quick path that directory is never
+created (in the <code>--quick</code> path <code>judge_rollout</code> calls <code>time_side()</code> itself, which creates it as a side effect).
+The final evaluation uses <code>--final</code>, where <code>side_runs</code> is empty and <code>judge_rollout</code> therefore also calls
+<code>time_side()</code> itself - so <b>the final evaluation is not affected by this bug</b>; only the agent&#x27;s full <code>check</code>
+is.  Workaround for the next full check: create <code>&lt;out&gt;/rollout</code> before starting the judge.</pre></details><details><summary><em class="">5.6 h</em><span>Round 10 - 2026-11-13 09:25 -&gt; 10:10 UTC (train side: the CPU Adam and the fp32 master copy)</span></summary><pre><b>Profile finding (the round-5 train trace plus the HDO log):</b> the train step is 36.8 s of which the
+optimizer is 4.8 s: the hybrid device optimizer builds <b>one CPU optimizer per parameter</b> (one fused Adam
+call each, ~290 of them, each with its own fixed overhead) and the fp32 master weights of the offloaded
+parameters are <b>pageable</b>, so the copy back to the device after every step runs at the pageable PCIe rate
+(measured: 10.1 GB/s pageable vs 54.1 GB/s pinned).
+
+<b>Change 10 (train side, Megatron):</b> <code>SLIME_OPT_BATCH_CPU_ADAM=1</code> builds one CPU optimizer per parameter
+*group* instead of one per parameter; <code>SLIME_OPT_PIN_FP32_MASTER=1</code> pins the fp32 master of the offloaded
+parameters.  Both off by default.  Files: megatron/core/optimizer/cpu_offloading/hybrid_optimizer.py.
+
+<b>Measured (bench.py time --side train):</b>
+| variant | windows (s) | train speedup | cpu_adam |
+|---|---|---|---|
+| baseline (r12) | 43.498 / 43.500 / 42.792 | 1.5081 | 4.75 s |
+| batch+pin (r14) | 44.016 / 44.396 / 42.798 | 1.4903 | 3.40 s |
+| batch only (r15) | 44.593 / 44.171 / 44.077 | 1.4711 | 4.60 s |
+
+<b>Conclusion: no gain, both switches left off.</b>  The CPU Adam itself gets cheaper (4.75 s -&gt; 3.40 s), but
+the step does not: the copy of the master weights back to the device does not get faster either, because with
+four ranks copying at once the *host memory* bandwidth (not PCIe) is the limit - the cost just moves from the
+CPU (a blocking pageable copy inside the optimizer step) to the GPU (waiting for the pinned copy at the next
+forward).  The per-parameter Adam overhead in the real parameter mix is only ~0.5 ms per call, not the ~10 ms
+a micro-benchmark with small tensors suggests.  The <code>actor_train</code> timer is 36.7/36.8/36.1/38.0 s (baseline),
+36.8/37.6/35.6/37.3 s (batch+pin) and 36.7/37.2/37.1/36.7 s (batch only) - all within the +-0.7 s noise.
+Committed as Megatron 6967b3b with the switches off.</pre></details><details><summary><em class="">6.0 h</em><span>Round 11 (2026-11-13 10:09-10:33 UTC) - full-loop validation of the current tree</span></summary><pre><b>Why:</b> no full <code>check</code> had ever completed in this task (the judge&#x27;s own non-quick <code>check</code> path crashes in
+<code>judge_rollout()</code>: it writes <code>score.log</code> into <code>&lt;out&gt;/rollout</code>, a directory that is only created in the
+<code>--quick</code>/<code>--final</code> paths).  The end-to-end RL loop (rollout -&gt; train -&gt; weight sync -&gt; rollout) had therefore
+never been exercised on the candidate tree, and the final evaluation times exactly that loop.
+
+<b>What:</b> ran the judge&#x27;s own <code>time_side(&#x27;full&#x27;)</code> through a small driver that imports <code>bench.bench</code>
+(<code>/tmp/b/fullrun.py</code>), i.e. the same code path the final evaluation uses: a prime run (train x5 on the fixture
+dumps, to fill the compile caches) and then the timed full loop (5 RL steps).  Output <code>/tmp/r16/full/</code>,
+log <code>/tmp/r16/full.log</code>.  *This is a functional check, not a reported speedup - only the judge&#x27;s own commands
+count.*
+
+<b>Result:</b> <code>STATUS ok</code>, windows [104.892, 99.612, 99.218] s per RL step against the frozen reference step of
+181.863 s; train-inference mismatch per step 0.0073-0.0082 (the reference&#x27;s own magnitude is ~0.0077).
+The loop works end to end on the candidate tree (weight update, engine sleep/wake, rollout -&gt; train hand-off).</pre></details><details><summary><em class="">6.0 h</em><span>Round 12 (2026-11-13 10:34 UTC) - rollout: poll the tokenizer less often</span></summary><pre><b>Profile (py-spy dump of the sglang scheduler&#x27;s MainThread during the round-11 full loop, 60 samples):</b>
+30 % of the samples are in <code>ingest_requests</code> -&gt; <code>recv_requests</code> -&gt; <code>broadcast_pyobj</code> (the gloo broadcast of the
+request list to the other TP rank, ~20 % of the samples are inside <code>dist.broadcast</code> itself), 20 % in the
+forward launch (mostly <code>torch.cuda.Stream.synchronize</code>, i.e. waiting for the GPU), 17 % in the result
+processing/detokenizer, 10 % in the batch preparation.  The decode step costs ~4.8 ms of GPU work against a
+5.8-6.2 ms wall, so ~1 ms per step is CPU overhead that keeps the GPU idle.
+
+<b>Change:</b> sglang&#x27;s own request-receiver skipper polls the tokenizer every N steps instead of every step
+(<code>scheduler_recv_interval</code>).  The skip decision only depends on the forward mode of the last batch, which is
+identical on every TP rank, so the broadcast collective stays in sync.  slime passes it to the engine behind
+the switch <code>SLIME_OPT_SGLANG_RECV_INTERVAL</code> (off by default = the reference behaviour), in
+<code>slime/backends/sglang_utils/sglang_engine.py::_compute_server_args</code>.
+
+<b>Measured (bench.py time --side rollout, one run per variant, against the frozen reference timing):</b>
+| variant | windows (s) | rollout speedup |
+|---|---|---|
+| interval 8 (<code>/tmp/r17/time/time.json</code>) | 53.571 / 53.213 / 54.002 | <b>2.0652</b> (was 1.9482) |
+| interval 32 (<code>/tmp/r17/time32/time.json</code>) | 52.601 / 53.419 / 58.626 | 1.9023 |
+
+Interval 8 is the sweet spot: 32 delays the pickup of the requests too much (its last window is 5 s slower).
+The switch stays off by default; <code>/submission/switches.json</code> now carries
+<code>SLIME_OPT_SGLANG_RECV_INTERVAL=8</code> together with the two switches of the earlier rounds.
+
+<b>Scheduler stage metrics</b> (sglang&#x27;s own <code>sglang:scheduler_stage_seconds_total</code>, sampled from the engine&#x27;s
+/metrics endpoint during a live rollout): per decode step the scheduler loop spends
+<code>process_batch_result</code> 2.3-5.0 ms (mostly the wait for the GPU&#x27;s result copy), <code>run_batch</code> 1.7-2.4 ms,
+<code>get_next_batch_to_run</code> 0.33-0.41 ms and - with the interval on - <code>recv_requests</code> only 0.09-0.20 ms
+(it was 18 % of the loop before the change).
+
+<b>Verdict:</b> <code>/tmp/r18/quick/check.json</code> = <b>PASS, tier N1</b> (both sides judged).
+- rollout: token forcing mean |d| 0.007750 vs the reference&#x27;s 0.007686 (ratio 1.0083), the event rate
+  1.4e-6 vs the reference&#x27;s 8.2e-6 (p = 0.9998), the sampler t = -0.78, the top-k overlap deficit ratio
+  1.0067 and the mean-abs ratio 1.0019, the train-inference mismatch ratio 1.0003 -&gt; PASS.
+- train: the record is not bitwise identical (6418 tensors differ), the statistical gate passes
+  (update norm d = -6.3e-5 vs the tolerance 6.6e-4, second moment d = 1.7e-7 vs 1.9e-6, loss mean
+  d = 7.1e-6 vs 2.5e-5, grad norm d = -4.1e-4 vs 3.4e-2, update-direction cosine 0.9928 vs the frozen
+  minimum 0.9554) -&gt; N1.
+Committed as slime <code>7122bc5f</code> (N1).
+
+<b>Note:</b> the rollout windows of that check run were 53.0 / 52.9 / 68.8 s - the third one is an outlier
+caused by my own profiling (py-spy dumps and /metrics polling) running on the same machine during the
+run; the clean measurement in <code>/tmp/r17/time</code> gave 53.6 / 53.2 / 54.0 s.</pre></details><details><summary><em class="">7.3 h</em><span>Round 13 (2026-11-13 11:29 -&gt; 12:00 UTC) - profiling the rollout&#x27;s remaining bubble and the train step</span></summary><pre><b>Profile (round 12&#x27;s tree, rollout side):</b> a live rollout of the current tree was sampled three ways:
+- <code>nvidia-smi dmon</code> during the decode: <b>the four GPUs run at 95-100 % SM utilization</b>, so the decode
+  step (6.2 ms wall) is GPU-bound; there is no CPU bubble left to remove on the rollout side.
+- py-spy on the sglang scheduler (1200 stack samples): 43 % of the samples are in
+  <code>result.copy_done.synchronize()</code> (waiting for the GPU), the rest is the launch path
+  (run_batch 27 %, get_next_batch_to_run 5 %, ingest_requests 5 %).  The remaining CPU work per decode
+  step is ~3.3 ms against ~6.2 ms of wall time, and the GPU is busy the whole time.
+- the engine&#x27;s own stage metrics: run_batch 2.2 ms/step, process_batch_result 3.4 ms/step (mostly the
+  GPU wait), get_next_batch_to_run 0.7 ms/step, recv_requests 0.7 ms/step.
+=&gt; the rollout&#x27;s GPU work (the weight reads of the decode GEMMs, ~43 % of the kernel time at 3.0-3.4
+TB/s) is at the roofline; the only remaining rollout lever would be fusing the ~490 small kernels per
+decode step, which is a large, risky project.
+
+<b>Where the RL step&#x27;s time goes now (from the full-loop run of round 11, per step, s):</b>
+rollout 52-56 (decode 8192 steps x 6.2 ms) | actor_train 36.8-39.1 (of which the CPU-bound Adam 4.7 and
+the GPU ~32) | sleep 2.3 + wake_up 1.1 | update_weights 0.9 | reward+conversion ~1-2.
+The train GPU time is dominated by the sequence-parallel collectives (the round-5 kernel report:
+AllGather_RING_LL 19.9 %, ReduceScatter_bf16 6.7 %, AllReduce_f32 2.1 %, SendRecv 1.9 % of the kernel
+time; the all-gather&#x27;s median is 156 us but its average 533 us - it is latency/skew bound, not
+bandwidth bound) and by 64 micro-batches per step (one per sample: a sample of ~8300 tokens does not fit
+into the 4096-token-per-GPU bin, so every micro-batch holds exactly one sample).
+
+<b>Change (train side, slime):</b> <code>SLIME_OPT_MICRO_BATCH_SCALE=N</code> (off by default) scales the dynamic
+micro-batch size, so the same tokens are processed in fewer, larger micro-batches: fewer
+sequence-parallel collectives and fewer per-micro-batch launches per step.  The step still processes the
+same tokens in the same order and the loss is the same sum over the same tokens (only the reduction
+order inside the step changes).  File: slime/utils/arguments.py.
+
+<b>Measured:</b> see below (the timing run of this round).</pre></details><details><summary><em class="">8.1 h</em><span>Round 14 (2026-11-13 12:10 -&gt; 13:00 UTC) - train side: the model offload overhead + a fresh rollout profile</span></summary><pre><b>Profile (the fresh rollout profile of the current tree, <code>/tmp/r22/profile/kernel_report.md</code>):</b> the decode step of
+the engine costs ~6.2 ms of wall time with ~4.6 ms of GPU kernels (the union of the kernels over 200 decode steps
+is 1011 ms; the model forward is at the memory roofline - 18 GB of weights per GPU per step at ~4.2 TB/s - and the
+sampler/top-k/logits post-processing adds ~0.4 ms).  The remaining ~1.6 ms per step is the scheduler&#x27;s CPU work
+that is not overlapped with the GPU; sglang already overlaps the result processing of the previous batch with the
+current forward, so the bubble is the per-step preparation (batch metadata, sampling metadata) plus the launch
+latency of the next batch.  That is the biggest remaining rollout lever (~13 s per rollout) but it needs a
+scheduler-level change (double buffering), not a kernel change.
+
+<b>Train side: the model offload (the actor&#x27;s sleep/wake).</b>  The log of the full-loop run shows per step
+<code>sleep = clear_memory 0.6-1.15 + pause 1.37-1.55</code> and <code>wake_up = resume 0.37-0.53 + clear_memory 0.50-0.56</code>, i.e.
+~3.4 s per step.  The pause copies every parameter (9 GB per rank) to the host and frees it on the GPU; the
+rollout engines do not need that memory (their KV cache is allocated when the engine starts and released while the
+actor trains), so only the gradient buffer (18 GB per rank, dead after the optimizer step) has to go.
+
+<b>Change 14a (train side, slime):</b> <code>SLIME_OPT_KEEP_PARAMS_ON_GPU=1</code> releases only the tagged <code>grad_buffer</code> region
+of the memory saver (<code>torch_memory_saver.pause(tag=&quot;grad_buffer&quot;)</code>), so the parameters stay on the GPU during the
+rollout.  The memory saver&#x27;s semantics were verified with a standalone probe (a tagged pause frees only the tagged
+allocation, the default region stays valid, and the resume re-allocates the region at the *same* virtual address, so
+Megatron&#x27;s <code>param.main_grad</code> views stay valid).
+- The measured sleep/wake: <code>pause 1.45 -&gt; 0.017 s</code>, <code>resume 0.40 -&gt; 0.024 s</code>, i.e. ~1.5 s less per train step.
+- The GPU holds 9 GB more during the rollout (the engine&#x27;s KV pool still fits: 97.9 GB of 139.8 GB).
+
+<b>Change 14b (train side, slime):</b> <code>SLIME_OPT_SKIP_WAKE_GC=1</code> skips the cyclic garbage collection of the wake-up
+path (the sleep already collected it).  The new instrumentation (<code>SLIME_OPT_MEMORY_TIMING=1</code>) shows that the
+collection is the whole cost of <code>clear_memory</code>: <code>sync 0.000 gc 0.41-0.63 empty_cache 0.00-0.04</code>.
+
+<b>Measured (<code>bench.py time --side train</code>, <code>/tmp/r23/time/time.json</code>, change 14a only):</b>
+| variant | windows (s) | train speedup |
+|---|---|---|
+| baseline (r12) | 43.498 / 43.500 / 42.792 | 1.5081 |
+| 14a (params on the GPU) | 42.189 / 42.902 / 41.719 | <b>1.5426</b> |
+
+Commits: slime <code>9b474233</code> (14a), slime <code>03cdfd67</code> (14b + the instrumentation).  Both switches are off by default.</pre></details><details><summary><em class="">8.7 h</em><span>Round 15 (2026-11-13 12:55 -&gt; 14:00 UTC) - profiling the rollout&#x27;s CPU path and the step&#x27;s dead time</span></summary><pre><b>Rollout profile (live, current tree, <code>bench.py time --side rollout</code> + py-spy on the sglang scheduler):</b>
+- <code>bench.py time --side rollout</code> -&gt; /tmp/r25/time/time.json: windows [54.139, 54.021, 53.548] s vs the frozen
+  reference [111.899, 116.057, 111.527] =&gt; <b>rollout side 2.0669x</b> (unchanged by the round-14 changes).
+- py-spy (11952 samples at 200 Hz over 60 s of the decode loop, the scheduler&#x27;s main thread):
+  27.0 % of the samples are in <code>process_batch_result_decode -&gt; synchronize</code> (the CPU waiting for the previous
+  batch&#x27;s D2H copy), and the rest is spread thin: <code>_stream_output_generation</code> 3.3 %, <code>send_pyobj</code> 2.9 %,
+  <code>_normalize_decode_outputs</code> 2.8 %, <code>fill_from</code>/<code>try_small_copy</code> 4.0 %, <code>record_batch_in_overlap</code> 2.5 %,
+  <code>_apply_cuda_graph_metadata</code> 2.2 %, <code>set_mamba_track_indices_from_reqs</code> 2.0 %, <code>prepare_for_decode</code> 1.5 %,
+  <code>alloc_for_decode</code> 1.4 %, <code>_compute_mrope_positions_decode</code> 1.2 %, <code>init_new</code> 0.9 %.  There is no single
+  CPU hotspot left; the decode step is GPU-bound with a ~1 ms/step scheduling bubble.
+- The trace of the profiled rollout (/tmp/r22/profile/trace): per decode step the kernels sum to 5.8 ms
+  (5.06 ms of union) over a 5.2 ms span, with 0.3 ms of gaps inside the step; the decode step&#x27;s period is
+  6.2 ms =&gt; <b>~1 ms/step (8 s per rollout) of scheduling bubble</b>: the CPU work between the end of one
+  forward and the launch of the next (the batch preparation + the CUDA-graph input fill) is not overlapped
+  with the GPU.  Removing it needs a scheduler-level double buffer (prepare the next step&#x27;s metadata while
+  the GPU runs the current one) - too deep for the time left; every individual piece is 1-2 % of the step.
+- The GPU work itself is at the roofline: the weight GEMMs run at 3.0 TB/s (HBM ~4.2 TB/s), the TP
+  all-reduces cost 0.74 ms/step (6 s per rollout) and the GDN kernels 0.49 ms/step.
+
+<b>The step&#x27;s dead time.</b>  From the full-loop log of round 11 (/tmp/r16/full/full_cand/train.log): the rollout
+metric is logged at 10:28:02 and the trainer only starts <code>wake_up</code> at 10:28:05 and the train at 10:28:07 =&gt;
+<b>~3-5 s per step between &quot;the samples are complete&quot; and &quot;the train step starts&quot;</b>, i.e. 4-6 % of the step,
+all of it on an idle GPU.  The candidates are the reward/conversion/publish path in the rollout manager and the
+Ray handover of the converted batch (the top-128 logprobs are 512 MB per rollout).
+- Instrumentation added (off by default, <code>SLIME_OPT_PHASE_TIMING=1</code>): slime/ray/rollout.py times
+  <code>_get_rollout_data</code> / <code>log_rollout_data</code> / <code>batch_builder.begin</code> / <code>convert</code> / <code>publish</code> / <code>split_by_dp</code>,
+  and train.py times the generate call, the handover and the train call.
+- A CPU micro-benchmark of the parts that were suspected: the top-k validation (<code>_validate_head_arrays</code>) is
+  3.8 ms per sample (0.24 s for the 64 samples of a rollout) and the base64 decode 2.6 ms per sample, so the
+  validation is NOT the dead time.
+
+<b>Train side, the CPU Adam.</b>  The instrumentation in the hybrid device optimizer shows <code>cpu_adam 4.75 s</code> of
+the 37 s step.  The optimizer is <code>torch.optim.AdamW(..., fused=True)</code> (Megatron&#x27;s CPUAdam) and it runs at the
+host memory bandwidth (~60 GB/s of traffic: the fp32 master + the two moments + the fp32 grads, read and
+written once per step, plus the master-&gt;bf16 copy).  PyTorch&#x27;s fused CPU Adam is bitwise identical to the
+foreach path on 6 of 7 test tensors and differs by 1.8e-7 relative on one (the largest) =&gt; N1 at worst.
+A fused CPU Adam of our own could cut the traffic by ~30 % (2.5 s of the step), but it needs a C++ extension
+and the gain is small compared with the risk of touching the optimizer.
+
+<b>Full check running</b> (<code>/tmp/r26/check</code>, started 13:05) on the tree with the round-14 changes.</pre></details><details><summary><em class="">9.2 h</em><span>Round 16 (2026-11-13 13:05 -&gt; 14:46 UTC) - the full check of the round-14 tree PASSES</span></summary><pre><b>Full check</b> (<code>bench.py check --tree /submission/slime_grpo --config /submission/switches.json --out /tmp/r26/check</code>,
+log /tmp/r26/check.log, started 13:05, ended 13:45): <b>status PASS, tier N1, performance.speedup 1.7778</b>
+(the projected step speedup from the frozen reference timings: rollout 2.0669x, train 1.5426x).
+Stages: rollout cand (386 s), train cand (731 s), token forcing, the train/inference mismatch rollout (359 s),
+the deterministic train record (576 s), then the statistical gate.
+This is the first *complete* verdict of this task on the accumulated tree (slime <code>03cdfd67</code> + sglang <code>6cce324</code> +
+Megatron <code>6967b3b</code>, switches KEEP_NCCL_GROUPS / NO_RECOMPUTE / SGLANG_RECV_INTERVAL=8 / KEEP_PARAMS_ON_GPU /
+SKIP_WAKE_GC).
+
+**Profiling of what is left (CPU-only analysis of the rollout trace /tmp/r22/profile/trace and the train trace
+/tmp/r5/profile/trace):**
+- Rollout: the decode step&#x27;s kernels sum to 5.06 ms (union) over a 6.2 ms period, i.e. ~1-1.5 ms of scheduling
+  bubble per step (~12 s per rollout).  The inter-step gap contains the CUDA-graph buffer fill
+  (<code>fill_from</code> -&gt; <code>_grouped_foreach_copy_</code> -&gt; the Triton <code>try_small_copy</code>, 200 calls, ~0.4-1.2 ms of host time
+  each in the profiled run) and the graph replay.  <code>cudaGraphLaunch</code> itself is only 0.5 us, so the launch is not
+  the problem - the *host* work between the result of a step and the next launch is.
+  The per-step <code>.tolist()</code> of the (bs, 128) top-k block costs 2 x 53 us (measured on the host).
+- Train: the SP/CP collectives are ~11.6 s of the ~31 s of GPU kernels (the AllGather alone 9.66 s over 18113
+  calls with a median of 156 us and a long tail up to 61 ms - the tail is the ranks waiting for each other, so the
+  collectives are latency/imbalance-bound, not bandwidth-bound).  The CPU Adam is 4.70-4.84 s on the four ranks
+  (balanced) and is host-bandwidth-bound (504 GB of host traffic per step).
+
+<b>Change 16a (train side, slime):</b> <code>SLIME_OPT_MAX_TOKENS_PER_GPU</code> (off by default) enlarges the dynamic batch
+packer&#x27;s per-micro-batch token budget.  With the recipe&#x27;s 4096 the packer puts one ~8.2k-token sample per
+micro-batch (64 micro-batches per optimizer step); with 8192 it packs two (32 micro-batches), which halves the
+number of sequence/context parallel collectives.  The samples, their order, the batch and the loss are unchanged -
+only the grouping of the gradient accumulation (a reduction order) changes.  Numerics: N1.
+- Files: slime/slime/utils/arguments.py.
+
+<b>Change 16b (rollout side, sglang):</b> <code>SLIME_OPT_SGLANG_NO_SMALL_COPY</code> (off by default) skips the grouped Triton
+&quot;small copy&quot; kernel in the CUDA-graph buffer registry and uses the <code>torch._foreach_copy_</code> fallback, which copies
+the same values with one multi-tensor kernel per dtype group instead of a Triton launch whose Python/JIT dispatch
+costs a few hundred microseconds of host time per decode step (the decode loop cannot launch the next forward
+before the metadata is in the graph&#x27;s static buffers, so that host time is on the critical path).
+Numerics: N0 (the same values are copied; verified that <code>_foreach_copy_</code> handles the mixed shapes/dtypes of the
+graph&#x27;s metadata slots and the int64-&gt;int32 conversion like the Triton kernel).
+- Files: sglang/python/sglang/srt/model_executor/cuda_graph_buffer_registry.py.
+
+<b>Change 16a result (train side):</b> <code>bench.py time --side train</code> with <code>SLIME_OPT_MAX_TOKENS_PER_GPU=8192</code>
+(/tmp/r27/time/time.json): candidate windows [40.732, 41.326, 40.898] s vs the frozen reference
+[65.599, 66.182, 66.715] s -&gt; <b>train side speedup 1.6014</b> (was 1.5426).  The actor train time drops from
+37.3/37.9/36.6/37.6 s to 36.2/36.6/36.5/38.1 s, the step time from 42.6 to 41.0 s; the per-step
+train/rollout log-prob mismatch moves by &lt;= 2e-4 (0.00816/0.00793/0.00752/0.00853/0.00843/0.00855/0.01010/
+0.01051 vs the reference run&#x27;s 0.00816/0.00798/0.00751/0.00855/0.00840/0.00849/0.01008/0.01055).  No OOM: the
+GPU still holds 102 GB free after the step (the activations double with the micro-batch, the persistent
+buffers are unchanged at 30.9 GB).  Commit: slime <code>f7a06d3c</code>.  The projected step speedup goes 1.7778 -&gt; 1.844.
+
+<b>Change 16b result (rollout side): REVERTED.</b>  <code>bench.py time --side rollout</code> with
+<code>SLIME_OPT_SGLANG_NO_SMALL_COPY=1</code> (/tmp/r28/time/time.json): windows [53.460, 56.495, 59.038] s vs the
+frozen reference -&gt; speedup 1.8891, i.e. *not* better than the 2.0669 of the unchanged tree (the rollout
+windows of this machine have a +-6 s spread, so a ~1 % effect is not measurable with one run).  Since the
+change brought no measurable gain, the file was restored (<code>git checkout</code>): the tree stays minimal and the
+copy path (the grouped Triton kernel) stays as sglang ships it.
+
+<b>Incident (structure gate):</b> the phase-timing diagnostics of the previous round had also been added to
+<code>slime/train.py</code>.  The judge&#x27;s structure gate compares the *AST* of <code>slime/train.py</code> with the reference&#x27;s and
+rejects any difference, so <code>check --quick</code> returned ERROR (&quot;slime/train.py differs from the reference&quot;).
+<code>train.py</code> was restored from the pre-diagnostics commit (slime <code>04d3b416</code>) and its AST now compares equal to
+<code>/opt/researchboost/ws/targets/reference/train.py</code>.  Lesson: only <code>slime/train.py</code> is AST-frozen; every other
+file may change, but the entry point must stay byte-for-byte the reference&#x27;s.</pre></details><details><summary><em class="">9.6 h</em><span>Round 17 (2026-11-13 14:07 UTC) - validating the larger micro-batch</span></summary><pre><code>bench.py check --quick --tree /submission/slime_grpo --config /submission/switches.json --out /tmp/r30/quick</code>
+(the correctness gates only: the rollout side&#x27;s token forcing / top-k / mismatch and the training side&#x27;s
+statistical gate, on the tree with <code>SLIME_OPT_MAX_TOKENS_PER_GPU=8192</code>).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_grpo-opus.html"><small>← 2.35×</small><strong>Opus 5.5</strong></a><a class="up" href="slime_grpo.html">↑ Slime GRPO</a><a class="next" href="t-slime_grpo-ds.html"><small>1.88× →</small><strong>DeepSeek V4.1 Flash-1017</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_grpo-opus.html", "pts": [[1.304, 1.795, 1], [1.832, 1.956, 2], [7.022, 2.07, 3], [8.238, 2.299, 5], [8.628, 2.299, 6], [9.207, 2.485, 7]], "end": 10.0, "final": 2.3472}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_grpo-sonnet.html", "pts": [[4.359, 2.047, 4], [5.571, 2.29, 7], [6.589, 2.446, 9]], "end": 10.011, "final": 2.4003}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_grpo-haiku.html", "pts": [[0.996, 1.185, 2], [1.29, 1.432, 5], [1.526, 1.69, 6], [3.288, 1.79, 10], [7.333, 1.896, 18], [9.812, 1.896, 23]], "end": 10.058, "final": 1.8505}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_grpo-astra.html", "pts": [[1.576, 1.059, 8], [7.156, 1.084, 13], [9.948, 1.134, 19]], "end": 10.0, "final": 1.1501}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_grpo-glm.html", "pts": [[0.378, 1.17, 1], [1.339, 1.513, 2], [3.224, 1.539, 4], [4.296, 1.602, 7], [5.228, 1.602, 8], [7.207, 1.602, 10], [8.524, 1.602, 12], [8.529, 1.717, 13], [9.769, 1.717, 14]], "end": 10.0, "final": 1.7909}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_grpo-kimi.html", "pts": [[1.617, 1.165, 1], [2.018, 1.177, 2], [2.726, 1.177, 3], [2.756, 1.177, 4], [5.53, 1.243, 6], [7.719, 1.251, 7]], "end": 10.0, "final": 1.3505}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_grpo-ds.html", "pts": [[0.88, 1.342, 1], [1.88, 1.485, 2], [6.134, 1.94, 4], [8.7, 1.94, 8], [9.579, 1.94, 9]], "end": 10.0, "final": 1.8751}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_grpo-mm.html", "pts": [[0.688, 1.166, 1], [1.642, 1.409, 3], [5.606, 1.9, 10], [5.988, 1.9, 11], [9.586, 1.9, 16]], "end": 10.0, "final": 1.9085}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on Slime GRPO: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

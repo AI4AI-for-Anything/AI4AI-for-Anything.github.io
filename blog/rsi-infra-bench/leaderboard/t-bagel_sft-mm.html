@@ -1,0 +1,595 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>1.49×</em></h1><p class="lede">Harness: Codex · switches: <code>BAGEL_COMPILE_RMSNORM=1</code> <code>BAGEL_COMPILE_ROPE=1</code> <code>BAGEL_FSDP_LIMIT_ALL_GATHERS=0</code> <code>BAGEL_FLASH_ATTN=1</code> <code>BAGEL_NO_AC_FROM_LAYER=18</code> <code>BAGEL_FUSED_ADAMW=1</code> <code>BAGEL_MOT_FUSED=1</code> <code>BAGEL_EMA_OVERLAP=1</code> <code>BAGEL_VARLEN_ATTN=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.49×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.48×</dd></div><div class=""><dt>Rounds</dt><dd>22</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$4.50</dd></div><div class=""><dt>Input tokens · 97.2% cached</dt><dd>186 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.7 M</dd></div><div class=""><dt>Requests</dt><dd>1,298</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip self" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Attention kernel swap (split by mask structure)</dt><dd>✓ <code>BAGEL_FLASH_ATTN</code>: one FlashAttention call per segment, 1.09 → 1.29×; <code>BAGEL_VARLEN_ATTN</code> merged into one varlen call, 1.435 → 1.477×</dd><dt>Drop activation recompute (28 decoder layers)</dt><dd>partial: final <code>BAGEL_NO_AC_FROM_LAYER=18</code> (last 10 layers). Log has tests of last 7 layers (stable), last 14 layers (window spread 6.7%), all removed (1.23×, per-step time jumping between 1.6–2.8 s)</dd><dt>Intra-layer MoT fusion (routing / RMSNorm / RoPE / SwiGLU)</dt><dd><code>torch.compile</code> on RMSNorm, RoPE (1.08×); <code>BAGEL_MOT_FUSED</code> on, no separate record in the log</dd><dt>Optimizer, EMA, step start / end</dt><dd>fused AdamW, EMA side stream both on, no distinguishable individual gain in the log; VAE side stream +15.6 ms/step, turned off after gate 2b blocked it</dd><dt>Other main levers</dt><dd>all-gather rate limiter off (1.080 → 1.094×)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>26 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 — profile the unchanged reference</span></summary><pre>Start: 2026-11-10 03:02Z. End: 03:08Z.
+
+Command: <code>bench.py profile --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r1/profile</code>
+(unchanged tree == reference; profile of rank 0 over optimizer steps 8..9).
+
+### Findings (per step, from the chrome trace; the profiled step is 2.82 s, the real one 2.60 s)
+
+GPU work per step, by kernel (profiled):
+
+| bucket | ms/step | share |
+|---|---|---|
+| NCCL reduce-scatter (bf16, 58 calls) | 785 | 22.6% |
+| NCCL all-gather (bf16, 117 calls) | 525 | 15.1% |
+| GEMM (<code>sm90_xmma_gemm*</code>, ~3000 calls) | 760 | 21.9% |
+| attention fwd (<code>fmha_cutlassF</code>, SDPA mem-efficient + dense bias) | 238 | 6.9% |
+| attention bwd (<code>fmha_cutlassB</code>) | 322 | 9.3% |
+| elementwise / index / copy / cat (~9000 small kernels) | ~846 | 24.3% |
+
+Stream accounting per step: compute stream busy 2040 ms, NCCL stream busy 1310 ms,
+overlap 700 ms -&gt; GPU union busy 2650 ms of the 2820 ms step (94% duty).
+<b>Exposed</b> (not hidden behind compute): all-gather 260 ms/step, reduce-scatter 284 ms/step.
+
+Breakdown of the collectives (from the trace&#x27;s <code>In/Out msg nelems</code>):
+
+* 28 decoder layers: AG in 116.5 M elems (233 MB bf16) -&gt; out 932 MB, 8.3 ms each;
+  RS in 466 M elems (932 MB) -&gt; out 233 MB, 27.7 ms each (the RS kernel duration also
+  contains the wait for the slowest rank and the queueing behind the AG on the same
+  NCCL communicator).
+* 1 root unit (embed_tokens + lm_head + norms, 1.09 B params): AG 50.9 ms, RS 4.9 ms.
+* All-gathers happen twice per unit per step: once for the forward and once for the
+  <b>activation-checkpoint recompute</b> in the backward.
+
+Op counts per step (CPU): <code>_index_put_impl_</code> 1440, <code>mul</code> 4444, <code>to</code>/<code>_to_copy</code> 4671/2356,
+<code>copy_</code> 3604, <code>item</code> 129 (host syncs), <code>linear</code> 2212.
+
+### Conclusion / plan
+
+1. The forward all-gather is fully exposed (260 ms/step): FSDP1 has no forward prefetch by
+   default, but torch 2.5.1&#x27;s <code>FSDP(..., forward_prefetch=True)</code> exists -&gt; round 2.
+2. ~846 ms/step of tiny elementwise kernels (RMSNorm, RoPE, gather/scatter of the MoT
+   und/gen split) -&gt; torch.compile in a later round.
+3. Attention (560 ms/step) runs SDPA with a dense float bias; flex_attention with a block
+   mask could skip masked blocks -&gt; later round.
+4. Optimizer+EMA foreach kernels ~150 ms/step -&gt; later round.
+
+
+---</pre></details><details><summary><em class="">1.1 h</em><span>Round 4 — torch.compile the RMSNorm and the RoPE (N1)</span></summary><pre>Start: 2026-11-10 03:57Z. End: 04:05Z.
+
+Change: <code>modeling/qwen2/modeling_qwen2.py</code> — added <code>_rms_norm_impl</code> / <code>_rope_impl</code>, compiled with
+<code>torch.compile(..., dynamic=True)</code>, used by <code>Qwen2RMSNorm.forward</code> and <code>apply_rotary_pos_emb</code>.
+Off by default; enabled with <code>BAGEL_COMPILE_RMSNORM=1</code> / <code>BAGEL_COMPILE_ROPE=1</code>
+(<code>/submission/switches.json</code> has both on).  Same expressions, only the kernel scheduling changes.
+
+Micro-benchmark (4096x3584 bf16, weight bf16): eager 0.232 ms -&gt; compiled 0.072 ms (3.2x);
+max relative difference 0.0078 (1 bf16 ULP).
+
+<code>bench.py time --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r4/time</code>
+* <code>speedup_vs_frozen_reference</code>: <b>1.0797</b>  (2.4087 s/step vs the frozen 2.6006)
+* <code>window_s_per_step</code> [2.4083, 2.4090], <code>window_range</code> 0.0003, <code>beyond_reference_noise</code> true
+* peak alloc 82.14 GiB (unchanged), peak reserved 117.6 GiB
+* no <code>recompile</code>/<code>cache_size_limit</code>/<code>cudagraph</code> message in the log; compile cost ~7 s, paid in the
+  warm-up (startup_to_first_step_s 171 s vs the reference&#x27;s 164 s), so the timing windows are clean.
+* FSDP re-points its parameters every step; dynamo does <b>not</b> guard on the data pointer, so there
+  were no recompiles over the 65 steps.
+
+---</pre></details><details><summary><em class="">1.3 h</em><span>Round 5 — FSDP `limit_all_gathers=False` (N0: communication layout only)</span></summary><pre>Start: 2026-11-10 04:12Z. End: 04:18Z.
+
+Change: <code>train/fsdp_utils.py</code> — added <code>limit_all_gathers=_env_flag(&#x27;BAGEL_FSDP_LIMIT_ALL_GATHERS&#x27;, True)</code>
+(keeps FSDP&#x27;s default).  <code>BAGEL_FSDP_LIMIT_ALL_GATHERS=0</code> in <code>/submission/switches.json</code>.
+
+Why: in the reference profile the compute stream starves ~22 ms per decoder layer in the backward
+(28 x 22 = 616 ms/step of idle) because the prefetched all-gather of the next unit is queued
+*behind* the reduce-scatter on the shared NCCL stream.  The all-gather limiter is what delays
+that prefetch.
+
+<code>bench.py time ... --out /tmp/r5/time</code>
+* <code>speedup_vs_frozen_reference</code>: <b>1.0941</b> (2.3770 s/step)  -- was 1.0797
+* <code>window_s_per_step</code> [2.3802, 2.3738], <code>window_range</code> 0.0027, <code>beyond_reference_noise</code> true
+* peak alloc 82.14 GiB (unchanged), peak reserved 126.8 GiB (was 117.6) -- more params unsharded
+  at the same time; the GPU has 143.7 GiB, so ~17 GiB of headroom left.
+
+---</pre></details><details><summary><em class="">2.0 h</em><span>Round 6 — full check of the compiled RMSNorm/RoPE + FSDP tree (PASS, N1)</span></summary><pre>Start: 2026-11-10 04:25Z. End: 04:55Z.
+
+<code>bench.py check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r7/check</code>
+* <b>status PASS, tier N1, <code>performance.speedup</code> = 1.0999</b> (candidate 2.3644 s/step vs the frozen
+  reference 2.6006).
+* gate 2 (record, 3 steps, deterministic): <code>status NOT_BITWISE</code>, <code>exact_items_ok: true</code>, no problems
+  (the compiled RMSNorm/RoPE changes the arithmetic, so the hashes differ; everything else matches).
+* gate 2b (conformance, interleaved data): <b>PASS / conforming</b> —
+  <code>R_N = 0.00807</code>, <code>R_J = 0.00658</code>, <code>R_B = 0.00644</code>, ratios 1.25 / 1.02 (bound 3.0).
+* gate 3 (statistical, 150 steps, seed 1): PASS (all 14 endpoints inside 3 sigma).
+* peak alloc 82.14 GiB, peak reserved 127.0 GiB, <code>startup_to_first_step_s</code> 172 s.
+* The judge&#x27;s deterministic run patches <code>flash_attn_func</code>, <code>flash_attn_varlen_func</code>, ... in
+  <code>flash_attn.flash_attn_interface</code> (it lists them in the record) — FlashAttention is usable.
+
+---</pre></details><details><summary><em class="">2.0 h</em><span>Round 7 — packed attention with FlashAttention, one call per split (N1, off by default)</span></summary><pre>Start: 2026-11-10 04:56Z.
+
+Idea: upstream computes the packed attention with one dense-mask
+<code>scaled_dot_product_attention</code> per sample, which runs the <b>Ampere</b> cutlass
+memory-efficient kernel (<code>fmha_cutlassF_bf16_aligned_64x128_rf_sm80</code>) at ~30-50 TFLOP/s.
+Attention is 560 ms of the 1861 ms of compute per step.  The mask, however, has a very
+specific structure: inside a sample, a query of a split sees the *non-noise* splits that
+come before it and, inside its own split, the lower triangle for a <code>causal</code> split and
+everything else.  That is exactly a decomposition into per-split FlashAttention calls
+(<code>flash_attn_func</code>, causal aligned to the bottom-right corner for the <code>causal</code> splits),
+which also skips the masked-out blocks.
+
+The batch may not change (the judge hashes every field of <code>SimpleCustomBatch</code>), and the
+dense mask is the only per-sample attention information that reaches the model, so the
+split structure is <b>recovered from the mask itself</b> (<code>modeling/bagel/attn_split.py</code>):
+the growth of the number of visible columns per row and the columns that disappear give
+the split boundaries and their modes.  Two adjacent causal splits are merged (they
+produce the very same mask).  The recovered structure is checked against the mask
+(<code>BAGEL_FLASH_ATTN_VERIFY</code>, default on) and the dense-mask path is used when it does not
+reproduce the mask exactly.
+
+Offline validation: 3000 random split structures (and 1000 with unit-length splits) —
+the recovered structure rebuilds the mask <b>bitwise</b> in every case.
+
+Numerical check on the GPU (one sample, 2330 tokens, 28 heads, head_dim 128):
+* relative L2 difference against the dense-mask SDPA path: <b>8e-4 .. 2.9e-3</b> (bf16 level,
+  the same order as the compiled RMSNorm change that passed gate 2b).
+* speed of the attention itself: dense-mask SDPA <b>0.758 ms</b> -&gt; FlashAttention <b>0.212 ms</b>
+  (3.6x).
+
+Switch: <code>BAGEL_FLASH_ATTN=1</code> (default off) in <code>/submission/switches.json</code>.
+
+<code>bench.py time --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r8/time</code>
+* <code>speedup_vs_frozen_reference</code>: <b>1.2914</b> (2.0137 s/step) -- was 1.0941
+* <code>window_s_per_step</code> [2.0124, 2.0150], <code>window_range</code> 0.0013, <code>beyond_reference_noise</code> true
+* peak alloc 82.14 GiB (unchanged), peak reserved 125.5 GiB; the CPU is not the bottleneck
+  (<code>cpu.busy_cpus</code> 5.8 of 96), so the extra kernel launches of the per-split attention do not
+  hurt; <code>startup_to_first_step_s</code> 171 s (the compile cost is paid in the warm-up).
+
+<code>bench.py check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r9/check</code>
+* <b>status PASS, tier N1, <code>performance.speedup</code> = 1.2799</b> (candidate 2.0319 s/step).
+* gate 2 (record): <code>NOT_BITWISE</code>, <code>exact_items_ok: true</code>, no problems.
+* gate 2b (conformance, interleaved data): <b>PASS / conforming</b> — <code>R_N = 0.00766</code>,
+  <code>R_J = 0.00660</code>, <code>R_B = 0.00613</code>; ratios 1.25 / 1.08 (bound 3.0).  The FlashAttention
+  decomposition does not move the pools apart.
+* gate 3 (statistical): PASS.
+* peak alloc 82.14 GiB, reserved 110.2 GiB; all four ranks take the same 2.0319 s/step.
+
+---</pre></details><details><summary><em class="">3.1 h</em><span>Round 11 — activation checkpointing switch (N0, off by default)</span></summary><pre>Start: 2026-11-10 05:38Z.
+
+<code>train/fsdp_utils.py</code>: new switch <code>BAGEL_NO_AC_FROM_LAYER=k</code> — the decoder layers with
+<code>layer_idx &gt;= k</code> are not activation-checkpointed any more (their activations stay in memory, the
+recomputation of their forward pass is saved).  Default off (upstream&#x27;s behaviour).
+
+<code>time</code> with <code>BAGEL_NO_AC_FROM_LAYER=20</code> (the last 8 of the 28 layers):
+<code>speedup_vs_frozen_reference</code> <b>1.3540</b> (1.9206 s/step), peak alloc 82.14 GiB,
+<b>peak reserved 134.13 GiB</b> — only ~9.6 GiB of headroom on a 143.7 GiB card, too tight.</pre></details><details><summary><em class="">3.1 h</em><span>Round 12 — activation checkpointing + a non-fragmenting allocator</span></summary><pre>Profile of the current tree (<code>/tmp/r10/profile</code>, 2 steps, rank 0), per step:
+NCCL reduce-scatter 619 ms, all-gather 305 ms, GEMMs 777 ms, FlashAttention 164 ms,
+<code>index_elementwise</code> (the MoT gathers/scatters) 124 ms, <code>multi_tensor_apply</code> (AdamW + EMA) 90 ms,
+<code>FillFunc</code> (the <code>new_zeros</code> of the MoT buffers) 45 ms, <code>direct_copy</code> 56 ms.
+The compute stream is busy 1486 ms of the 2058 ms step; the NCCL stream 924 ms, 607 ms of it
+overlapped with the compute; the GPU is fully idle for 65 ms/step (one bubble at the step
+boundary, where a pageable 8-byte H2D copy makes the host wait for the device).
+
+<code>time</code> with <code>BAGEL_NO_AC_FROM_LAYER=14</code> and <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code>
+(<code>/tmp/r12/time_a</code>): <b>speedup 1.3985</b> (1.8596 s/step), window range 0.0057,
+peak alloc 94.67 GiB, <b>peak reserved 121.65 GiB</b> (was 134.13 GiB at k=20 without the
+allocator change).  The allocator change buys ~12 GiB of headroom, which buys more layers
+without activation checkpointing.
+
+---</pre></details><details><summary><em class="">4.3 h</em><span>Round 15 — no activation checkpointing at all (`BAGEL_NO_AC_FROM_LAYER=0`)</span></summary><pre>Start: 2026-11-10 06:41Z. End: 06:47Z.
+
+<code>time --config /tmp/r15_sw.json</code> (r13&#x27;s config with <code>NO_AC=0</code>), <code>/tmp/r15_time</code>:
+<code>s_per_step</code> <b>2.1085</b>, <code>speedup_vs_frozen_reference</code> <b>1.2334</b> -- *worse* than <code>NO_AC=21</code>
+(1.8505).  peak alloc 126.16 GiB, peak reserved 134.97 GiB (the card has 143.7 GiB), and the
+per-step times were erratic (1.60 .. 2.82 s).  Removing the recompute of all 28 decoder layers
+costs ~45 GiB of live activations; at that point the caching allocator cannot keep the segments
+and the step time becomes dominated by allocation stalls.  **Conclusion: the recompute is not the
+bottleneck, the memory is.**  <code>NO_AC=21</code> (7 layers without checkpointing) stays the best setting.
+
+---</pre></details><details><summary><em class="">4.3 h</em><span>Round 16 — profile of the current best tree, then three neutral changes</span></summary><pre>Profile of the current best tree (<code>/tmp/r14_profile</code>, rank 0, 2 steps, ~1.89 s/step):
+
+| bucket | ms/step | share of the step |
+|---|---|---|
+| NCCL reduce-scatter (bf16, 28 calls of 932 MB in) | 532 | 28% |
+| NCCL all-gather (56 calls of 233 MB in + 1 root unit of 545 MB) | 267 | 14% |
+| GEMM (<code>sm90_xmma_gemm*</code>, ~4000 calls) | 748 | 40% |
+| FlashAttention fwd+bwd | 160 | 8% |
+| elementwise / index / copy / cat (~16000 small kernels) | ~380 | 20% |
+| <b>GPU idle</b> (13963 gaps of ~9 us, no gap above 8 ms) | 126 | 7% |
+
+* 74% of the reduce-scatter and 55% of the all-gather overlap with compute; **266 ms/step of
+  communication is exposed**, plus 126 ms/step of small bubbles between kernels.
+* The host is not the bottleneck: <code>cudaLaunchKernel</code> (26917 calls) takes 907 ms of *host* time
+  over 2 steps, but that is the launch queue blocking (the host runs ahead and is throttled by
+  the GPU); there is <b>no <code>cudaMalloc</code>/<code>cudaFree</code></b> in the trace (the allocator does not thrash
+  at <code>NO_AC=21</code>), and the CPU keeps only 5 of 96 cores busy.
+* The root FSDP unit (embed_tokens + lm_head, 1.09 B parameters) is all-gathered in 52 ms at the
+  very start of the forward, fully exposed.
+* The int64 count all-reduces (<code>total_ce_tokens</code>, <code>total_mse_tokens</code>, <code>total_samples</code>) are
+  100% exposed: 15 ms/step of pure rank-skew barrier between the forward and the backward.
+
+Three changes were tried, each behind a switch, each measured with <code>time</code>:
+
+* <b>r16a</b> <code>BAGEL_FSDP_FORWARD_PREFETCH=1</code> (FSDP1 prefetches the all-gather of the next unit
+  during the current one): <code>/tmp/r16a_time</code> -&gt; 1.8604 s/step (1.3979).  *Neutral to slightly
+  worse*: with <code>limit_all_gathers=0</code> the all-gathers were already in flight.  Reverted.
+* <b>r16b</b> <code>BAGEL_FLASH_OUTBUF=1</code> (the per-split FlashAttention outputs are written into one
+  preallocated buffer instead of being concatenated at the end; the <code>CatArrayBatchedCopy</code> of the
+  packed attention is 35 ms/step): <code>/tmp/r16b_time</code> -&gt; 1.8666 s/step (1.3932).  *Slightly worse*
+  (the per-split copies cost more kernels than the one batched cat).  Reverted.
+* <b>r16c</b> <code>NCCL_PROTO=Simple</code> (the collectives run the &quot;LL&quot; protocol): <code>/tmp/r17_time</code> -&gt;
+  1.8506 s/step (1.4053), i.e. <b>exactly the same as without it</b> (peak reserved identical to the
+  byte), so the NCCL protocol is not the limiter.  Reverted (it also would have changed the
+  gradient reduction order for nothing).
+
+Also reverted: a <code>GpuBatchStream</code> prefetch of the next batch (it moves one batch too early, and
+gate 2b compares the *whole* list of batches the rank moved to the GPU, not only the first N) and
+the <code>non_blocking=True</code> copies of <code>SimpleCustomBatch.cuda</code> (with pageable memory the source
+tensors of <code>nested_attention_masks</code> are freed right after the copy is issued -- a data race the
+reference does not have).
+
+---</pre></details><details><summary><em class="">4.3 h</em><span>Round 17 — the depth of the activation checkpointing, again (`NO_AC=14`)</span></summary><pre><code>time --config /tmp/r18_sw.json</code>, <code>/tmp/r18_time</code>: <code>s_per_step</code> 1.8518 (1.4043), peak alloc
+94.73 GiB, peak reserved 134.84 GiB, but <b><code>window_range</code> 0.067 (6.7%)</b>: the two 30-step
+windows differ by more than the 6% the final evaluation tolerates, so this configuration would be
+re-measured as INVALID.  <code>NO_AC=21</code> (window range 1.0%) is both the fastest and the stable
+setting.  Kept.
+
+---</pre></details><details><summary><em class="">4.3 h</em><span>Round 18 — full check of the best tree (PASS, N1)</span></summary><pre>Start: 2026-11-10 07:21Z. End: 07:48Z.
+
+<code>bench.py check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r19_check</code>
+(the tree is exactly commit <code>82c039f</code>; the switches are
+<code>{&quot;BAGEL_COMPILE_RMSNORM&quot;:&quot;1&quot;,&quot;BAGEL_COMPILE_ROPE&quot;:&quot;1&quot;,&quot;BAGEL_FSDP_LIMIT_ALL_GATHERS&quot;:&quot;0&quot;,&quot;BAGEL_FLASH_ATTN&quot;:&quot;1&quot;,&quot;BAGEL_NO_AC_FROM_LAYER&quot;:&quot;21&quot;,&quot;BAGEL_FUSED_ADAMW&quot;:&quot;1&quot;,&quot;BAGEL_MOT_FUSED&quot;:&quot;1&quot;}</code>).
+
+* <b>status PASS, tier N1, <code>performance.speedup</code> = 1.4051</b> (candidate 1.8508 s/step vs the frozen
+  reference 2.6006 s/step; all four ranks agree).
+* gate 2 (record, 3 steps, deterministic): <code>NOT_BITWISE</code>, <code>exact_items_ok: true</code>, <b>no problems</b>
+  (1223 parameters, 1408 shards per step compared).  The compiled RMSNorm/RoPE, the FlashAttention
+  decomposition and the fused AdamW change the arithmetic, so the hashes differ.
+* gate 2b (conformance, interleaved data): <b>PASS / conforming</b> — the pools did not move apart.
+* gate 3 (statistical, 150 steps, seed 1): <b>PASS</b> (all 14 endpoints inside 3 sigma).
+* peak alloc 78.45 GiB, peak reserved ~131 GiB; the two timing windows agree to 0.9%.
+
+---</pre></details><details><summary><em class="">5.5 h</em><span>Round 22 — profile of the current best tree (`/tmp/r22_profile`)</span></summary><pre>Profile of the tree at <code>82c039f</code> with the round-19 switches (rank 0, steps 10-12, trace
+<code>/tmp/r22_profile/timing_profile.trace.json</code>, 253 MB).  The step in the profiled run is ~1.77 s
+(profiler overhead); the machine&#x27;s real numbers are 1.8508 s/step.
+
+<b>Machine facts measured directly</b> (not what the task statement says): the GPUs report as
+<code>Hopper</code>, sm90, 132 SMs, 143 GiB, <b>4258 GB/s</b> HBM and <b>806 TFLOP/s</b> bf16 GEMM
+(measured with a 1 GiB copy and an 8192^3 bf16 matmul), 18 NVLinks of 26.5 GB/s each
+(<code>nvidia-smi topo -m</code>: NV18).  The 4 ranks run in lockstep: the per-rank step-end timestamps of
+the last timing run differ by &lt;5 us, so there is <b>no persistent rank skew</b> (the 28 ms
+&quot;rank skew&quot; of the round-14 note was an artifact of CUPTI inflating the NCCL kernel durations).
+
+<b>Per-step accounting (3 profiled steps, rank 0, GPU kernel time):</b>
+
+| bucket | ms/step | share |
+|---|---|---|
+| GEMM (<code>sm90_xmma_gemm*</code>, 1920 calls) | 788 | 48% |
+| FlashAttention fwd+bwd | 166 | 10% |
+| index gather/scatter (<code>index_elementwise_kernel</code>, 1483 calls) | 120 | 7% |
+| vectorized/unrolled elementwise | ~190 | 12% |
+| compiled RMSNorm+RoPE (triton, 1226 calls) | 54 | 3% |
+| foreach optimizer/EMA (<code>multi_tensor_apply</code> + <code>RowwiseMoments</code>) | 64 | 4% |
+| NCCL stream (all-gather 217 + reduce-scatter 120) | 337 | 20% (74% overlapped) |
+| <b>GPU idle</b> (18004 gaps of ~7 us, none &gt; 8.4 ms) | 123 | 7% |
+
+<b>Step structure</b> (from the trace timeline): optimizer+EMA ~34-80 ms -&gt; root all-gather ~44 ms
+(exposed, nothing else runs) -&gt; forward ~420 ms -&gt; 3 int64 count all-reduces -&gt; backward ~1150 ms
+(= 2x the forward + the activation-checkpoint recompute of 21 of the 28 layers, ~315 ms) -&gt; EMA.
+
+Exposed (not overlapped with the compute) GPU time per step: all-gather 46 ms, reduce-scatter
+17 ms, the int64 count all-reduces 15 ms, the recompute&#x27;s side-stream ops 76 ms.
+
+Conclusions used for this round:
+* The reduce-scatter is <b>not</b> bandwidth starved (each 932 MB RS moves 700 MB over the ring in
+  3.4 ms = 208 GB/s, the same rate as the all-gather); the earlier &quot;37 GB/s&quot; note was wrong.
+* The activation-checkpoint recompute (~315 ms/step, 19% of the step) is the largest single
+  overhead, but it is blocked by memory: <code>NO_AC=14</code> allocated 94.7 GiB while the allocator had
+  <b>134.8 GiB reserved</b> (40 GiB of fragmentation) and <code>NO_AC=0</code> thrashed the allocator.
+  =&gt; try the CUDA caching allocator&#x27;s virtual-memory segments to remove the fragmentation.</pre></details><details><summary><em class="">5.5 h</em><span>Round 22b — `NO_AC=14` re-measured with a CUDA allocator option (1.4745x)</span></summary><pre><code>time --config /tmp/r23_sw.json</code>, <code>/tmp/r23_time</code>: **1.7637 s/step, <code>speedup_vs_frozen_reference</code>
+1.4745**, window range 0.0062 (stable), peak alloc 94.67 GiB, peak reserved 124.82 GiB.
+
+The only difference to round 17&#x27;s <code>NO_AC=14</code> run (<code>/tmp/r18_time</code>, 1.8518 s/step, window range
+<b>0.067</b> -&gt; would have been INVALID in the final evaluation, reserved 134.84 GiB) is
+<code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code>.  The allocator prints
+&quot;expandable_segments not supported on this platform&quot; (the flag is not applied), yet the *reserved*
+memory dropped by 10 GiB and the run became stable: the reserved/allocated gap is the allocator&#x27;s
+fragmentation (30-40 GiB), and at <code>NO_AC=14</code> the model is close enough to the 143.7 GiB limit that
+the fragmentation decides whether the run thrashes or not.  (Note: <code>garbage_collection_threshold</code>
+and <code>roundup_power2_divisions</code> *are* supported by this torch build and are the next knob to try.)
+
+The gain is the activation-checkpoint recompute of 7 more decoder layers (7 x ~15 ms/step).</pre></details><details><summary><em class="">5.5 h</em><span>Round 22c — `NO_AC=7` (the memory wall)</span></summary><pre><code>/tmp/r24_time</code> (killed): with 7 more layers un-checkpointed the peak reaches 135-142 GiB of the
+143.7 GiB card, the allocator starts to thrash (0.47 steps/s at step 20 vs 0.68 at step 7) and the
+per-step times become erratic.  <code>NO_AC=7</code> is not viable with the default caching allocator.
+
+=&gt; next: the CUDA <b>stream-ordered allocator</b> (<code>PYTORCH_CUDA_ALLOC_CONF=backend:cudaMallocAsync</code>),
+which keeps the freed memory in a driver-managed pool instead of caching size-mismatched blocks in
+the process, i.e. it removes the 30-50 GiB of fragmentation that makes the memory wall move around
+from run to run (and that caused the 5.2 s stall of round 17&#x27;s <code>NO_AC=14</code> run).
+
+---</pre></details><details><summary><em class="">6.2 h</em><span>Round 29 — the VAE encoding on a side CUDA stream (1.4473x)</span></summary><pre>Start: 2026-11-10 08:55Z. End: 09:12Z.
+
+Profile findings (from round 22, unchanged tree): the step is
+optimizer+EMA (34-80 ms) -&gt; <b>root FSDP all-gather ~44 ms, fully exposed</b> -&gt; forward ~420 ms -&gt;
+3 int64 count all-reduces -&gt; backward ~1150 ms (= 2x forward + the activation-checkpoint recompute of
+21 of the 28 layers, ~315 ms) -&gt; EMA.  The VAE encoding sat *before* the forward, so the GPU was idle
+during it and the root all-gather had nothing to overlap with.
+
+Change: <code>modeling/bagel/bagel.py</code> + <code>train/pretrain_unified_navit.py</code> — the VAE encoding runs on its
+own CUDA stream (<code>torch.cuda.Stream</code>), the packed images and the latents are <code>record_stream</code>ed, and
+<code>Bagel.forward</code> waits on the recorded event right before the latents are used (after the ViT).  The
+encode is still exactly one call per step and still draws its noise inside it (the judge keys the
+injected noise by the ordinal of the encode call, not by the stream), so the data and the noise are
+unchanged.  Off by default, <code>BAGEL_VAE_OVERLAP=1</code>.
+
+* <code>time --config /tmp/r28_sw.json</code> (<code>/tmp/r28_time</code>): **1.7969 s/step, <code>speedup_vs_frozen_reference</code>
+  1.4473** (r27, without the overlap: 1.8125 / 1.4348) -&gt; the overlap wins 15.6 ms/step.
+  window range 0.0164, peak alloc 85.72 GiB, peak reserved 134.97 GiB.
+* <code>check --quick --config /tmp/r28_sw.json</code> (<code>/tmp/r29_quick</code>): <code>exact_items_ok: true</code>,
+  <code>NOT_BITWISE</code> (expected, the tree is N1 overall), no problems: 1223 parameters and 1408 shards per
+  step compared.
+* Commit <code>9d1d724</code>.
+
+### Ruled out in this round (measured, not guessed)
+
+* <b>The H2D copy of the batch is not a lever.</b>  A CPU-only run of the judge&#x27;s data pipeline
+  (<code>/tmp/mask_size.py</code>) shows that a batch is ~150 MB, of which **134 MB is the dense attention
+  masks** (3-5 tensors of <code>[sample_len, sample_len]</code> float32; the samples are 2.3k-3.9k tokens).
+  Micro-benchmark (<code>/tmp/h2d_bench.py</code>): 134 MB pageable H2D = 7.2 ms, pinned = 2.6 ms, and pinning
+  costs 0.4 ms.  So the whole transfer is ~8 ms of the 1.8 s step; even a perfect overlap saves
+  &lt;1%.
+* **<code>expandable_segments:True</code> is *not* applied by this torch build** (the warning comes from
+  <code>PYTORCH_CUDA_ALLOC_CONF_EXPANDABLE_SEGMENTS</code> not being a compile-time flag in the wheel), so
+  round 17&#x27;s <code>NO_AC=14</code> instability (6.7% window range) vs round 22b&#x27;s stable run (0.62%) was
+  <b>run-to-run variance, not the allocator option</b>.  <code>NO_AC=14</code> stays rejected: the final
+  evaluation uses another data seed and a 6.7% window range is INVALID (score 0).
+
+---</pre></details><details><summary><em class="">6.8 h</em><span>Round 30 — profile of the tree with the VAE overlap (`/tmp/r30_profile`)</span></summary><pre><code>bench.py profile --tree /submission/bagel_sft --config /tmp/r28_sw.json --out /tmp/r30_profile --from 10 --iters 3</code>
+(rank 0, steps 10-12, trace <code>/tmp/r30_profile/timing_profile.trace.json</code>, 250 MB; the profiled step is ~1.78 s).
+
+<b>Per-step kernel time</b> (3 steps / 3 = per step; the profiler adds ~15%):
+
+| bucket | ms/step | share |
+|---|---|---|
+| GEMM (<code>sm90_xmma_gemm*</code>) | 763 | 39% |
+| NCCL (all-gather 349 + reduce-scatter 120) | 469 | 24% (mostly overlapped) |
+| elementwise (vectorized + unrolled + elementwise) | 286 | 15% |
+| FlashAttention fwd (58) + bwd (98) | 156 | 8% |
+| index gather/scatter (<code>index_elementwise_kernel</code>) | 115 | 6% |
+| optimizer + EMA (<code>multi_tensor_apply</code>, <code>RowwiseMoments</code>) | 55 | 3% |
+| compiled RMSNorm/RoPE (triton) | 52 | 3% |
+| <b>GPU idle</b> (union of all streams) | <b>136</b> | 7% |
+
+<b>Where the GPU idle comes from</b> (this is the interesting part):
+
+* The idle is *not* spread over the step: two windows of <b>35 ms and 71 ms</b> where <b>no</b> kernel
+  runs on any stream (offsets 2184-2297 ms of the trace).  During them the CPU is inside
+  <code>aten::linear</code>/<code>aten::addmm</code>, and the CUDA runtime log shows <b>169 <code>cudaFree</code> calls</b> (40.8 ms)
+  — the caching allocator&#x27;s garbage collection: it cannot serve a request (the large buffers of the
+  MoT MLP change size every step, because the number of understanding/generation tokens does), it
+  releases *all* its cached blocks — every <code>cudaFree</code> synchronizes the device — and retries.
+  In the same 3 steps: 98 + 40 <code>cudaMalloc</code> calls (255 ms + 25 ms).
+* The remaining ~60 ms of idle are the ~8 us gap between consecutive kernels (16 700 kernels per
+  step, the GPU&#x27;s launch latency).
+
+<b>Per-op CPU cost</b> (from the profiler&#x27;s own table): <code>aten::_index_put_impl_</code> 938 calls/step and
+<code>aten::index</code> 716 calls/step; <code>aten::fill_</code> 1891 calls/step (41 ms of GPU time); <code>aten::copy_</code>
+2890 calls/step.
+
+### Ruled out in this round (measured)
+
+* <b><code>PYTORCH_CUDA_ALLOC_CONF=roundup_power2_divisions:4</code></b> (r31, <code>/tmp/r31_time</code>): the reserved
+  memory did <b>not</b> go down (134.94 GiB vs 134.97) and the allocated memory went <b>up</b> by 5 GiB
+  (the rounding is applied to the block size), so the step got *slower*: 1.8436 s/step, 1.4106.
+  A micro-benchmark of the allocation pattern (<code>/tmp/alloc_sim.py</code>) had shown a 2.7x smaller
+  reserved memory, but the real workload has many more distinct sizes.  Reverted.
+* <b><code>torch.cuda.empty_cache()</code> after the setup</b> (r32, <code>/tmp/r32_time</code>): 1.7984 s/step, 1.4460,
+  window range 0.0 — <b>neutral</b>, and the reserved memory was unchanged (134.89 GiB).  So the
+  fragmentation is *not* left over from the model/EMA/optimizer setup, it is created by the training
+  loop itself.  Reverted.
+* <b><code>index_copy_</code> instead of <code>x[idx] = v</code></b> (<code>/tmp/idx_bench.py</code>, <code>/tmp/idx_bench2.py</code>): the
+  gradients are bitwise identical, and the forward is faster (0.088 ms vs 0.130 ms for a
+  [10240, 3584] scatter), but the backward of <code>index_copy_</code> (<code>index_select</code>) is slower than the
+  backward of <code>index_put_</code> (<code>index</code>), so forward+backward is *worse* (0.282 vs 0.262 ms).
+  <code>index_select</code> is also slower on the GPU than advanced indexing (0.193 vs 0.131 ms).  Rejected.
+* <b><code>scatter_</code> with an expanded index</b>: the same forward speed as <code>index_copy_</code> but it needs the
+  index expanded to the full [n, d] shape; not worth the memory.
+
+---</pre></details><details><summary><em class="">7.2 h</em><span>Round 33 — the EMA update on its own CUDA stream (1.4694x)</span></summary><pre>Start: 2026-11-10 09:40Z. End: 09:54Z.
+
+Change (<code>c78b3d2</code>, switch <code>BAGEL_EMA_OVERLAP</code>, off by default): <code>train/pretrain_unified_navit.py</code> — the
+EMA update runs on a second CUDA stream (<code>ema_stream</code>) instead of the compute stream.  It is enqueued
+*after* the logging block (whose <code>torch.cuda.synchronize()</code> would otherwise wait for it), and the compute
+stream waits for it at the next step&#x27;s <code>loss.backward()</code> (FSDP rewrites the flat parameters when it
+reshards its units at the end of the backward pass).  The judge reads the EMA&#x27;s flat parameters in the
+optimizer post-hook, i.e. before the current step&#x27;s EMA update, exactly as in the reference.
+
+* <code>time --config /submission/switches.json</code> (<code>/tmp/r33_time</code>): **1.7698 s/step,
+  <code>speedup_vs_frozen_reference</code> 1.4694**, window range 0.0148, peak alloc 85.72 GiB, reserved 134.96 GiB.</pre></details><details><summary><em class="">7.2 h</em><span>Round 34 — full check of the tree with the VAE and the EMA on their own streams: **INCORRECT**</span></summary><pre>Start: 2026-11-10 09:54Z. End: 10:07Z.
+
+<code>bench.py check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r34_check</code>
+(the tree is exactly commit <code>c78b3d2</code>; the switches are the nine of <code>/submission/switches.json</code>).
+
+* gate 1 (timing): <b>1.4499x</b> (candidate 1.79 s/step vs the frozen reference 2.6006 s/step) — the benefit
+  gate passes.
+* gate 2 (record, 3 steps, deterministic): <code>NOT_BITWISE</code>, <code>exact_items_ok: true</code>, no problems.
+* gate 2b (conformance, interleaved data): <b>INCORRECT / nonconforming</b>.  The per-token MSE of the
+  candidate becomes <b>non-finite from the 5th forward on</b> (rank 0: forwards 0-3 finite, 4-15 all NaN;
+  the same on the other ranks), and the CE with it: **the model diverges to NaN after three optimizer
+  steps** on the interleaved data.  <code>R_N = R_J = R_B = nan</code> (the reference&#x27;s own numbers are finite), the
+  per-batch values reach 16.7 (N pool) and 9.6 (J pool).  The production-mode run was not even reached.
+* gate 3 was not run.
+
+<b>Reading</b>: the divergence is *not* a small numerical difference — the parameters become NaN.  With the
+learning rate still in its warm-up (2e-5 x step/2000, i.e. ~3e-8 at step 3) the parameters cannot diverge
+numerically in three steps, so something *writes* garbage into them: a race between the two new side
+streams and the compute stream.  The two candidates are the VAE encoding on <code>vae_stream</code> (the images are
+read by the VAE on a side stream while the compute stream runs) and the EMA update on <code>ema_stream</code> (it
+reads the model&#x27;s sharded flat parameters while the next step&#x27;s forward all-gathers them).
+
+Bisection started in round 35 (a direct run of the judge&#x27;s conformance gate on the interleaved data
+configuration, <code>bench/conform.py</code>&#x27;s <code>conform_run</code>, with one of the two switches turned off).</pre></details><details><summary><em class="">7.9 h</em><span>Round 35 — the VAE side stream: root cause hunt, and the decision to drop it</span></summary><pre>Start: 2026-11-10 10:31Z. End: 11:05Z.
+
+The VAE-on-side-stream tree diverges to NaN on the interleaved data (gate 2b).  Three experiments,
+all with the judge&#x27;s own gate-2b runner (<code>/tmp/run_conform.py</code>, 8-16 steps):
+
+* <b>VAE off, EMA on</b> (<code>/tmp/cf_vaeoff</code>): no NaN; the manual statistic against the frozen
+  reference is <code>r_n=0.0089, r_j=0.0069, r_b=0.0056</code>, bound 0.0169, ratios 1.58/1.22 -&gt; conforming.
+  <b>The EMA overlap is fine.</b>
+* <b>VAE on, EMA off</b> (<code>/tmp/cf_emaoff</code>): NaN again -&gt; the VAE stream is the culprit.
+* <b>VAE on + a new diagnostic</b> (<code>BAGEL_VAE_DEBUG3</code>, <code>/tmp/cf_vaedbg3</code>): the diagnostic captures the
+  VAE&#x27;s internal <code>mean</code> (through a <code>torch.randn_like</code> spy) during the side-stream encode and
+  re-computes the encoder on the compute stream afterwards.  Result:
+  <code>mean_diff=0.0</code> (the VAE&#x27;s internals are bitwise identical), the input images&#x27; checksum is
+  unchanged, the reconstructed latent matches the stored one to 1.4e-6 (bf16 rounding only),
+  and <b>the run did not diverge</b>.  The added diagnostic work changes the timing, so the
+  divergence is timing sensitive.
+
+Everything that could be checked was checked and came out clean: the stream ordering
+(<code>wait_stream</code>/<code>wait_event</code>/<code>record_stream</code>), the H2D copy (the images are pinned, but
+<code>Tensor.to(device)</code> with <code>non_blocking=False</code> is synchronous), the RNG (the judge keys the noise
+by the call&#x27;s ordinal, so the stream cannot change it), the VAE&#x27;s weights (frozen, never freed)
+and the autocast cache (the frozen weights are not cached).
+
+**Conclusion: an unexplained, timing-sensitive race between the VAE&#x27;s side stream and the
+compute stream.**  Two full checks have rejected it.  The overlap is worth 2.4% of the speedup,
+which is not worth an unexplained race, so <b>the VAE side stream is switched off</b>.  The code stays
+in the tree behind <code>BAGEL_VAE_OVERLAP</code> (default off) for the record.
+
+* <code>time --config /submission/switches.json</code> (<code>/tmp/r35/time</code>, EMA overlap only):
+  <b>1.8128 s/step, <code>speedup_vs_frozen_reference</code> 1.4346</b>, <code>beyond_reference_noise: true</code>,
+  peak allocated 85.72 GiB, reserved 134.22 GiB, <code>cpu.busy_cpus_in_windows</code> 5.04.</pre></details><details><summary><em class="">7.9 h</em><span>Round 36 — where the remaining time goes (profile analysis of the r30 trace)</span></summary><pre>The r30 trace (<code>/tmp/r30_profile/timing_profile.trace.json</code>, one step, 1823 ms) was re-analysed
+with the GPU kernels correlated to their CPU ops (<code>/tmp/an_corr2.py</code>):
+
+* compute stream 1403 ms busy, 18 765 kernels; NCCL 610 ms (all-gather 464, reduce-scatter 146,
+  95 ms exposed); VAE stream 135 ms; <b>GPU union busy 1710 ms of 1823 ms -&gt; 113 ms idle</b> in
+  14 701 small gaps (7.7 us each).
+* the idle is <b>CPU-bound</b>: <code>cpu.busy_cpus_in_windows</code> is 5.04 with 4 ranks, i.e. every rank&#x27;s
+  python thread is ~100% busy.  The step is limited by the kernel-launch rate, not by the GPU.
+* the compute stream by op: <code>mm</code> 747 ms, flash attention 170 ms, **<code>index_put_</code> 73 ms (1964
+  calls)<b>, </b><code>index</code> 63 ms (716 calls)**, <code>fill_</code> 38 ms (1661), <code>copy_</code> 22 ms (2265), <code>add_</code> 38 ms
+  (1590), <code>mul</code> 30 ms, <code>silu</code> 13 ms, fused AdamW 34 ms, the compiled norms/RoPE 41 ms.
+
+So the two levers that are left are (a) the number of kernel launches the CPU has to issue (the
+MoT packing alone is 2680 launches and 136 ms of GPU time) and (b) the 95 ms of exposed NCCL at
+the start of the forward, which is exactly what the (broken) VAE side stream was meant to cover.</pre></details><details><summary><em class="">8.3 h</em><span>Round 37 — full check of the EMA-only tree: **PASS, tier N1, 1.437x**</span></summary><pre>Start: 2026-11-10 10:53Z. End: 11:20Z.
+
+Config: <code>/submission/switches.json</code> (8 switches, <code>BAGEL_VAE_OVERLAP</code> removed — the VAE side
+stream stays off).  Full check, <code>/tmp/r36/check</code>.
+
+* gate 1 (timing): candidate <b>1.8097 s/step</b>, frozen reference 2.6006 -&gt; <b>speedup 1.437</b>,
+  <code>beyond_reference_noise: true</code>, window range 1.8 %, peak allocated 85.72 GiB.
+* gate 2 (record): <code>exact_items_ok: true</code>, <code>NOT_BITWISE</code> (expected: FlashAttention instead of
+  the dense-mask SDPA changes the arithmetic), 3 steps, 1408 shards/step compared.
+* gate 2b (conformance, interleaved data): deterministic `r_n=0.00762, r_j=0.00653,
+  r_b=0.00646`, bound 0.01938, ratios 1.18/1.01 -&gt; <b>conforming</b>; production
+  <code>r_n=0.00755, r_j=0.00693, r_b=0.00621</code>, ratios 1.22/1.12 -&gt; <b>conforming</b>.
+* gate 3 (trajectory, seed 1, 150 steps): every endpoint <code>within</code> the 3 sigma bound
+  (the largest is <code>log_grad_norm_s050_100</code> at 1.60 sigma) -&gt; <b>PASS</b>.
+
+<code>status: PASS</code>, <code>correctness.measured_tier: N1</code>.  <b>This is the tree to keep.</b></pre></details><details><summary><em class="">8.3 h</em><span>Round 38 — batched varlen FlashAttention for the packed attention</span></summary><pre>Start: 2026-11-10 11:20Z.
+
+The profile says the step is <b>CPU-bound</b> (every rank&#x27;s python thread is ~100 % busy, 113 ms of
+GPU idle in 14 701 small gaps per step, 11.5 k allocations/step -&gt; 55 409 <code>cudaEventQuery</code>
+calls/step in the allocator).  The packed attention issues **one FlashAttention call per split
+per layer** (840 forward + 1008 backward calls per step) plus the <code>torch.cat</code> of the visible
+keys of every split.
+
+Idea: the splits of a sample are contiguous and a split sees the *non-noise* splits before it
+plus itself, so the visible keys of a split are the prefix of its sample **unless a noise split
+precedes it<b>.  All the prefix splits of a layer can therefore be computed by a </b>single
+<code>flash_attn_varlen_func</code> call per mask kind** (causal / not): the queries of the splits are
+gathered into one buffer, their visible keys into another, and the split boundaries become the
+cumulative sequence lengths.  The splits that follow a noise split keep the per-split path
+(their visible keys have a hole).
+
+The plan depends only on the split structure, which is the same for every layer of the step, so
+it is built once per step and cached.
+
+Implementation: <code>modeling/bagel/qwen2_navit.py</code>, behind <code>BAGEL_VARLEN_ATTN</code> (<b>default off</b>).</pre></details><details><summary><em class="">8.3 h</em><span>Round 38, first attempt — the bug in `_concat_ranges`</span></summary><pre>The first implementation of the varlen attention was wrong: <code>_concat_ranges</code> wrote the offsets
+<code>1..length-1</code> instead of <code>base+1..base+length-1</code>, so the second and later samples of a group
+pointed at the wrong rows.  The unit test caught it (<code>max|diff|</code> = the signal scale).  Fixed.</pre></details><details><summary><em class="">8.3 h</em><span>Round 38 — the batched varlen FlashAttention: **1.4769x**</span></summary><pre>Start: 2026-11-10 11:20Z. End: 12:25Z.
+
+<b>Why.</b>  The profile of the step (r30 trace, <code>/tmp/r30_profile/timing_profile.trace.json</code>, one
+step of 1823 ms) says the step is <b>GPU-work-bound, not launch-bound</b>: the union of the busy
+intervals of all the streams is 1710 ms of the 1823 ms step (the GPU is 94 % busy) and the idle
+is 113 ms spread over 14 700 gaps of ~7 us.  The compute stream (1403 ms) is:
+
+| op | ms/step | calls/step |
+|---|---|---|
+| <code>aten::mm</code> (the GEMMs) | 746.8 | 2608 |
+| FlashAttention backward | 105.5 | 1008 |
+| <code>aten::_index_put_impl_</code> | 73.1 | 1964 |
+| FlashAttention forward | 65.0 | 690 |
+| <code>aten::index</code> | 63.1 | 716 |
+| <code>aten::fill_</code> | 38.3 | 1661 |
+| <code>aten::add_</code> | 38.1 | 1590 |
+
+and the GEMMs run at 652 TFLOPS while a plain <code>linear</code> of the same shape reaches 730 TFLOPS on
+this GPU, i.e. <b>the GEMMs have no headroom</b> — the attention and the packing do.
+
+The attention was the biggest reducible item.  Upstream&#x27;s packed attention needs **one
+FlashAttention call per split of every sample** (690 forward + 1008 backward kernels per step),
+and every one of them slices the packed query/key/value, so the **backward of every slice
+allocates a zero buffer the size of the whole packed tensor** (<code>aten::slice_backward</code> -&gt;
+<code>aten::zeros</code>): 1232 of the 1661 <code>fill_</code> calls and 1232 of the 2664 <code>copy_</code> calls of the step
+come from there, and they cost ~50 GB of memset per step.
+
+<b>The change.</b>  The visible keys of a split are the *non-noise* splits before it plus the split
+itself, so for every split that is not preceded by a noise split they are exactly the <b>prefix</b>
+of its sample.  All the prefix splits of a layer can therefore be computed by **one
+<code>flash_attn_varlen_func</code> call per mask kind** (causal / not): the queries of the splits are
+gathered into one buffer, their visible keys into another, and the split boundaries become the
+cumulative sequence lengths.  The splits that follow a noise split keep the per-split path.
+
+Two details that had to be right:
+
+* FlashAttention&#x27;s varlen causal mask is aligned <b>per sequence</b> to the bottom right (verified
+  against <code>flash_attn_func</code> with <code>seqlen_q != seqlen_k</code>: bitwise identical), which is exactly
+  the mask of a causal split.
+* <code>index_select</code>&#x27;s backward adds the rows with atomics, so the rows that several splits share
+  are summed in an arbitrary order — <b>not reproducible</b> even with
+  <code>torch.use_deterministic_algorithms(True)</code>.  The gather therefore uses a custom autograd
+  function whose backward accumulates with <code>index_put_(accumulate=True)</code> (sorted, reproducible),
+  and the scatter uses one whose backward is a plain gather.
+
+<code>modeling/bagel/qwen2_navit.py</code>, behind <code>BAGEL_VARLEN_ATTN</code> (<b>default off</b>).
+
+<b>Validation</b> (unit test, 3 layouts, <code>out</code>/<code>dq</code>/<code>dk</code>/<code>dv</code> against the per-split path):
+<code>all prefix</code> and <code>single split</code> are <b>bitwise identical</b>, <code>noise in the middle</code> differs by
+4e-3 relative in <code>dk</code>/<code>dv</code> only (the bf16 accumulation of the shared key rows).
+
+* <code>time --config /tmp/sw_varlen.json</code> (<code>/tmp/r38/time</code>): **1.7608 s/step,
+  <code>speedup_vs_frozen_reference</code> 1.4769**, <code>beyond_reference_noise: true</code>, window range 0.5 %,
+  peak allocated 86.2 GiB, reserved 134.3 GiB.  (The EMA-only tree: 1.8128 s/step, 1.4346x.)
+* the judge&#x27;s own conformance runner on the interleaved data (<code>/tmp/cf_varlen</code>):
+  <b>conforming</b> — <code>r_n=0.00768, r_j=0.00654, r_b=0.00612</code>, bound 0.01837, ratios 1.25/1.07.</pre></details><details><summary><em class="">9.1 h</em><span>Round 39 — the full check of the tree with the varlen attention</span></summary><pre>Start: 2026-11-10 11:57Z.
+
+<code>check --tree /submission/bagel_sft --config /submission/switches.json</code> (<code>/tmp/r39/check</code>), with
+<code>BAGEL_VARLEN_ATTN=1</code> added to the switch file.
+
+<b>Result: <code>status: PASS</code>, <code>measured_tier: N1</code>, <code>performance.speedup</code> </b>1.462** (1.7788 s/step
+against the frozen reference&#x27;s 2.6006).**
+
+* gate 1 (timing): 1.7788 s/step, window range 0.94 %, <code>beyond_reference_noise: true</code>,
+  peak allocated 86.2 GiB, reserved 134.0 GiB, <code>cpu.busy_cpus_in_windows</code> 5.09.
+* gate 2 (record): <code>exact_items_ok: true</code>, <code>NOT_BITWISE</code> (the FlashAttention arithmetic).
+* gate 2b: deterministic <code>r_n=0.00768, r_j=0.00654, r_b=0.00612</code> (bound 0.01837, ratios
+  1.25/1.07) -&gt; conforming; production <code>r_n=0.00760, r_j=0.00657, r_b=0.00601</code> (ratios
+  1.26/1.09) -&gt; conforming.
+* gate 3 (trajectory, seed 1): every endpoint inside the 3 sigma bound (the largest is
+  <code>log_grad_norm_s050_100</code> at 2.05 sigma) -&gt; PASS.
+
+**The submission is now the tree of commit <code>ed48c34</code> with <code>BAGEL_VARLEN_ATTN=1</code> in
+<code>/submission/switches.json</code>: 1.462x (the standalone <code>time</code> run measured 1.4769x).**</pre></details><details><summary><em class="">9.8 h</em><span>Round 40 — the varlen attention also covers the splits whose visible keys have a hole</span></summary><pre>Start: 2026-11-10 12:20Z.  End: 2026-11-10 12:50Z.
+
+<b>Profile findings (r30 trace, 1 step = 1823 ms, GPU busy 94 %):</b> the step is GPU-work bound.
+Per step: GEMMs ~674 ms (at 652 TFLOPS, i.e. no headroom), all-gathers ~307 ms and
+reduce-scatters ~106 ms (23 % of the step in communication), FlashAttention ~138 ms, and
+~305 ms in the *index* round trips of the MoT expert path (<code>aten::index</code> 54 ms,
+<code>aten::index_put_</code> 61 ms, <code>aten::copy_</code> 56 ms, <code>aten::cat</code> 31 ms, <code>aten::fill_</code> 35 ms,
+<code>aten::add_</code> 37 ms).
+
+<b>Change:</b> <code>_build_varlen_plan</code> now makes *every* split one sequence of a varlen call, not
+only the splits whose visible keys are the prefix of their sample.  A split that follows a
+noise split sees its visible keys with a hole (the noise span is skipped); the plan gathers
+the visible ranges in the same order as the per-split path, so the key buffer of the
+sequence — and therefore the bottom-right aligned causal mask — is unchanged.
+The fix that made it work: <code>cu_seqlens_k</code> must hold the *per-sequence* key lengths (the sum
+of the ranges of a split), not the per-range lengths.
+
+<b>Validation</b> (unit test, 3 layouts): <code>out</code> and <code>dq</code> are <b>bitwise identical</b> to the
+per-split path in all three layouts; <code>dk</code>/<code>dv</code> differ by ~4e-3 relative (1 bf16 ulp) only in
+the layout with a hole.  Micro-benchmark of the hole layout: 10.24 ms -&gt; 6.88 ms (1.49x).
+
+* <code>time --config /submission/switches.json</code> (<code>/tmp/r40/time</code>): **1.7581 s/step,
+  <code>speedup_vs_frozen_reference</code> 1.4792** (round 39: 1.4769), <code>beyond_reference_noise: true</code>.
+  The gain is small (~0.2 %, inside the 0.25 % reference noise) because the timing data is
+  the interleaved one, in which only a few splits per batch have a hole.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-haiku.html"><small>← 1.60×</small><strong>Haiku 5.5</strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-glm.html"><small>1.49× →</small><strong>GLM-5.3</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[1.344, 1.067, 7], [2.899, 1.227, 10], [7.008, 1.227, 19], [8.229, 1.227, 20], [8.727, 1.227, 22], [9.438, 1.227, 24]], "end": 10.0, "final": 1.1469}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

@@ -1,0 +1,739 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claude Haiku 5.5 · NanoChat · RSI-Infra Bench</title><meta name="description" content="Claude Haiku 5.5 on NanoChat: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="on">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="nanochat.html">NanoChat</a><span>/</span><b>Claude Haiku 5.5</b></nav><h1>Claude Haiku 5.5 <em>1.08×</em></h1><p class="lede">Harness: Claude Code · switches: <code>NANOCHAT_OPT_FUSED_MLP=1</code> <code>NANOCHAT_OPT_FP8_WCACHE=1</code> <code>NANOCHAT_OPT_PERSISTENT_NORM=1</code> <code>NANOCHAT_OPT_FUSED_CE=1</code> <code>NANOCHAT_OPT_FUSED_ROPE=1</code> <code>NANOCHAT_OPT_FUSED_NORM=1</code> <code>NANOCHAT_OPT_WGRAD_FP32=1</code> <code>NANOCHAT_OPT_RELU2_TRANSPOSE128=1</code> <code>NANOCHAT_OPT_NORM_QUANT=1</code> <code>NANOCHAT_OPT_GROUP_ORDER=1</code> <code>NANOCHAT_OPT_STACK_OUT=1</code> <code>NANOCHAT_OPT_GROUP_REFRESH=1</code> <code>NANOCHAT_OPT_ASYNC_COPY=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.08×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.08×</dd></div><div class=""><dt>Rounds</dt><dd>36</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$30.0</dd></div><div class=""><dt>Input tokens · 99.4% cached</dt><dd>453 M</dd></div><div class=""><dt>Output tokens</dt><dd>2.1 M</dd></div><div class=""><dt>Requests</dt><dd>802</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-nanochat-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.21×</small></a><a class="chip" data-k="opus" href="t-nanochat-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.20×</small></a><a class="chip" data-k="astra" href="t-nanochat-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.13×</small></a><a class="chip" data-k="mm" href="t-nanochat-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.13×</small></a><a class="chip self" data-k="haiku" href="t-nanochat-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.08×</small></a><a class="chip" data-k="ds" href="t-nanochat-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.06×</small></a><a class="chip" data-k="glm" href="t-nanochat-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.05×</small></a><a class="chip" data-k="kimi" href="t-nanochat-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.03×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Micro-batch regrouping 4×16 → 2×32</dt><dd>✗ not in the log</dd><dt>Scope of hand-written kernels replacing Inductor glue</dt><dd>partial: MLP relu², cross-entropy, RoPE + QK (1.031 → 1.049), norm backward, norm + quantization, one at a time</dd><dt>Per-shape cuBLASLt algorithm selection</dt><dd>✗</dd><dt>FP8 weights quantized once per step</dt><dd>✓ <code>NANOCHAT_OPT_FP8_WCACHE</code>, 1.012 → 1.021 after also caching MLP weights</dd><dt>Fast accum on backward GEMMs</dt><dd>tried, reverted (failed statistical gate, up to 11σ)</dd><dt>Other main levers</dt><dd>single-pass RMSNorm reduction, weight grads in fp32, optimizer group ordering and grouped refresh, async data fetch (+0.25%)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>62 sections</small></summary><div class="rounds"><details><summary><em class="">0.0 h</em><span>Round 1: profile the unchanged reference (started 13:17:37 UTC, GPU lock taken)</span></summary><pre>- Action: <code>bench.py profile --tree /submission/nanochat --config /submission/switches.json --out /tmp/prof-ref-1</code>
+  (identical to the reference tree, <code>diff -r</code> clean). Log: /tmp/prof-ref-1.log.
+- Findings: see the profile result below.
+- Profile result (reference, updates 12-13 on rank 0, /tmp/prof-ref-1; kernel time per update = 1009 ms = wall time,
+  GPU ~97% busy, compute stream ~986 ms/update, idle ~9 ms/update, NCCL 23 ms mostly overlapped):
+  - FP8 GEMMs (<code>_scaled_mm</code>, nvjet kernels): 430-453 ms (43-45%), ~1.3 PFLOP/s effective (~64% of FP8 dense peak).
+  - FlashAttention-3 fwd+bwd+pre/post: 108 ms (11%). Already near FA3 efficiency (fwd ~600 TF/s).
+  - Inductor glue around the FP8 linears (quantization amax/cast, relu^2, rope/qk-norm, rms-norm backward, transposed
+    fp8 copies): ~314 ms by name; ~400 ms all non-GEMM pointwise/reduction work (40%).
+  - Cross-entropy (log_softmax fwd/bwd): 28 ms (3%). Muon Newton-Schulz bf16 bmm: 22 ms (2%). Optimizer Triton: ~5 ms.
+  - Hotspot 1 (largest single kernel): the MLP backward cast `triton_poi_fused__scaled_mm__to_copy_clamp_clone_mul_pow_
+    reciprocal_relu_t_threshold_backward_view_12`: 64.7 ms/update (96 calls, 673 us each, ~2 TB/s effective). It writes
+    three fp8 outputs (e5m2 row-major grad_h, e5m2 transposed grad_h, e4m3 transposed relu^2 for the c_proj wgrad) with
+    uncoalesced transposed stores, and recomputes the scale in float64 per element (101 of 133 backward kernels carry
+    float64 scale math). Its amax reduction (<code>..._abs_max_mul_pow_relu_threshold_backward_view_10</code>) is 19.6 ms and near
+    bandwidth.
+  - MLP forward (relu^2 amax + e4m3 cast): 31 ms, already near bandwidth.
+  - Pure fp8 transposed/cast kernels (<code>..._t_view_*</code>) and norm-backward reductions make up most of the rest.
+- Gate arithmetic: a candidate must beat the frozen reference by more than max(1.02, 1 + 2 x spread) (spread 0.0013 -&gt;
+  need &gt; 1.02), so the first useful change must be at least ~2-3%.
+- Inductor autotune / coordinate descent: CDT runs at first launch regardless of deterministic mode (nondeterministic
+  record), so avoided. Pointwise autotune is disabled in deterministic mode by torch; tested as switch e1.</pre></details><details><summary><em class="">0.7 h</em><span>Round 2 (13:32-13:37 UTC): Inductor pointwise autotune switch</span></summary><pre>- Switch: <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> (file /tmp/sw/e1-pointwise-autotune.json), reference code.
+- <code>time</code> (/tmp/time-e1): speedup_vs_frozen_reference 1.0052, s/update 1.0091 vs frozen 1.0143; windows 1.0049 / 1.0133 /
+  1.0091. Within run-to-run noise, far below the 2% gate. Not kept. (Deterministic mode disables pointwise autotune
+  anyway, so the record would be unaffected.)
+- Coordinate-descent tuning rejected in advance: it benchmarks at first launch even in deterministic mode (nondeterministic
+  record).
+- Localization (profile trace, not timing): fp8-glue kernels with transposed outputs (names containing <code>t_view</code>, plus
+  the MLP backward cast) total about 216 ms/update; the largest is the MLP backward cast (66 ms/update). Their stores
+  are uncoalesced (transposed index <code>x + 32768*y</code>), and their scale math is float64 per element (101 of 133 backward
+  kernels). Candidate fixes need hand-written kernels (tiled transpose via tl.trans, scale computed once per program).</pre></details><details><summary><em class="">0.7 h</em><span>Round 3 (13:39-14:05 UTC): one FP8 GEMM for q, k, v in the forward (switch NANOCHAT_OPT_FUSED_QKV)</span></summary><pre>- Feasibility: torch._scaled_mm with per-column B scales (rowwise form, scale_a as a column vector) reproduces the three
+  tensorwise GEMMs bitwise (random data, /tmp/dev/rowwise_check.py).
+- Implementation: nanochat/fp8.py <code>_Float8QKVMatmul</code> / <code>fp8_qkv_matmul</code> (forward: one GEMM; backward: the three
+  <code>_Float8Matmul</code> backwards, summed in autograd&#x27;s order v, k, q), nanochat/gpt.py switch (module flag read from the
+  environment; off by default, so the tree equals the reference when the switch is off).
+- Judge <code>check --quick</code> (switch on, /tmp/check-qkv-quick): status NOT_BITWISE, exact items pass. First differing update 0:
+  exactly nine <code>transformer.h.{0,1,6,8,11,13,20,21,22}.attn.c_proj.weight</code>; every other parameter identical at update 0.
+  Everything differs from update 1 on.
+- Localization (eager and compiled, deterministic FA3 forced, /tmp/dev/attn_cmp*.py): one attention block and one
+  residual-plus-norm block give bitwise-identical outputs and gradients (q, k, v, attention output, input gradient, all four
+  weight gradients) for the reference and the fused path. So the difference comes from the full compiled model, most likely
+  from how the partitioner saves or recomputes the c_proj input when the q/k/v graph changes. Not confirmed yet.
+- <code>time</code>: see below.
+- Result of round 3: <code>time</code> (/tmp/time-qkv1) speedup_vs_frozen_reference 0.9973, s/update 1.017, windows 1.0132 / 1.0189 /
+  1.0188. No gain (the merged N=4608 rowwise GEMM is not faster than the three 1536-column GEMMs here, and the extra
+  stacking/scale ops offset it). Dropped from opt; kept on branch <code>exp/fused-qkv</code> (commit on that branch) for reference.
+  Its check --quick was NOT_BITWISE (nine attn.c_proj weights at update 0), so it is not a candidate even if it had gained.</pre></details><details><summary><em class="">0.8 h</em><span>Round 4 (14:02-14:10 UTC): diagnostic, float64 scale math in the fp8 casts (not for submission)</span></summary><pre>- Diagnostic copy /tmp/diag-fp32 (reference with the fp8 scale computed in float32). <code>time</code> (/tmp/time-diag-fp32):
+  speedup_vs_frozen_reference 1.0033, s/update 1.011; windows 1.0081 / 1.0161 / 1.0088. No meaningful gain, so the
+  per-element float64 scale math is not a bottleneck. Direction dropped.
+- Consequence: the glue cost is memory traffic and the uncoalesced transposed stores, not the scale arithmetic.
+- Note: the MLP backward cast <code>..._relu_t_threshold_backward_view_12</code> (673 us/call, 96 calls) moves about 1.4 GB, and
+  its amax kernel <code>..._10</code> moves 806 MB in 205 us (about 3.9 TB/s). A coalesced version writing the same three outputs
+  would take about 360 us, so roughly 25-30 ms/update (2-3%) is available there. That is the next candidate.
+- Judge <code>time</code> for the optimizer work-wait switch (NANOCHAT_OPT_WORK_WAIT=1, /tmp/time-workwait): running at 14:06.</pre></details><details><summary><em class="">1.0 h</em><span>Round 5 (14:06-14:20 UTC): optimizer work-wait switch, then fused MLP backward (switch NANOCHAT_OPT_FUSED_MLP)</span></summary><pre>- Optimizer work-wait (NANOCHAT_OPT_WORK_WAIT=1, Work.wait instead of future.wait): <code>time</code> (/tmp/time-workwait)
+  speedup_vs_frozen_reference 1.0007 (s/update 1.0136). No gain; reverted (tree clean again).
+- Target: the MLP backward cast + amax (<code>_12</code> 673 us, <code>_10</code> 205 us per call, 96 calls per update). Replacement:
+  - <code>_Float8MLPMatmul</code> (nanochat/fp8.py): one autograd node for c_fc -&gt; relu^2 -&gt; c_proj. Forward: the reference&#x27;s
+    Float8Linear numerics (fp8 inputs, tensorwise scales, use_fast_accum=True). Backward: dgrad of c_proj (GEMM), then
+    one relu^2-backward kernel pair, then the three GEMMs (c_fc dgrad and wgrad, c_proj wgrad) with the reference&#x27;s
+    operands and scales.
+  - Triton kernels: <code>_relu2_bwd_amax_kernel</code> (partial max of |gh| per tile; gh = where(relu(h)&lt;=0, 0, g*(2 relu(h)))
+    computed in fp32 like Inductor), <code>_relu2_bwd_cast_kernel</code> (scale from amax with the float64 reciprocal like Inductor;
+    e5m2 cast row-major; e4m3 cast of relu^2 transposed in registers), <code>_transpose_u8_kernel</code> (tiled uint8 transpose of
+    the e5m2 gh, coalesced). Wrapped as torch.library custom op <code>nanochat::relu2_bwd_fp8</code> with a fake impl.
+  - Found and avoided a Triton lowering problem: transposing the e5m2 values in registers (tl.trans then the fp8 cast or
+    a uint8 cast) gave wrong bytes in every 4th row; the e4m3 transposed output was correct. The e5m2 transpose is
+    therefore a separate tiled kernel (verified: gh8T == transpose(gh8), and both equal the reference bytes).
+  - Unit test (/tmp/dev/mlp/unit_relu2.py, 2 trials of 201M elements): row-major e5m2, transposed e5m2, transposed e4m3
+    and the inverse scale all bitwise equal to the same math compiled by Inductor.
+  - Block test (/tmp/dev/mlp/mlp_cmp_compiled.py, compiled norm + MLP, forward and backward): output, input gradient,
+    c_fc and c_proj weight gradients all bitwise identical to the reference.
+- <code>time</code> of the switch (/tmp/time-fmlp1): running (bench pid 148192, started 14:12:50).
+- Result of the fused MLP switch (<code>time</code>, /tmp/time-fmlp1): speedup_vs_frozen_reference 1.0072 (s/update 1.007; windows
+  1.0039 / 1.0113 / 1.0057, per-window ratios about 1.007 / 1.0065 / 1.008). Gain about 0.7%, below the 2% gate. The
+  estimated ~25 ms/update saving did not materialize. Profiling the switch-on tree next (localization) to see the times
+  of the new kernels against <code>_10</code> and <code>_12</code>.
+- Profile of the switch-on tree (/tmp/prof-fmlp1, updates 12-13): relu^2-backward cast 332.6 us/call (was <code>_12</code> 673 us),
+  amax 203.8 us (was <code>_10</code> 205 us), tiled uint8 transpose 130 us. Total kernel time 997 ms/update (was 1009).
+- Judge <code>check --quick</code> with the switch (/tmp/check-fmlp-quick): PASS, tier N0 (record bitwise identical, 10 updates).
+- Committed on <code>opt</code>: dff73a1 (switch code, default off in code; /submission/switches.json sets NANOCHAT_OPT_FUSED_MLP=1).
+- Triton lowering issue (documented for the next person): an in-register transpose of e5m2 values (after fp8 conversion,
+  or with the conversion before/after the transpose, or through fp16) writes wrong bytes in every fourth row, so the
+  transposed e5m2 copy comes from a separate tiled uint8 kernel (verified bitwise). e4m3 in-register transposes were fine.
+- Consolidated status: the N0 MLP change is worth about 0.7-1.2%; the gate needs more than 2% (with margin), so further
+  glue work is needed. Next candidates: rms-norm backward + transposed cast families (~45 ms/update), CE (~25 ms/update).
+- Localization (judge profile, updates 12-13) of the switch-on tree, grouped by family: rms-norm backward with casts
+  82 ms/update (496 kernels), fp8 casts (other) 68 ms, small Triton families 118 ms (incl. residual+rms-stats+amax
+  28 ms: one read of the residual per pass, about 2.7 TB/s, close to bandwidth), MLP relu^2 (new) 52 ms and forward 18 ms,
+  CE 28 ms, rope/qk-norm forward 19 ms, attention grad casts 15 ms. Union of kernel intervals shows about 25 ms/update of
+  idle gaps (many under 40 us), so launch overhead is a candidate.
+- Judge <code>time</code> with Inductor CUDA graphs (TORCHINDUCTOR_CUDAGRAPHS=1, plus the MLP switch): running (/tmp/time-fmlp-cg).
+- Judge <code>time</code> with Inductor CUDA graphs (/tmp/time-fmlp-cg): status ERROR, SIGSEGV on rank 1 at startup (exit -11).
+  Not a valid run; dropped. Not debugged further.
+- Localization per family (after the MLP switch): rms-norm backward with casts 82 ms/update; fp8 casts 68 ms; the small
+  Triton families 118 ms (residual + rms statistics + per-row amax 28 ms at about 2.7 TB/s); MLP relu^2 52 + 18 ms.
+- New candidate (round 7): FP8 weight cache (switch NANOCHAT_OPT_FP8_WCACHE). The quantized weight (and its transpose) of
+  every Float8Linear is computed once per optimizer step (compiled quantizer, same arithmetic as _to_fp8), stored in
+  non-persistent buffers, and used by _Float8MatmulCached; refresh runs at the start (base_train) and at the end of
+  MuonAdamW.step() through a post-step callback. Expected ~16 ms/update of small weight-quantization kernels, 3/4 of which
+  is removed. Judge <code>check --quick</code> with it and the MLP switch: running (/tmp/check-wcache-quick).
+- Judge <code>check --quick</code> with the weight cache and the MLP switch (/tmp/check-wcache-quick): PASS, tier N0 (bitwise, 10
+  updates). Next: <code>time</code> (/tmp/time-mlp-wcache, bench pid 198795, started 14:33:16).
+- Judge <code>time</code> with weight cache plus MLP (/tmp/time-mlp-wcache): speedup_vs_frozen_reference 1.0097, s/update 1.0046,
+  windows 1.0023 / 1.0077 / 1.0038 (min window ratio about 1.0088). The cache adds about 0.2-0.3% over the MLP alone
+  (estimate was ~1.2%: the weight-quantization kernels were smaller than the profile suggested after counting). Committed
+  as bbdd548 with both switches on in /submission/switches.json. Still below the 2% gate.
+- Round 8 candidate: generic tiled transpose for the weight-gradient operands (switch NANOCHAT_OPT_TRANSPOSE): the
+  <code>go_fp8.t().contiguous()</code> and <code>_to_col_major(in_fp8)</code> copies of every Float8Linear backward (and of the fused MLP
+  backward) go through a custom op around the verified uint8 tiled kernel. Exact copies, so N0 expected. Judge `check
+  --quick` with all three switches (/tmp/check-all3-quick, pid 215209) running since 14:37:49.
+- Judge <code>check --quick</code> with all three switches (MLP + weight cache + transpose; /tmp/check-all3-quick): NOT_BITWISE at update
+  0 for one parameter (<code>x0_lambdas</code>, the 24-entry scalar gradient), then all parameters diverge. The transpose copies are
+  exact, so the difference comes from fusion/reduction-order changes around the custom op. Timing it now (/tmp/time-all3,
+  pid 220797) to decide whether an N1 trajectory check is worth it.
+- Result of the transpose experiment (<code>time</code>, /tmp/time-all3, all three switches): speedup_vs_frozen_reference 0.9922
+  (s/update 1.0223). Slower. Separate tiled transposes cost more than the uncoalesced stores they replace (they are not
+  free: 2 reads and 2 writes per byte). Removed from the tree (working tree clean again at bbdd548). The quick check had
+  also shown NOT_BITWISE (x0_lambdas at update 0), so it is not a candidate anyway.
+- Status after round 8: committed best is bbdd548 (fused MLP + FP8 weight cache, both switches on in switches.json), N0,
+  time 1.0097 against the frozen reference in one run (about 0.9-1.0%). Below the 2% gate: no passing candidate yet.
+- Round 9 config test: TORCHINDUCTOR_COALESCE_TILING_ANALYSIS=0 on top of the committed switches (/tmp/time-coal0):
+  speedup_vs_frozen_reference 1.0094 (same as the committed state, 1.0097). No change; not used.
+- Fresh profile of the committed state (bbdd548, /tmp/prof-bbdd548) running at 14:46 for the family breakdown.
+- Fresh profile of the committed state (bbdd548, /tmp/prof-bbdd548): total kernel time 993 ms/update (reference 1009).
+  fp8 casts dropped 67.5 -&gt; 63.0 ms (the weight cache). Remaining: rms-norm backward family 82 ms (496 kernels), small
+  Triton families 98 ms, MLP relu^2 52 + 18 ms, CE 28 ms, rope/qk-norm forward 19 ms, attention grad casts 15 ms.
+- Full judge check of the committed state started 14:50 (/tmp/check-final-1): gates 1 and 2 (record is bitwise expected).</pre></details><details><summary><em class="">1.6 h</em><span>Official judge result for the committed best state (round 10)</span></summary><pre>- <code>check --tree /submission/nanochat --config /submission/switches.json</code> (/tmp/check-final-1): status UNAVAILABLE,
+  performance.speedup 1.009, reason no_benefit (gate 1 needs &gt; max(1.02, 1 + 2 x spread) = 1.02; spread 0.0013). The
+  precision gate was not evaluated. Score for this tree: 0.
+- Committed best state: bbdd548 (fused MLP switch + FP8 weight cache switch, both on in switches.json). Exact: quick
+  check PASS, tier N0. Speed: about 1.0% (time 1.0072 for the MLP alone, 1.0097 with the cache; judge full check 1.009).</pre></details><details><summary><em class="">1.6 h</em><span>Analysis of the largest remaining family (rms-norm backward, round 10, not implemented)</span></summary><pre>- The family (about 82 ms/update, 496 kernels) is the backward of each norm: loop 1 reads x and the gradient dy, computes
+  y = x * rstd and the row sum s = sum(y * dy), and writes y as e4m3, transposed (the wgrad operand of the next linear, with
+  uncoalesced stores); loop 2 computes dx = (dy - y * s / 1536) * rstd + residual term, writes it back, and takes a row amax
+  for the e5m2 scale of the next gradient. Its transposed outputs are e4m3, where the in-register transpose works.
+- Traffic is about 650 MB per instance, so about 190 us at bandwidth against 476 us now (the large variant). A correct rewrite
+  would need every variant (different consumers and residual terms, value-embedding path) and N1 numerics (reduction order of
+  s). Estimated gain 25-30 ms/update (2.5-3%), but several hours of work with a trajectory check. Not done in this session.
+- Final state: committed bbdd548 (N0), judge full check UNAVAILABLE at 1.009 (score 0 as it stands).</pre></details><details><summary><em class="">1.7 h</em><span>Round 11 (14:50-15:10 UTC): RMSNorm inside the fused MLP (switch NANOCHAT_OPT_NORM_MLP), N1 candidate</span></summary><pre>- Target: the rms-norm backward family (82 ms/update) and the MLP input norm forward (about 14 ms). Design: the MLP&#x27;s input
+  norm moves into the fused MLP autograd node. Forward: row statistics (Triton, rstd = 1/sqrt(mean(x^2) + 1.19e-7) as the
+  reference), amax of the normalized values, e4m3 row and transposed casts (in-register transpose, exact for e4m3).
+  Backward: s = sum(dy * y), dx = rstd * (dy - y * s / C) (Triton, bf16 output), which is the gradient of the residual
+  stream. Custom ops <code>nanochat::rms_stats</code>, <code>rms_cast</code>, <code>rms_bwd</code> with fake impls.
+- Unit tests (/tmp/dev/norm/unit_norm.py, unit_bwd.py): rstd rel. err 2.6e-7; amax exact; e4m3 row differs in 29 of 50M
+  elements (rounding boundaries, reordered sums); transposed == row transpose (exact); dx equals bf16(closed form) in
+  99.9995% of elements, the rest 1 ulp.
+- Block test (/tmp/dev/norm/block_norm_mlp.py, compiled, forward and backward): rel-L2 vs the reference: y 1.2e-4,
+  x_grad 2.4e-3, c_fc grad 3.8e-4, c_proj grad 4.1e-4. Not bitwise (N1 expected).
+- Judge <code>time</code> (/tmp/time-norm-mlp, with the other two switches): running.
+- Judge <code>time</code> of the norm-inside-MLP switch (/tmp/time-norm-mlp): speedup_vs_frozen_reference 1.0043 (s/update 1.010),
+  windows 1.0046 / 1.0112 / 1.0143. Slower than the committed state (1.0097). The new RMSNorm kernels are probably
+  under-occupied (8 rows per program, two or three passes over each row), and the MLP weights lost the weight cache in this
+  path. Profiling (/tmp/prof-norm-mlp) to see the new kernels&#x27; times before changing them.
+- Profile of the norm-inside-MLP tree (/tmp/prof-norm-mlp): new kernels <code>_rms_stats_kernel</code> 51 us, <code>_rms_cast_kernel</code> 57 us,
+  <code>_rms_bwd_kernel</code> 107 us per call (all near bandwidth). The rms-norm backward family fell 82 -&gt; 69 ms/update, but the new
+  kernels add about 21 ms, so the path is a net loss (time 1.0043 vs 1.0097). The stats pass could drop one read (the row
+  max of |x| times rstd gives the same amax exactly), worth about 0.2%; it does not change the conclusion.
+- Round 11 result: no gain. The patch is saved in /submission/experiments/norm_mlp_round11.patch (outside the git tree);
+  the working tree is reverted to bbdd548 (clean). Not in switches.json.
+- Note for future rounds: the watcher lesson again. Use <code>kill -0 &lt;PID&gt;</code> with a PID captured at launch, never <code>pgrep -f</code>
+  inside a loop (the loop matches itself).</pre></details><details><summary><em class="">1.8 h</em><span>Round 12 (15:04-15:20 UTC): e5m2 casts from integer ops, transposed in registers (drops the separate transpose kernel)</span></summary><pre>- Finding: the in-register e5m2 transpose failed because of the Triton float8e5 conversion on transposed layouts. Integer
+  uint8 transposes are exact (test /tmp/dev/mlp/int_trans_test.py).
+- Fix: an integer fp32 -&gt; e5m2 encoder (round-to-nearest-even via the magic constant; normal and subnormal encodings):
+  0 mismatches against torch&#x27;s float8_e5m2 conversion on 16.7M values (/tmp/dev/mlp/e5m2_int.py).
+- The relu^2-backward cast kernel now stores the row-major e5m2 bytes and the transposed bytes from registers, and the
+  separate <code>_transpose_u8_kernel</code> launch is removed (saves about 12.5 ms/update, 1.25%). Unit test (/tmp/dev/mlp/unit_int.py):
+  gh8, gh8T, r8T and the inverse scale all bitwise equal to the reference (2 trials x 201M elements).
+- Judge <code>check --quick</code> with the committed switches (/tmp/check-intcast-quick): running since 15:06.
+- Judge <code>check --quick</code> with the committed switches and the integer e5m2 cast (/tmp/check-intcast-quick): PASS, tier N0
+  (bitwise, 10 updates). Timing (/tmp/time-intcast) started 15:08.
+- Judge <code>time</code> of the integer e5m2 cast (/tmp/time-intcast): speedup_vs_frozen_reference 1.0078 (s/update 1.0064, windows
+  1.0039 / 1.0088 / 1.0065). No gain against the committed state (1.0097, within noise). The removed transpose kernel
+  (12.5 ms) was offset by the integer encoder&#x27;s ALU work (about 25 integer or fp32 operations per element, which makes the
+  cast kernel compute-bound at this size). Reverted to bbdd548 (tree clean). The encoder is still validated (16.7M values,
+  0 mismatches) and the unit test is bitwise; the change is kept only as a record in this log.
+- Lesson: when a removed memory pass is replaced by per-element arithmetic, check the ALU budget (here about 2x the
+  bandwidth time) before expecting the saving.</pre></details><details><summary><em class="">2.0 h</em><span>Round 13 (15:12-15:25 UTC): forward relu^2 quantization kernels in the fused MLP (exact)</span></summary><pre>- Kernels: amax of relu(h)^2 (partial maxima), then the e4m3 cast with the scale from the float64 reciprocal, as the
+  reference (/tmp/dev/mlp/unit_fwd.py: bitwise equal, two trials). Expected saving about 0.35% (the forward relu^2 glue is
+  31 ms/update, at bandwidth; the new pass is about 10% cheaper). No integer encoder, so no ALU cost.
+- Wired into <code>_Float8MLPMatmul.forward</code> through the custom op <code>nanochat::relu2_fwd_fp8</code>.
+- Judge <code>check --quick</code> with the committed switches (/tmp/check-relu2fwd-quick): running since 15:12.
+- Judge <code>check --quick</code> with the forward relu^2 kernels (/tmp/check-relu2fwd-quick): PASS, tier N0 (bitwise, 10 updates).
+  Timing (/tmp/time-relu2fwd) started 15:15.
+- Judge <code>time</code> of the forward relu^2 kernels (/tmp/time-relu2fwd): speedup_vs_frozen_reference 1.0122 (s/update 1.0021,
+  windows 0.9986 / 1.0048 / 1.0030; min window ratio about 1.011). Previous committed state 1.0097. Gain about 0.2%.
+  Committed as the next commit on <code>opt</code> (N0, quick check PASS). Still below the 2% gate.</pre></details><details><summary><em class="">2.0 h</em><span>Official judge result for f2aaea5 (round 13)</span></summary><pre>- <code>check --tree /submission/nanochat --config /submission/switches.json</code> (/tmp/check-final-2): status UNAVAILABLE,
+  speedup 1.011, bar 1.02 (spread 0.0013), reason no_benefit. Precision not evaluated. Score for this tree: 0.
+- Committed best: f2aaea5 (MLP with fused relu^2 backward and forward kernels, FP8 weight cache, both switches on). N0 by the
+  quick check. Measured 1.0122 (time run), 1.011 (full check), against the 1.02 bar.
+- Remaining small exact items (each about 0.1-0.3%): weight-cache refresh written in place (about 1.5 ms per update),
+  optimizer stack/copy traffic (about 2 ms), and possibly a side stream for the transposition kernel (uncertain). Together
+  they are unlikely to close the gap alone.</pre></details><details><summary><em class="">2.1 h</em><span>Round 14 (15:22-15:40 UTC): weight cache for the fused MLP weights (exact)</span></summary><pre>- Finding: the fused MLP re-quantized c_fc and c_proj (and re-transposed them in backward) on every micro-step, because the
+  weight cache only covered the attention projections. Per update that is about 19 GB of traffic, roughly 5 ms (0.5%).
+- Change: <code>_Float8MLPMatmulCached</code> (fp8.py) takes the cached buffers w8, w8_inv, w8_t of c_fc and c_proj (the same tensors
+  <code>_to_fp8</code> gives, refreshed after every optimizer step) and uses <code>wfc8.t()</code>, <code>wproj8.t()</code>, and <code>w8t.t()</code> for the dgrad
+  operand, as <code>_to_col_major</code> would. <code>fp8_mlp_matmul_mod</code> picks the cached path when the buffers exist; gpt.py calls it.
+- Judge <code>check --quick</code> with the committed switches (/tmp/check-mlpcache-quick): running since 15:22.
+- Judge <code>check --quick</code> with the cached MLP weights (/tmp/check-mlpcache-quick): PASS, tier N0 (bitwise, 10 updates).
+  Timing (/tmp/time-mlpcache) started 15:25.
+- Judge <code>time</code> of the cached MLP weights (/tmp/time-mlpcache): speedup_vs_frozen_reference 1.0205 (mean ratio), windows
+  0.9908 / 0.9957 / 0.9951 (s/update 0.9939). Per-window ratios against the frozen timing: 1.0205 / 1.0223 / 1.0187; the
+  gate uses the minimum, 1.0187, which is just below the 1.02 bar. Gain about +0.8% over the previous commit. Committed.</pre></details><details><summary><em class="">2.2 h</em><span>Round 15 (15:29-15:45 UTC): weight-cache refresh writes the buffers in place (exact)</span></summary><pre>- Finding: the refresh (once per optimizer step) issued 435 separate copy launches and about 435 Python-level copy calls.
+  The GPU cost is about 1.7 ms/update, plus CPU overhead.
+- Change: the compiled quantizer takes the cache buffers as arguments and writes them (<code>copy_</code> fused into the quantization
+  kernels). Same bytes. Judge <code>check --quick</code> (/tmp/check-refresh-quick): running since 15:29.
+- Judge <code>check --quick</code> with the in-place refresh (/tmp/check-refresh-quick): PASS, tier N0. Timing (/tmp/time-refresh)
+  started 15:31.
+- Judge <code>time</code> of the in-place refresh (/tmp/time-refresh): mean 1.0209, windows 0.9874 / 0.9964 / 0.9966, minimum window
+  ratio 1.0173 (previous commit: 1.0187). Within noise. Committed as 8c6537a (N0 by the quick check).
+- Diagnostic with the refresh disabled (/tmp/time-diag-norefresh): INVALID (the cache buffers were never filled, so the
+  training numerics were corrupted: mean 1.164 is not a speed result). Discarded. The refresh&#x27;s true cost was not measured.
+- Full judge <code>check</code> of 8c6537a started 15:37 (/tmp/check-final-3).</pre></details><details><summary><em class="">2.4 h</em><span>Round 16 (15:41-15:55 UTC): exact copy reductions (cache refresh transposes, Muon all_gather input)</span></summary><pre>- Refresh: the transposed weight copies use the tiled uint8 kernel (coalesced) instead of an Inductor transposed copy
+  (uncoalesced stores). Same bytes.
+- Muon: the owned chunk is stacked directly into the all_gather input buffer (<code>_foreach_copy_</code> into its rows), and the
+  update runs in place there, removing one full copy per group per update. Same values; the single-rank path is unchanged.
+- Judge <code>check --quick</code> (/tmp/check-muoncopy-quick): running since 15:41.
+- Judge <code>check --quick</code> with both exact copy reductions (/tmp/check-muoncopy-quick): PASS, tier N0. Timing (/tmp/time-muoncopy)
+  started 15:44.
+- Judge <code>time</code> of both exact copy reductions (/tmp/time-muoncopy): mean 1.0225, windows 0.9899 / 0.9941 / 0.9921,
+  per-window ratios 1.0214 / 1.0239 / 1.0219 (minimum 1.0214, above the 1.02 bar). Committed as the next commit (N0).
+- Full judge <code>check</code> of this commit started 15:48 (/tmp/check-final-4).</pre></details><details><summary><em class="">2.4 h</em><span>Official judge result for 8031476 (round 16): PASS</span></summary><pre>- <code>check --tree /submission/nanochat --config /submission/switches.json</code> (/tmp/check-final-4): status PASS, tier N0
+  (correctness bitwise, all 10 record updates), performance.speedup 1.0214, window ratios 1.0214 / 1.0218 / 1.0233,
+  reference spread 0.0013 (bar 1.02). This is the first passing candidate.
+- Committed head: 8031476 on <code>opt</code>, tree clean. Switches: NANOCHAT_OPT_FUSED_MLP=1, NANOCHAT_OPT_FP8_WCACHE=1.
+- Margin over the bar is small (0.14%); further exact gains are being sought to increase it.</pre></details><details><summary><em class="">2.8 h</em><span>Round 17 (15:56-16:08 UTC): batched cache-refresh transposes (exact, no gain; reverted)</span></summary><pre>- Profile check of 8031476 (/tmp/prof-8031, 2 updates under torch.profiler): <code>_transpose_u8_kernel</code> runs 482 times,
+  i.e. 96 per update from the relu^2 backward (about 130 us each, about 12.5 ms/update) and 145 per update from the cache
+  refresh (about 5 us each, about 0.75 ms/update). The round-16 attribution of 13.3 ms to the refresh was wrong.
+- Change tried: flat fp8 storages for w8 and w8_t, one batched transpose launch per weight shape (3 per update).
+  Unit check against <code>_to_fp8(w).t()</code> for every matrix, two refreshes: bitwise (/tmp/dev/wcache/wcache_test.py).
+  Judge <code>check --quick</code> (/tmp/checkq-bw1): PASS, tier N0.
+- Judge <code>time</code> (/tmp/time-bw1): speedup_vs_frozen_reference 1.0219; windows 0.9886 / 0.9967 / 0.9926 s/update, against
+  0.9899 / 0.9941 / 0.9921 for 8031476 (1.0225 mean). No gain beyond noise (the refresh transposes were about 0.75 ms).
+  Reverted: fp8.py is back at 8031476 (scratch copy /tmp/dev/wcache/fp8_batched_refresh.py).
+- Attempt, not applied: write the transposed e5m2 gradient (gh8T) from the relu^2 cast kernel, which removes the
+  96 transpose launches (estimated saving about 7 ms/update). Three orders all fail bitwise (/tmp/dev/mlp/e5m2_trans_test.py):
+  transpose the fp32 values before the e5m2 conversion; convert then transpose the uint8 bytes; the same through int32.
+  The failure is systematic: transposed rows with index = 1 (mod 4) come out as zero (/tmp/dev/mlp/e5m2_pattern.py). Tile
+  shapes 32x64, 64x32, 64x128, 128x64, 16x64, 64x64 with 2 or 8 warps all fail; only 16x16 passed one trial, and its 16-byte
+  row segments would halve the write efficiency, so it is not a usable fix. The e4m3 transposes (r8T) are unaffected.
+- Lesson: in Triton 3.5.1, transposes of 8-bit values produced by an fp8 conversion are not reliable; keep the separate
+  uint8 transpose kernel (verified bitwise by the record).</pre></details><details><summary><em class="">3.2 h</em><span>Round 18 (16:08-16:30 UTC): persistent single-pass Inductor reductions for the row norms (switch NANOCHAT_OPT_PERSISTENT_NORM, N1)</span></summary><pre>- Profile of 8031476 (/tmp/prof-8031, families by /tmp/analysis/families.py): rms-norm backward family 82.4 ms/update
+  (496 kernels), &quot;other triton&quot; 82.1 ms (3038 kernels), relu^2 77.3 ms, fp8 casts 57.6 ms, CE 28.0 ms, rope/qk-norm forward
+  19.3 ms. The largest kernels of the rms family are <code>red</code> kernels of about 480 us (124 per update): the norm backward
+  fused with the residual-grad add and the abs-max, in two passes over each 1536-wide row (generated source in
+  /tmp/ind-cache-ref).
+- Cause: Inductor makes a reduction persistent (one pass, row in registers) only when its length is at most 1024 for the INNER
+  hint (torch/_inductor/choices.py, <code>should_use_persistent_reduction</code>). The model width is 1536, so every row norm used the
+  loop form.
+- Change: a switch in gpt.py (NANOCHAT_OPT_PERSISTENT_NORM, off by default) that raises that threshold to 2048 for INNER
+  reductions, through a patch of <code>InductorChoices.should_use_persistent_reduction</code>. The row-sum order changes, so the
+  numerics are N1 (not bitwise); nothing else in the program changes. Committed as 5b0bc15 (off by default; with the switch
+  off the code path is the committed one).
+- Judge <code>time</code> with the switch (/tmp/time-persist1, config /tmp/sw_persist.json): speedup_vs_frozen_reference 1.0278
+  (windows 0.9851 / 0.9890 / 0.9866 s/update, against 1.0219 for 8031476 in the same session).
+- Judge <code>check --n1</code> with the switch (/tmp/checkn1-persist1): PASS, verdict equivalent. Six endpoints, one seed, all within
+  0.32 sigma (bound 3 sigma; e.g. endpoint 5-15 mean 0.0030 against sigma 0.0227).
+- Full judge <code>check</code> with /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1} (/tmp/check-persist-full):
+  status PASS, tier N1, performance.speedup 1.0262 (window ratios 1.0262 / 1.0320 / 1.0274; reference spread 0.0013; bar 1.02).
+  This is the current submission: /submission/nanochat at 5b0bc15, switches as above.
+- Tried, not applied (exactness): transposed e5m2 gh8T from the relu^2 cast kernel (round 17).</pre></details><details><summary><em class="">3.2 h</em><span>Official judge result for 5b0bc15 with PERSISTENT_NORM=1 (round 18): PASS (N1)</span></summary><pre>- <code>check --tree /submission/nanochat --config /submission/switches.json</code> (/tmp/check-persist-full): PASS, tier N1, speedup
+  1.0262 (min window ratio), bar 1.02. Margin now about 0.6 percent.</pre></details><details><summary><em class="">3.2 h</em><span>Current summary (updated after round 18)</span></summary><pre>- Submission: /submission/nanochat at 5b0bc15 (branch opt); /submission/switches.json = {&quot;NANOCHAT_OPT_FUSED_MLP&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FP8_WCACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_PERSISTENT_NORM&quot;: &quot;1&quot;}.
+- Latest full check: /tmp/check-persist-full, PASS, tier N1, speedup 1.0262.
+- Gains by change (time-run numbers, cumulative from the reference): fused relu^2 MLP and weight caches (N0) about +2.1 percent
+  (rounds 12-16); exact copy reductions about +0.1 percent; persistent row-norm reductions (N1) about +0.6 percent.
+- Not working: pointwise autotune, fused QKV GEMM (NOT_BITWISE), CUDA graphs (SIGSEGV), generic transposes (NOT_BITWISE,
+  slower), RMSNorm in the MLP (N1, no gain), integer e5m2 cast (ALU-bound, no gain), batched cache-refresh transposes (exact,
+  no gain: the refresh costs about 0.75 ms/update), in-register transposed e5m2 gh8T (Triton miscompiles it; round 17).
+- Next candidates: CE kernels (about 26 ms/update, roughly 2x above bandwidth; N1 custom kernel); remaining rms-family kernels
+  after the persistent change (to be re-profiled); reduce-scatter overlap with the last micro-step backward (exact, complex).</pre></details><details><summary><em class="">3.9 h</em><span>Round 19 (16:30-17:08 UTC): fused softcap cross-entropy (switch NANOCHAT_OPT_FUSED_CE, N1)</span></summary><pre>- Profile of the persistent-norm state (/tmp/prof-persist1): the largest remaining groups are the rms-norm backward red
+  kernels (about 480 us each, 58 ms/update), CE (about 28 ms: log-softmax forward 2.1 ms per micro-step, backward 2.2 ms, plus
+  the tanh backward inside the fp8 cast of the logit gradient, 2.2 ms).
+- Tried, no gain (all reverted; code kept only in the log):
+  * NANOCHAT_OPT_PERSISTENT_NORM=2 (also DEFAULT-hint reductions up to 2048): time 0.9253 (1.0962 s/update). Much slower.
+  * Mode 3 (DEFAULT-hint reductions of exactly 1536 only): time 0.9235 (1.0983 s/update). Much slower: the persistent form of
+    the fused norm-backward kernel is bad, Inductor&#x27;s looped form is better.
+  * Custom single-pass RMSNorm backward (/tmp/dev/norm/rmsnorm_bwd.py; unit test: forward identical, gradient equal to eager
+    autograd except a few bf16 ulps): time 1.0225 (windows 0.985 / 0.9947 / 0.9965), worse than 1.0278. The kernel takes
+    105 us per call (200 per update, 21 ms), but Inductor then computes the residual add, the forward amax and the transposed
+    e4m3 copy in separate kernels that were fused before (+35 ms &quot;other triton&quot;), so the non-GEMM total did not change
+    (386 ms against 384 ms). Dead end unless the residual add can be fused with it.
+- Adopted: fused softcap cross-entropy (nanochat/fused_ce.py). Forward: one pass over the bf16 logits with a running
+  scalar max and sum (per 4096-column chunk), target logit gathered in the same pass; backward: (softmax - onehot) *
+  (1 - tanh^2) / count written as bf16. Unit test (/tmp/dev/ce/ce_test.py): loss equal to F.cross_entropy on fp32 softcapped
+  logits (including ignored targets), gradient cosine 0.9999999 (bf16 ulps), also under torch.compile.
+  First version kept a per-element rescale of the sum (3 exponentials per element): forward 2.1 ms per call, no gain
+  (/tmp/time-fce1, 1.0284). The first version&#x27;s profile (/tmp/prof-fce1): forward 2.1 ms and backward 1.3 ms per call (8.4 ms + 5.2 ms per
+  update). The scalar-running-max forward was not profiled; its gain is only seen in the time run.
+- Judge <code>time</code> (/tmp/time-fce2, switches PERSISTENT_NORM=1 + FUSED_CE=1): speedup 1.0305 (windows 0.9789 / 0.9859 / 0.9880),
+  against 1.0278 without FUSED_CE in the same session.
+- Full judge <code>check</code> (/tmp/check-fce-full): PASS, tier N1, speedup 1.0266 (windows 1.0336 / 1.0320 / 1.0266), trajectory
+  equivalent. Mean ratio 1.031 (previous full check 1.0285); the minimum window 1.0266 (previous 1.0262).
+- /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1, FUSED_CE 1}. Commit with the code (switch off by default).</pre></details><details><summary><em class="">3.9 h</em><span>Official judge result for the fused-CE switch set (round 19): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-fce-full): PASS, tier N1, performance.speedup 1.0266, bar 1.02, reference spread 0.0013.
+- Current submission: nanochat commit with NANOCHAT_OPT_FUSED_CE (see git log), switches as above.</pre></details><details><summary><em class="">4.1 h</em><span>Round 20 (17:08-17:21 UTC): fused rotary + QK norm + scale (switch NANOCHAT_OPT_FUSED_ROPE, N1)</span></summary><pre>- Profile of the fused-CE state (/tmp/prof-fce1): rope/qk-norm forward 19.4 ms/update (96 calls of 194 us, reading and writing
+  q and k in several passes) and the rope/qk-norm backward (13.7 ms poi + 10.0 ms per, 96 + 192 calls) = about 43 ms/update.
+- Change: nanochat/rope_qknorm.py. Forward: one pass per tensor: x1, x2 halves (bf16 loaded, fp32 math), y1 = x1*c + x2*s,
+  y2 = x2*c - x1*s, row mean of y^2 over the 128 head dims, out = y * rsqrt * 1.2 (bf16); saves the per-row rsqrt. Backward:
+  one pass per tensor: recomputes y from x, s = sum(g*yn), dy = r*(g - yn*s/D), dx1 = dy1*c - dy2*s, dx2 = dy1*s + dy2*c.
+  Wired in CausalSelfAttention.forward behind the switch; the original three lines are kept for the off path.
+- Unit test (/tmp/dev/rope/rope_test.py): forward equal to the fp32 reference rounded to bf16 (exact in 100% of elements,
+  three input scales); gradient cosine 0.9999987 against the fp32 reference (better than eager bf16); compiled equals eager.
+- Judge <code>time</code> (/tmp/time-rope1; switches PERSISTENT_NORM, FUSED_CE, FUSED_ROPE): speedup 1.0490 (windows 0.9626 / 0.9676 /
+  0.9706), against 1.0305 for the fused-CE state.
+- Full judge <code>check</code> (/tmp/check-rope-full): PASS, tier N1, speedup 1.0474 (windows 1.0474 / 1.0501 / 1.0487), trajectory
+  equivalent. Adopted: /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1, FUSED_CE 1, FUSED_ROPE 1}.
+- Checked and rejected before writing code: the three QKV projections quantize the same normalized input; the cached
+  kernels show one amax per layer for it (the ones with <code>slice_backward</code> are gradient quantizations of q and k), so the
+  quantization is shared already and the idea was not pursued.</pre></details><details><summary><em class="">4.1 h</em><span>Official judge result for the fused-rope switch set (round 20): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-rope-full): PASS, tier N1, performance.speedup 1.0474, bar 1.02, reference spread 0.0013.</pre></details><details><summary><em class="">4.3 h</em><span>Round 21 (17:21-17:37 UTC): residual-stream norms with the residual gradient in the norm backward (switch NANOCHAT_OPT_FUSED_NORM, N1)</span></summary><pre>- Profile of the rope state (/tmp/prof-rope1, non-GEMM total 360 ms/update): the rms-norm backward red kernels are still
+  about 480 us each (124 per update, 58.6 ms). Each computes the norm backward, the residual-grad add, the abs-max and the
+  transposed e4m3 copy of the normalized input, in two passes over each row.
+- Earlier attempt (round 19) with a custom norm backward and no residual add: no gain, because the add and the other fused
+  passes moved out of the Inductor kernels. Here the block norm returns (n, x) from one autograd node; its backward gets
+  dn (from the sub-block) and dz (from the residual add) and writes dx = dz + RMSNorm_backward(dn) in one single-pass
+  kernel (nanochat/norm_split.py). Same formula as autograd for x; row sums in another order (N1).
+- Unit test (/tmp/dev/norm/split_test.py): forward identical; dx cosine 0.9999964 against eager autograd (eager and compiled),
+  both differing from the fp32 reference by the same bf16 rounding.
+- Judge <code>time</code> (/tmp/time-norm2; switches as the rope state + FUSED_NORM): speedup 1.0531 (windows 0.9582 / 0.9639 / 0.9675),
+  against 1.0490 for the rope state.
+- Full judge <code>check</code> (/tmp/check-norm2-full): PASS, tier N1, speedup 1.0469, windows 1.0564 / 1.0544 / 1.0469, trajectory
+  equivalent. The window mean is 1.0526 (rope state&#x27;s full check: mean 1.0487, min 1.0474). The minimum is 0.05% lower but
+  the sample is one run; adopted on the mean (+0.4%).
+- /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1, FUSED_CE 1, FUSED_ROPE 1, FUSED_NORM 1}.</pre></details><details><summary><em class="">4.3 h</em><span>Official judge result for the fused-norm switch set (round 21): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-norm2-full): PASS, tier N1, performance.speedup 1.0469 (window ratios 1.0564 / 1.0544 / 1.0469), bar 1.02.</pre></details><details><summary><em class="">4.6 h</em><span>Round 22 (17:37-17:50 UTC): fused CE forward without a running maximum (N1)</span></summary><pre>- Profile of the fused-norm state (/tmp/prof-norm2): non-GEMM total 354 ms/update; rms-norm backward family gone (2.1 ms);
+  norm_split backward 118 us per call (192 per update, bandwidth-bound); the CE forward (1.66 ms per call) is the only
+  kernel above bandwidth (its ideal is about 0.7 ms: 2.1 GB of bf16 logits).
+- Change: softcapped logits lie in (-15, 15), so sum(exp(z)) cannot overflow or underflow in fp32; the forward drops the
+  running maximum and the per-chunk reductions: per-lane accumulators for the sum and the target logit, one reduction per
+  row. Unit test (/tmp/dev/ce/ce_test.py): same results as before (loss equal, gradient cosine 0.9999999).
+- Judge <code>time</code> (/tmp/time-ce3): speedup 1.0537 (windows 0.9563 / 0.9639 / 0.9677), against 1.0531 for the previous state
+  (within noise).
+- Full judge <code>check</code> (/tmp/check-ce3-full): PASS, tier N1, speedup 1.0489 (windows 1.0581 / 1.0560 / 1.0489), trajectory
+  equivalent. Previous full check of the same switch set without this change: 1.0469 (windows 1.0564 / 1.0544 / 1.0469).
+- Committed as the next commit on <code>opt</code> (switches unchanged).</pre></details><details><summary><em class="">4.6 h</em><span>Official judge result for the current submission (round 22): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-ce3-full): PASS, tier N1, performance.speedup 1.0489, bar 1.02.
+- Submission: nanochat HEAD (see git log), /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1,
+  FUSED_CE 1, FUSED_ROPE 1, FUSED_NORM 1}.</pre></details><details><summary><em class="">4.7 h</em><span>Round 23 (17:50-18:00 UTC): amax of the block-norm output from the norm kernel (reverted)</span></summary><pre>- Profile of the six-switch state (/tmp/prof-norm2): the forward block-norm amax kernel of Inductor runs 188 times per update
+  at about 117 us (it reads x once). A dedicated kernel (nanochat/norm_split.py: rms_norm_amax, one row block per program)
+  computes the same amax in 49 us. Its value equals <code>n.float().abs().max()</code> exactly on four trials, with identical FP8 bytes
+  and scale.
+- Change tried: norm_split returns (n, x, amax); the FP8 linears and the cached MLP accept a precomputed input amax (<code>_to_fp8</code>
+  with the amax argument, same formula); the block passes the amax into the attention and MLP projections.
+- Judge <code>time</code> (/tmp/time-amax1): speedup 1.0482 (windows 0.9639 / 0.9702 / 0.9689), against 1.0537 for the committed state.
+  Worse.
+- Profile (/tmp/prof-amax1): the new amax kernel takes 9.4 ms/update as expected, but the consumers changed: the normalized
+  tensor is now materialized (the custom Function&#x27;s output), so separate forward norm kernels and FP8 casts appear
+  (fp8 cast kernels 632 + 488 calls per update instead of 388 + 344; non-GEMM total 362.6 ms against 354.0 ms).
+- Reverted (fp8.py, gpt.py and norm_split.py at the committed state). Lesson: a precomputed amax only helps when the producer&#x27;s
+  output is not already fused into the consumer&#x27;s casts; here the fusion was worth more than the amax pass.</pre></details><details><summary><em class="">4.7 h</em><span>Current summary (final, after round 23)</span></summary><pre>- Submission: /submission/nanochat at 15b64cb (branch opt; working tree clean). /submission/switches.json =
+  {&quot;NANOCHAT_OPT_FUSED_MLP&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FP8_WCACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_PERSISTENT_NORM&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FUSED_CE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_ROPE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_NORM&quot;: &quot;1&quot;}.
+- Latest full judge check of this exact tree: /tmp/check-ce3-full, PASS, tier N1 (trajectory equivalent, all six endpoints
+  within 0.32 sigma in the earlier single-seed check), performance.speedup 1.0489 (windows 1.0581 / 1.0560 / 1.0489), bar 1.02.
+- Gains by change (judge <code>time</code> runs in the same session, cumulative): fused relu^2 MLP + FP8 weight caches (N0, rounds 12-16)
+  about +1.5 percent over the reference; exact copy reductions +0.1; persistent single-pass row-norm reductions (N1) +0.6;
+  fused softcap cross-entropy (N1) +0.3; fused rotary + QK norm (N1) +1.8; residual-norm backward with the residual gradient (N1)
+  +0.4; CE forward without running max (N1) +0.1 (within noise).
+- Directions that did not work (details in the rounds above): pointwise autotune; fused QKV GEMM (NOT_BITWISE, dropped);
+  CUDA graphs (SIGSEGV); generic transposes; RMSNorm in the MLP; integer e5m2 cast (ALU-bound); batched cache-refresh transposes
+  (exact, no gain); in-register transposed e5m2 (Triton miscompiles it); persistent reductions for DEFAULT-hint kernels (much slower,
+  two variants); custom norm backward without the residual add (no gain); precomputed input amax through the autograd boundary
+  (slower: the normalized tensor gets materialized).
+- Remaining cost (profile of the current state, per update, ~930 ms on rank 0): GEMMs ~450 ms, FA3 ~105 ms, relu^2 glue ~77 ms,
+  FP8 quantize/cast and amax passes ~95 ms, Muon Newton-Schulz ~22 ms and optimizer collectives ~25 ms (exposed: the compiled
+  backward finishes all gradients at once, so per-layer reduces cannot overlap with it). Most remaining glue runs near HBM
+  bandwidth (3.5-4.2 TB/s on this GPU); further gains need fewer passes, which the autograd and FP8 layout constraints limit.
+
+- Confirmation full check of the committed tree 15b64cb (/tmp/check-final-a, 17:58-18:06 UTC): PASS, tier N1, speedup 1.0501
+  (windows 1.0609 / 1.0573 / 1.0501), verdict equivalent. Second sample of the same tree: 1.0489 and 1.0501.</pre></details><details><summary><em class="">5.2 h</em><span>Round 24 (18:08-18:30 UTC): fp32 weight gradients from the FP8 GEMMs (switch NANOCHAT_OPT_WGRAD_FP32, N1)</span></summary><pre>- Profile of the six-switch state (/tmp/prof-norm2) and of its trace: 9301 GPU kernels per update; about 18 ms per update
+  of GPU idle in gaps of about 2 us (kernel launch latency between dependent kernels); the optimizer step is mostly GPU work
+  (44 ms of kernels in a 51 ms span), its collectives overlap with the Newton-Schulz compute. Per-update kernel families with
+  the largest counts: the FP8 casts and amax reductions of the linears, about 576 <code>to_copy</code> casts of the weight gradients
+  (bf16 GEMM output -&gt; fp32 for the parameter gradient, 4.9 ms + gaps), and 486 fp32 gradient accumulations (7.4 ms).
+- Change: the three cached weight-gradient GEMMs (<code>_Float8MatmulCached.backward</code>, <code>_Float8MLPMatmulCached.backward</code> for c_fc and
+  c_proj) take out_dtype=float32 when the switch is on, so no bf16 cast kernel is needed. Checked: torch._scaled_mm returns
+  fp32 for these operands, and rounding that result to bf16 reproduces the bf16 GEMM output exactly (same kernel), so the only
+  change is no longer rounding the weight gradient to bf16 (numerics: tier N1).
+- Judge <code>time</code> (/tmp/time-wgrad3): speedup 1.0593 (windows 0.9508 / 0.9595 / 0.9621). The same committed code measured 1.0537,
+  1.0558 and 1.0562 in three runs, so the gain is about +0.4% over the noise of about 0.2%.
+- Process error (logged for the record): two time runs (/tmp/time-wgrad1, /tmp/time-wgrad2) were started before the patch had
+  been applied (the patch script&#x27;s assertion stopped it, and the time command still ran); both measured the committed code.
+  Fixed by printing the diff before timing.
+- Full judge <code>check</code> (/tmp/check-wgrad-full): PASS, tier N1, speedup 1.0612 (windows 1.0634 / 1.0619 / 1.0612); trajectory
+  equivalent, endpoints within 0.18-0.30 sigma (bound 3 sigma).
+- /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1, FUSED_CE 1, FUSED_ROPE 1, FUSED_NORM 1, WGRAD_FP32 1}.
+  Committed as the next commit on <code>opt</code> (switch off by default in the code).</pre></details><details><summary><em class="">5.2 h</em><span>Official judge result for the current submission (round 24): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-wgrad-full): PASS, tier N1, performance.speedup 1.0612, bar 1.02.</pre></details><details><summary><em class="">5.5 h</em><span>Round 25 (18:30-18:44 UTC): CUDA graphs (infeasible), relu^2 transpose tiles (switch NANOCHAT_OPT_RELU2_TRANSPOSE128, exact)</span></summary><pre>- CUDA graphs for the forward and backward (feasibility test /tmp/dev/graphs/graph_test.py): not possible with this FlashAttention-3
+  build. FA3 segfaults (exit 139) whenever it is called on a stream other than the default stream, also after a default-stream
+  call (/tmp/dev/graphs/fa3_stream_test.py, fa3_order_test.py). Graph capture uses a side stream, so the earlier failure has the
+  same cause. Dead end; no change made.
+- Kernel timing: the GPU idle time is about 18 ms per update in ~9000 gaps of about 2 us (kernel-launch latency); the rest of the
+  glue runs at 3.4-4.2 TB/s, except some reductions (Inductor&#x27;s amax over the bf16 gradients runs at about 2.5 TB/s: 512 programs,
+  each a serial loop over 98304 elements; 480 calls per update, about 19 ms).
+- Change: the transposed copy of the relu^2 gradient (<code>_transpose_u8_kernel</code>, 96 calls per update) uses 128x128 tiles with 8
+  warps when the switch is on. Unit test (/tmp/dev/transpose/tt_test.py): bitwise equal to .t() for 64/128 tiles and 4/8 warps.
+- Profile (/tmp/prof-t128): the transpose kernel takes 10.9 ms per update instead of 13.2 ms.
+- Judge <code>time</code> (/tmp/time-t128a): speedup 1.0616 (windows 0.9496 / 0.9578 / 0.9588), within the run-to-run noise of about 0.2%
+  around the previous 1.060 (the profile gives the more precise figure).
+- Judge full <code>check</code> (/tmp/check-t128-full): PASS, tier N1 (inherited from WGRAD_FP32; the transpose change is bitwise), speedup
+  1.0615 (windows 1.0647 / 1.0620 / 1.0615), trajectory equivalent. Previous full check of the set without this switch: 1.0612.
+- /submission/switches.json = {FUSED_MLP 1, FP8_WCACHE 1, PERSISTENT_NORM 1, FUSED_CE 1, FUSED_ROPE 1, FUSED_NORM 1, WGRAD_FP32 1,
+  RELU2_TRANSPOSE128 1}. Committed (switch off by default in the code).</pre></details><details><summary><em class="">5.5 h</em><span>Official judge result for the current submission (round 25): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-t128-full): PASS, tier N1, performance.speedup 1.0615, bar 1.02.</pre></details><details><summary><em class="">5.8 h</em><span>Round 26 (18:43-19:02 UTC): gradient abs-max kernels (no gain, reverted) and backward fast accumulation (INCORRECT, reverted)</span></summary><pre>- Gradient amax: Inductor&#x27;s reduction for <code>x.float().abs().max()</code> over the bf16 gradients runs 480 times per update at 37-41 us
+  (512 programs, each a serial loop; about 2.5 TB/s). Three replacements, all bitwise equal to the reference amax and FP8 bytes
+  (/tmp/dev/amax/amax_test.py): a 1-D grid of 1024 programs (40.2 us per call, /tmp/prof-gamax), the same unrolled 4x (37.5 us,
+  /tmp/prof-gamax2), and a 2-D tile grid (33.7 us, plus 7.9 us for the final max over the partials; /tmp/prof-gamax3). No gain
+  over Inductor&#x27;s kernel. Reverted.
+- Backward fast accumulation (<code>use_fast_accum=True</code> in the backward GEMMs of the cached Float8 matmuls; the reference uses False
+  there, with the comment &quot;we use False in backward for more precise gradients&quot;): the GEMM time drops by about 17 ms per update
+  (nvjet kernels 458.9 -&gt; 442.2 ms; /tmp/prof-fa), and the time run was faster (about 1.09 in the full check&#x27;s windows).
+  The full judge <code>check</code> (/tmp/check-fa-full): INCORRECT. Trajectory verdict <code>different</code>: five of six endpoints beyond 3 sigma
+  (up to 11 sigma at updates 50-80). The lower accumulation precision changes the training trajectory, so the change is rejected.
+  Reverted; not adopted. The current submission is unchanged.
+- Lesson: the statistical gate detects precision changes of the backward accumulation (about 2e-3 relative error on the
+  gradients), while the fp32 weight-gradient change (removing a bf16 rounding of the same size) was within 0.3 sigma.</pre></details><details><summary><em class="">6.0 h</em><span>Round 27 (19:02-19:20 UTC): gradient sums of the attention projections inside the norm backward (switch NANOCHAT_OPT_FUSED_NORM, N1)</span></summary><pre>- Profile (/tmp/prof-t128) and a kernel timeline window around <code>_norm_split_bwd_kernel</code>: the input-gradients of the q, k and v
+  projections are summed by a separate bf16 kernel just before the norm backward (about 94 us per call, 96 calls per update
+  across two families), and the value-embedding gate&#x27;s slice gradient is materialized full-width (<code>slice_backward</code>).
+- Change: block norms return one alias of norm(x) per attention consumer (q, k, v, and the value-embedding gate when present)
+  plus the identity branch. Autograd then delivers each consumer&#x27;s gradient separately; norm_split&#x27;s backward sums them in fp32
+  inside its single-pass kernel. Attention takes the tuple of aliases. Unit test (/tmp/dev/norm/multi_test.py): forward equal,
+  gradient cosine 0.999994 against eager autograd for k = 3 and 4 (relative difference 0.34 percent, the bf16 level).
+- Judge <code>time</code> (/tmp/time-multi1): speedup 1.066 (windows 0.9483 / 0.9547 / 0.9514), against about 1.061 for the previous set.
+- Judge full <code>check</code> (/tmp/check-multi1-full): PASS, tier N1, speedup 1.0594 (windows 1.0678 / 1.0674 / 1.0594), trajectory
+  equivalent, endpoints within 0.20-0.33 sigma. The previous full check was 1.0615 (window mean 1.0620); this run&#x27;s mean is 1.0649.
+- Committed (nanochat HEAD). /submission/switches.json unchanged: the set of eight switches, with FUSED_NORM now meaning the
+  alias version.</pre></details><details><summary><em class="">6.0 h</em><span>Official judge result for the current submission (round 27): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-multi1-full): PASS, tier N1, performance.speedup 1.0594 (window mean 1.0649), bar 1.02.</pre></details><details><summary><em class="">6.2 h</em><span>Round 28 (19:17-19:31 UTC): narrow value-embedding gate input (switch NANOCHAT_OPT_FUSED_NORM, N1)</span></summary><pre>- Profile of the committed state (/tmp/prof-f10b): non-GEMM total 343.2 ms per update (354.7 before the last three changes);
+  <code>_norm_split_bwd_kernel</code> 26 ms (it now reads the consumers&#x27; gradients directly, the separate sum kernel is gone).
+- Finding: the value-embedding gate reads <code>norm(x)[..., :ve_gate_channels]</code>, so autograd materialized a full-width zero-padded
+  gradient (a slice_backward per value-embedding layer and micro-step) that the norm backward then read in full.
+- Change: norm_split returns a narrow contiguous copy of the first <code>ve_gate_channels</code> columns as the gate&#x27;s input; its gradient
+  is added to those columns inside the norm backward kernel (masked load of M x G values). Unit test (/tmp/dev/norm/gate_test.py):
+  gradient cosine 0.999994 against eager autograd (relative difference 0.34 percent, as before).
+- Judge <code>time</code> (/tmp/time-gate1): speedup 1.069 (windows 0.9430 / 0.9506 / 0.9529), against 1.066 for the previous commit.
+- Judge full <code>check</code> (/tmp/check-gate1-full): PASS, tier N1, speedup 1.0696 (windows 1.0713 / 1.0723 / 1.0696), trajectory
+  equivalent, endpoints within 0.18-0.31 sigma.
+- Committed (nanochat HEAD). /submission/switches.json unchanged (eight switches).</pre></details><details><summary><em class="">6.2 h</em><span>Official judge result for the current submission (round 28): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-gate1-full): PASS, tier N1, performance.speedup 1.0696 (window mean 1.0717), bar 1.02.</pre></details><details><summary><em class="">6.6 h</em><span>Round 29 (19:29-19:54 UTC): fused RMSNorm + FP8 quantization of the normalized input (switch NANOCHAT_OPT_NORM_QUANT, N1)</span></summary><pre>- Profile of the committed state (/tmp/prof-f10b): the normalized-input path (norm with its abs-max, then casts that recompute
+  the norm) costs about 27 ms per update at about 2 TB/s (kernels: norm+amax 117 us and 87 us, casts 87 us and 63 us).
+- Change: nanochat/norm_quant.py. Three kernels: (1) norm (bf16 output) with one partial maximum per program, (2) the scale
+  from the partials (float64 division as in fp8._to_fp8), (3) the cast to e4m3, row-major and transposed. The block norms
+  (attention and MLP) call norm_split_q: their outputs are the aliases, the identity branch and the quantized input
+  (x8 [M, C], x8t [C, M], inv); the cached Float8 matmuls (linear and fused MLP) take the quantized input as an option, so
+  the three attention projections share one quantization.
+- Unit tests: x8, x8t and inv bitwise equal to fp8._to_fp8 of the same normalized tensor (/tmp/dev/nq/nq_test.py); the n values
+  equal F.rms_norm for 99.999 percent of elements; the Float8Linear and the fused MLP with the pre-quantized input are bitwise
+  equal to the internal quantization, forward and input gradient (/tmp/dev/nq/linear_test.py).
+- Kernel tuning (judge profiles /tmp/prof-nq1, /tmp/prof-nqA, /tmp/prof-nqB): the norm kernel at 4 rows per program with 8
+  warps: 76 us per call; 2 rows with 4 warps: 60 us; 1 row with 4 warps: 53 us (kept). Cast 55 us, scale 5 us.
+- Judge <code>time</code> (/tmp/time-nq2): speedup 1.0714 (windows 0.9413 / 0.9481 / 0.9507), against 1.069 for the previous commit.
+- Judge full <code>check</code> (/tmp/check-nq-full): PASS, tier N1, speedup 1.0733 (windows 1.0746 / 1.0741 / 1.0733), trajectory
+  equivalent, endpoints within 0.18-0.35 sigma.
+- Committed (nanochat HEAD). /submission/switches.json = nine switches (NORM_QUANT added to the eight).</pre></details><details><summary><em class="">6.6 h</em><span>Official judge result for the current submission (round 29): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-nq-full): PASS, tier N1, performance.speedup 1.0733, bar 1.02.</pre></details><details><summary><em class="">6.8 h</em><span>Round 30 (19:56-20:02 UTC): cross-entropy and rope kernel configurations (no gain, reverted)</span></summary><pre>- Cross-entropy forward (profiles /tmp/prof-ce8k, /tmp/prof-ce2k): 1381 us per call with 4096-column blocks and 8 warps (the
+  committed setting), 1538 us with 8192-column blocks, 1401 us with 2048-column blocks and 4 warps. The forward is not limited by
+  the block size; its backward runs at about 3.3 TB/s. Reverted.
+- Rope kernels (profile /tmp/prof-rope32): 32 rows per program with 8 warps in the backward: 73.7 us against 73.1 us; forward 53.5
+  against 50.6 us. No gain. Reverted; the tree is at 317d2aa.
+- Where the time goes now (profile /tmp/prof-nqB): GEMMs about 570 ms per update (nvjet and cutlass kernels, about 1800 calls),
+  attention kernels about 100 ms, the rest about 336 ms of non-GEMM work, most of it at 3.3 to 4.4 TB/s. The 1536 by 1536 GEMMs
+  (K = 1536) run at roughly 30 to 45 percent of the large-GEMM efficiency; that is set by the model shapes and cuBLAS, not by any
+  switch we control.
+- Residual-add fusion (not started): the block-to-block residual is mixed with x0 (resid_lambda * x + x0_lambda * x0) before each
+  norm, so fusing the add into the next norm would also need the backward of those mixing parameters. About 0.5 percent for
+  considerable work.</pre></details><details><summary><em class="">6.8 h</em><span>Current summary (after round 30)</span></summary><pre>- Submission: /submission/nanochat at 317d2aa (branch opt, tree clean). /submission/switches.json = {&quot;NANOCHAT_OPT_FUSED_MLP&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FP8_WCACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_PERSISTENT_NORM&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_CE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_ROPE&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FUSED_NORM&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_WGRAD_FP32&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_RELU2_TRANSPOSE128&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_NORM_QUANT&quot;: &quot;1&quot;}.
+- Latest full judge check of this exact code: /tmp/check-nq-full, PASS, tier N1 (trajectory equivalent, endpoints within 0.35 sigma),
+  performance.speedup 1.0733 (windows 1.0746 / 1.0741 / 1.0733), reference spread 0.0013, bar 1.02.
+- Gains by change since round 23 (full-check or time-run numbers, same session): fp32 weight gradients (WGRAD_FP32, N1) about +0.4
+  percent; 128-wide relu^2 transposes (exact) about +0.1-0.2; per-consumer norm aliases with the fused gradient sum (FUSED_NORM, N1)
+  about +0.3; narrow value-embedding gate input (N1) about +0.3; fused norm + FP8 quantization of the normalized input (NORM_QUANT,
+  N1) about +0.3 to +0.5.
+- Directions that did not work (details in the rounds): CUDA graphs (FlashAttention-3 segfaults on any non-default stream); backward
+  fast accumulation (use_fast_accum=True: INCORRECT, trajectory different at 3 to 11 sigma); gradient abs-max replacements (no gain over
+  Inductor&#x27;s kernel); relu^2 cast tiles of 128 (slower for the backward kernels); cross-entropy and rope block configurations (no
+  gain); batched cache-refresh transposes (no measurable gain); in-register transposed e5m2 (miscompiled by Triton); persistent
+  reductions for DEFAULT-hint kernels (much slower); custom norm backward without the residual gradient (no gain); precomputed amax
+  passed through the autograd boundary (slower, materialized normalized tensor).
+- Remaining cost per update (profile /tmp/prof-nqB, about 945 ms on rank 0): GEMMs about 570 ms (the 1536 by 1536 projections run at
+  roughly 30-45 percent of the large-GEMM efficiency, set by the shapes and cuBLAS), attention about 100 ms, relu^2 glue about 77 ms,
+  FP8 casts and amax reductions about 75 ms, norm and rope kernels about 60 ms, cross-entropy about 11 ms, Muon about 48 ms (of which
+  about 25 ms collectives). Most glue kernels run at 3.3 to 4.4 TB/s. Residual-add fusion needs the x0-mixing backward (about 0.5 percent).</pre></details><details><summary><em class="">7.0 h</em><span>Round 31 (20:03-20:16 UTC): attention residual add fused into the MLP-norm quantization kernel (switch NANOCHAT_OPT_NORM_QUANT, N1)</span></summary><pre>- Profile (/tmp/prof-nqB): the attention residual add (<code>triton_poi_fused_add_view</code>, 70 us per call, 96 per update) runs
+  between the attention output GEMM and the MLP norm kernel (53 us), which re-reads the sum.
+- Change: nanochat/norm_quant.py: <code>_nq_add_norm_kernel</code> computes x = bf16(xi + y) (the eager rounding), stores it, and in the same
+  pass the norm, the normalized output and the partial abs-max; <code>add_norm_q</code> is an autograd Function whose outputs are the same as
+  norm_split_q for x = xi + y; its backward is norm_split&#x27;s kernel for both inputs (the residual gradient is the same for both).
+  The block uses it for the attention residual and the MLP norm.
+- Unit test (/tmp/dev/nq/add_test.py): the sum bitwise equal to the eager add; n equal to F.rms_norm for 99.999 percent of elements;
+  x8, x8t and inv bitwise equal to _to_fp8 of n; gradient cosines 0.999996 for xi and y against eager autograd.
+- Profile (/tmp/prof-addnq): the fused kernel takes 96.6 us per call (9.3 ms per update), replacing the 70.5 us add and the 53 us
+  norm (about 123 us): non-GEMM total 335.6 -&gt; 333.2 ms per update (about 0.25 percent), 96 fewer kernels per update.
+- Judge <code>time</code> (/tmp/time-addnq1): speedup 1.0752 (windows 0.9377 / 0.9448 / 0.9478), against 1.0714 before.
+- Judge full <code>check</code> (/tmp/check-addnq-full): PASS, tier N1, speedup 1.0685 (windows 1.0776 / 1.0759 / 1.0685), trajectory
+  equivalent, endpoints within 0.18-0.32 sigma. Its window mean (1.0740) equals the previous full check&#x27;s mean (1.0740); the
+  minimum is 0.45 percent lower. The profile is the more precise measure here; adopted on it.
+- Committed (nanochat HEAD). /submission/switches.json unchanged (nine switches).</pre></details><details><summary><em class="">7.0 h</em><span>Official judge result for the current submission (round 31): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-addnq-full): PASS, tier N1, performance.speedup 1.0685 (window mean 1.0740), bar 1.02.</pre></details><details><summary><em class="">7.0 h</em><span>Round 32 (20:16-20:25 UTC): GEMM and mixing-chain check (no code change)</span></summary><pre>- The trace records no operand shapes (only External ids), so GEMM kernels cannot be mapped to shapes directly. From the timeline
+  around the attention projections: the forward projections of the q, k and v linears run at 114 us for 154 GFLOP (about 1.35 PF/s)
+  with the 256x128 kernel; the MLP c_proj forward runs at 376 us for 618 GFLOP (about 1.6 PF/s). The 128x160 and 144x128 kernels
+  (about 145 and 144 calls per micro-step each, 220 to 267 us on average) are the backward GEMMs of all linears, chosen by cuBLAS for
+  these shapes; no switch of ours changes their layouts.
+- The MLP residual, x0 mixing and next norm chain (<code>triton_poi_fused_add_mul_select_view</code> 92 us, then <code>_nq_norm_kernel</code> 48 us) runs at
+  about 4.2 to 4.3 TB/s. Fusing the mixing into the norm would save about 2.3 ms per update (0.25 percent) and needs the backward of the
+  mixing parameters (resid_lambdas, x0_lambdas, and x0 accumulated over all blocks). Not started.
+- Every remaining glue kernel now runs at 3.3 to 4.4 TB/s; the attention kernels belong to the FlashAttention-3 library. Conclusion:
+  further gains are at the 0.25 percent level per item.</pre></details><details><summary><em class="">7.2 h</em><span>Round 33 (20:16-20:27 UTC): cross-entropy forward without per-element masks and target gather (N1)</span></summary><pre>- Profile of the committed state: the cross-entropy forward ran at 1381 us per call (the largest per-call kernel that is not at
+  bandwidth); its loop computed the target gather and the boundary masks for every element.
+- Change: the vocabulary (32768) is a multiple of the block (4096), so the loop has no masks; the target logit is read once per
+  row. Same function: the softcapped logits and their exponentials are unchanged; only the summation layout changes (N1).
+  Unit test (/tmp/dev/ce/ce_test.py): loss equal to F.cross_entropy, gradient cosine 0.9999999, also compiled.
+- Profile (/tmp/prof-ce3): forward 1024 us per call (4.1 ms per update, was 5.5); the backward (1308 us, 3.3 TB/s) is memory-bound and
+  unchanged. Non-GEMM total 333.2 -&gt; 331.7 ms per update.
+- Judge full <code>check</code> (/tmp/check-ce4-full): PASS, tier N1, speedup 1.0695 (windows 1.0785 / 1.0775 / 1.0695), trajectory equivalent,
+  endpoints within 0.18-0.31 sigma. The previous full check of the code without this change: 1.0685 (mean 1.0740); this run&#x27;s mean 1.0752.
+- Committed (nanochat HEAD). /submission/switches.json unchanged (nine switches).</pre></details><details><summary><em class="">7.2 h</em><span>Official judge result for the current submission (round 33): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-ce4-full): PASS, tier N1, performance.speedup 1.0695 (window mean 1.0752), bar 1.02.</pre></details><details><summary><em class="">7.2 h</em><span>Round 34 (20:28-20:33 UTC): relu^2 partial maxima in one Triton program (no gain, reverted)</span></summary><pre>- The relu^2 kernels reduce their tile maxima with torch&#x27;s <code>part.max()</code> (192 eager reductions per update, about 14 us each, 2.7 ms).
+  A single-program Triton maximum (exact) took 21 us per call (/tmp/prof-max1): slower. Non-GEMM 331.7 -&gt; 332.9 ms per update.
+  Reverted; the tree is at 30862ba.</pre></details><details><summary><em class="">7.4 h</em><span>Round 35 (20:32-20:40 UTC): verification of the committed tree (no code change)</span></summary><pre>- Looked at the remaining candidates once more (all measured or estimated against the profiles): the mixing fusion (about 2.7 ms
+  forward, about the same again in the backward: net about 0.15 percent, not started); the optimizer (already one compiled
+  graph per group; its matrix products run at tensor-core speed); the weight-refresh flattening (the compiled quantizer&#x27;s CPU
+  launch time is overlapped with queued optimizer work); the value-embedding path (the forward is already one kernel per layer);
+  the lm_head grad amax (about 2.4 ms, needs fusing the CE with the lm_head backward). None is worth its risk now.
+- Verification: full judge <code>check</code> of the committed tree 30862ba (/tmp/check-final-b): PASS, tier N1, speedup 1.0713 (windows
+  1.0797 / 1.0779 / 1.0713), trajectory equivalent. Two samples of this code: 1.0695 and 1.0713.
+- Judge <code>time</code> numbers for the committed configuration: 1.0752 (/tmp/time-addnq1, the same code before the cross-entropy forward
+  change) and the full-check speedups above.</pre></details><details><summary><em class="">7.4 h</em><span>Official judge result for the current submission (round 35): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-final-b): PASS, tier N1, performance.speedup 1.0713 (window mean 1.0785), bar 1.02.</pre></details><details><summary><em class="">7.5 h</em><span>Round 36 (20:41-21:19 UTC): optimizer group order (switch NANOCHAT_OPT_GROUP_ORDER, exact) and all-gather lifetime fix</span></summary><pre>- Profile of HEAD (/tmp/prof-ce3, analysis /tmp/analysis2/opt_window.py): the optimizer window is 51-53 ms per update. Its compute
+  stream is busy 44.7 ms (Newton-Schulz GEMMs 24.4 ms, the other Muon and AdamW kernels about 20 ms) and idle about 5-8 ms, of
+  which 5-6 ms coincides with NCCL running: the compute waits for the first Muon reduce-scatter (the reduce order puts the value
+  embedding reduces first) and each value-embedding wait stalls the host until its reduce completes; the all-gather of the last
+  Muon group is exposed (about 1 ms).
+- Candidate: the first Muon group right after the lm_head and embedding groups (param_groups order only; no arithmetic changes).
+  Model estimate: about 2 ms less per update (0.2 percent); the Work.wait variant was tested in round 5 (no gain) and is not repeated.
+- Profile of the candidate: /tmp/prof-grp1 (pending).
+- Judge check --quick of the first candidate (reorder only, /tmp/checkq-grp2): NOT_BITWISE, update 0 differing in 54 parameters and
+  in all 175 from update 1 on. HEAD&#x27;s own full checks show the same counts against the reference, so this alone is not the reorder.
+  Against HEAD&#x27;s record (/tmp/checkq-head2): identical at update 0, then 6 parameters at update 1 (the twelve 12x12 attention gate
+  weights, one rank&#x27;s chunk), 73 at update 2, about 88 later. Two runs of the candidate differed from each other in the same way;
+  two runs of HEAD were identical at every update. So the candidate was nondeterministic.
+- Cause (fixed): <code>_compute_muon</code> released the all-gather input <code>updated_params</code> when it returned, while the NCCL all-gather reads
+  it later on its stream. With the new order the small (12, 12) group&#x27;s buffer was reused by a later allocation before the gather
+  had read it. Keeping the buffer referenced until <code>_finish_gathers</code> made the candidate&#x27;s records identical to each other and to
+  HEAD at every update (10 updates, 175 parameters). The same hazard exists in HEAD (its records have not shown it).
+- Found on the way: <code>setup_optimizer</code> builds four Muon groups, not three (the twelve 12x12 <code>ve_gate</code> weights form a group). The
+  first switch version tested for three groups and did nothing; the 1.7 ms profile difference of that run was noise.
+- Profile (/tmp/prof-grp2, /tmp/analysis2/opt_window.py): the optimizer window is 50 to 54 ms per update in every run of the same
+  code (the Newton-Schulz GEMMs moved about 8 percent between profiles), so single profiles do not resolve a 1 to 2 ms change.
+  With the reorder the 96-matrix reduce-scatter runs third in NCCL (after lm_head and wte) instead of after the value-embedding
+  reduces; the compute waits before the first Muon group are shorter in the model (about 2 ms, 0.2 percent).
+- Judge <code>time</code> (one run each, same frozen reference): order + fix 1.0794 (0.9397 s per update, /tmp/time-grp1); fix only 1.0779
+  (0.9410 s per update, /tmp/time-fix1). The +0.14 percent is within the run-to-run noise (about 0.3 percent); kept because it is
+  exact and the mechanism is clear. Peak reserved memory 58.2 GiB (the buffers now live to the end of the step).
+- Committed: 3b03de8 (optim.py: keep the all-gather input referenced; exact against HEAD) and 726dd50 (gpt.py: switch
+  NANOCHAT_OPT_GROUP_ORDER; /submission/switches.json now has ten switches, the group order on). Tree clean.
+- Not repeated: the Work.wait variant (round 5, +0.07 percent). <code>bench.py sweep</code> does not exist in this build (commands: check, time,
+  profile, baseline, record, compare, traj-ref, freeze-inputs); <code>time</code> runs were alternated instead.
+- Full judge check of the committed tree (/tmp/check-grp-full1, 21:09-21:17 UTC): PASS, tier N1, speedup 1.0713 (windows 1.0799 /
+  1.0790 / 1.0713), trajectory equivalent (every endpoint within the 3 sigma bound). The earlier committed state (30862ba) checked at
+  1.0713 with windows 1.0797 / 1.0779 / 1.0713: the minimum window is unchanged, so the switch&#x27;s gain is within noise; kept because it is
+  exact and the record matches HEAD.</pre></details><details><summary><em class="">7.5 h</em><span>Current summary (after round 36)</span></summary><pre>- Submission: /submission/nanochat at 726dd50 (branch opt, tree clean; 3b03de8 is the all-gather lifetime fix, 726dd50 the group
+  order switch). /submission/switches.json = {&quot;NANOCHAT_OPT_FUSED_MLP&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FP8_WCACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_PERSISTENT_NORM&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FUSED_CE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_ROPE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_NORM&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_WGRAD_FP32&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_RELU2_TRANSPOSE128&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_NORM_QUANT&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_GROUP_ORDER&quot;: &quot;1&quot;}.
+- Last full judge check: /tmp/check-grp-full1 (726dd50), PASS, tier N1, speedup 1.0713 (windows 1.0799 / 1.0790 / 1.0713), trajectory
+  equivalent. The earlier state 30862ba: PASS, tier N1, 1.0713 (windows 1.0797 / 1.0779 / 1.0713).
+- Gains since round 23 (full-check or time numbers): fp32 weight gradients (WGRAD_FP32, N1) about +0.4 percent; 128-wide relu^2
+  transposes (exact) about +0.1 to 0.2; per-consumer norm aliases with the fused gradient sum (FUSED_NORM, N1) about +0.3; narrow
+  value-embedding gate input (N1) about +0.3; fused norm and FP8 quantization (NORM_QUANT, N1) about +0.3 to 0.5; fused attention
+  residual add (N1) about +0.25; cross-entropy forward without masks (N1) about +0.1; group order (exact, time +0.14 percent,
+  within noise).
+- Directions that did not work (details in the rounds): CUDA graphs (FlashAttention-3 segfaults on any non-default stream);
+  backward fast accumulation (use_fast_accum=True: INCORRECT, trajectory different at 3 to 11 sigma); Work.wait in the optimizer
+  (+0.07 percent, round 5); gradient abs-max replacements (no gain over Inductor&#x27;s kernel); relu^2 cast tiles of 128 (slower for the
+  backward kernels); cross-entropy and rope block configurations (no gain); batched cache-refresh transposes (no measurable gain);
+  in-register transposed e5m2 (miscompiled by Triton); persistent reductions for DEFAULT-hint kernels (much slower); custom norm
+  backward without the residual gradient (no gain); precomputed amax passed through the autograd boundary (slower); group order
+  without the all-gather lifetime fix (nondeterministic records).
+- GEMMs: the forward projections run at 1.35 to 1.6 PFLOP/s (FP8, fast accumulation); the backward GEMMs use the reference&#x27;s
+  slow accumulation and cannot change (fast accumulation was rejected); CUBLAS_WORKSPACE_CONFIG is a reserved variable.
+- Remaining candidates, each about 0.2 percent: residual-mixing fusion with the next norm (needs the backward of the mixing
+  parameters); lm_head gradient abs-max fused with the cross-entropy backward; weight-refresh flattening. Larger and not started:
+  reduce-scatter of the gradients during the last micro-batch&#x27;s backward (about 1.2 percent; needs per-block reductions and
+  Muon chunks that keep the batched Newton-Schulz results).</pre></details><details><summary><em class="">7.5 h</em><span>Official judge result for the current submission (round 36): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-grp-full1, submission 726dd50 with ten switches): PASS, tier N1, performance.speedup 1.0713 (window ratios
+  1.0799 / 1.0790 / 1.0713), bar 1.02, reference spread 0.0013, trajectory equivalent (seed 1).</pre></details><details><summary><em class="">8.1 h</em><span>Round 37 (21:20-21:43 UTC): FP8 cache refresh per Muon group and direct stacking (switches NANOCHAT_OPT_GROUP_REFRESH, NANOCHAT_OPT_STACK_OUT; exact)</span></summary><pre>- Profile of the committed state (/tmp/prof-grp2, the same code as 726dd50): after the last all-gather the window still holds about
+  5 ms of GPU work: the FP8 weight-cache refresh of all 144 cached weights (abs-max 1.3 ms, casts 1.5 ms, scale finalization 0.3 ms,
+  transposes 0.9 ms, all in one compiled call after the gathers) and the copy-back of the Muon parameters (0.5 ms). The gradients
+  are stacked with <code>torch.stack</code> and then copied into the reduce-scatter buffer (two passes over about 2.7 GB of fp32 gradients).
+- Change 1 (NANOCHAT_OPT_GROUP_REFRESH): <code>MuonAdamW._finish_gathers</code> calls group callbacks with each Muon group&#x27;s parameters right
+  after that group&#x27;s copy-back; the FP8 cache of the group&#x27;s weights is refreshed then (the same per-weight quantization), so the
+  refresh overlaps with the gathers of the next groups. Modules no group refreshed are refreshed at the end of the step.
+- Change 2 (NANOCHAT_OPT_STACK_OUT): <code>torch.stack(..., out=)</code> writes the gradients into the reduce-scatter input directly.
+- Exactness: <code>check --quick</code> must reproduce the record of the committed state (/tmp/checkq-grp4).
+- Chain (/tmp/r37_chain.sh): check --quick, profile, time candidate, time committed state, time candidate, time committed state.
+- Record: <code>check --quick</code> with both switches (/tmp/checkq-r37) reproduces the committed record (/tmp/checkq-grp4) at every update,
+  0 differing entries. No recompile-limit, CUDA-graph or warning lines in any run log of this round.
+- Profile (/tmp/prof-r37): the two steady optimizer windows are 50.6 and 49.9 ms (the committed state: 53.9 and 53.2 ms in
+  /tmp/prof-grp2). Compute after the last gather inside the window is about 4 ms (the earlier figure of 8 ms also counted the next
+  forward&#x27;s first kernels, so the two are not strictly comparable).
+- Judge <code>time</code>, four alternated runs (mean seconds per update over updates 10-33): candidate 0.93791 (/tmp/time-r37a) and 0.94053
+  (/tmp/time-r37b); committed 0.93995 (/tmp/time-r37h1) and 0.94196 (/tmp/time-r37h2). Means 0.93922 against 0.94095 s: +0.18
+  percent; both candidate-committed pairs favor the candidate (+0.22 and +0.15 percent).
+- Judge full <code>check</code> of cad6639 with both switches (/tmp/check-r37-full): PASS, tier N1, speedup 1.0739 (windows 1.0864 / 1.0800 /
+  1.0739), trajectory equivalent (every endpoint within the 3 sigma bound). The committed state before this round: 1.0713 (windows
+  1.0799 / 1.0790 / 1.0713); the minimum window is +0.24 percent.
+- Commits: 1579871 (NANOCHAT_OPT_STACK_OUT, exact) and cad6639 (NANOCHAT_OPT_GROUP_REFRESH, exact). /submission/switches.json now
+  has twelve switches, both new ones on. Tree clean.
+- Considered and not started (estimates from the profiles): reduce-scatter of the large AdamW gradients (lm_head, value embeddings)
+  during the backward (about 0.1 to 0.2 percent: the Newton-Schulz compute, not the reduce-scatter, sets the optimizer window);
+  reduce-scatter of the late-layer Muon groups during the backward (same reason, and it changes the batched Newton-Schulz
+  arithmetic, which is tier N1 at best); copy-back fused with the abs-max of the cache refresh (about 1 ms, exact).</pre></details><details><summary><em class="">8.1 h</em><span>Official judge result for the current submission (round 37): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-r37-full, submission cad6639 with twelve switches): PASS, tier N1, performance.speedup 1.0739 (window ratios
+  1.0864 / 1.0800 / 1.0739), bar 1.02, reference spread 0.0013, trajectory equivalent (seed 1).</pre></details><details><summary><em class="">8.1 h</em><span>Current summary (after round 37; supersedes the summary after round 36)</span></summary><pre>- Submission: /submission/nanochat at cad6639 (branch opt, tree clean). Round-37 commits: 1579871 (stacking straight into the
+  reduce-scatter input, NANOCHAT_OPT_STACK_OUT), cad6639 (per-group FP8 cache refresh, NANOCHAT_OPT_GROUP_REFRESH). Earlier round-36
+  commits: 726dd50 (group order, NANOCHAT_OPT_GROUP_ORDER), 3b03de8 (all-gather input lifetime fix).
+- /submission/switches.json = {&quot;NANOCHAT_OPT_FUSED_MLP&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FP8_WCACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_PERSISTENT_NORM&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_FUSED_CE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_ROPE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_FUSED_NORM&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_WGRAD_FP32&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_RELU2_TRANSPOSE128&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_NORM_QUANT&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_GROUP_ORDER&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_STACK_OUT&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_GROUP_REFRESH&quot;: &quot;1&quot;}.
+- Latest full judge check: /tmp/check-r37-full (cad6639), PASS, tier N1, speedup 1.0739 (windows 1.0864 / 1.0800 / 1.0739),
+  trajectory equivalent. Before round 37: 1.0713 (30862ba and 726dd50).
+- Gains since round 23 (full-check or time numbers): fp32 weight gradients (WGRAD_FP32, N1) about +0.4 percent; 128-wide relu^2
+  transposes (exact) about +0.1 to 0.2; per-consumer norm aliases with the fused gradient sum (FUSED_NORM, N1) about +0.3; narrow
+  value-embedding gate input (N1) about +0.3; fused norm and FP8 quantization (NORM_QUANT, N1) about +0.3 to 0.5; fused attention
+  residual add (N1) about +0.25; cross-entropy forward without masks (N1) about +0.1; group order, stacking and per-group refresh
+  (exact) about +0.2 together (round 37: +0.24 on the minimum window).
+- Directions that did not work (details in the rounds): CUDA graphs (FlashAttention-3 segfaults on any non-default stream);
+  backward fast accumulation (use_fast_accum=True: INCORRECT); Work.wait in the optimizer (+0.07 percent, round 5); gradient
+  abs-max replacements (no gain over Inductor&#x27;s kernel); relu^2 cast tiles of 128 (slower for the backward kernels); cross-entropy
+  and rope block configurations (no gain); batched cache-refresh transposes (no measurable gain); in-register transposed e5m2
+  (miscompiled by Triton); persistent reductions for DEFAULT-hint kernels (much slower); custom norm backward without the residual
+  gradient (no gain); precomputed amax passed through the autograd boundary (slower); group order without the all-gather
+  lifetime fix (nondeterministic records).
+- GEMMs: the forward projections run at 1.35 to 1.6 PFLOP/s (FP8, fast accumulation); the backward GEMMs use the reference&#x27;s slow
+  accumulation and cannot change; CUBLAS_WORKSPACE_CONFIG is a reserved variable; the bf16 lm_head GEMM (about 66 ms per update) is
+  the reference&#x27;s precision.
+- Optimizer window (about 50 ms per update): Newton-Schulz GEMMs about 24 ms, Muon elementwise about 6 ms, cache refresh about 4 ms
+  (partly overlapped now), parameter copies about 2 ms, AdamW about 3 ms, exposed waits about 3 ms.
+- Remaining candidates, each 0.1 to 0.3 percent: residual-mixing fusion with the next norm (needs the backward of the mixing
+  parameters; the mixing kernels cost about 9 ms per update); copy-back fused with the abs-max of the cache refresh (about 1 ms);
+  reduce-scatter of the large AdamW gradients during the backward (about 0.1 to 0.2 percent).</pre></details><details><summary><em class="">8.7 h</em><span>Round 38 (21:44-22:02 UTC): early fetch of the next micro-batch (switch NANOCHAT_OPT_EARLY_BATCH): not adopted</span></summary><pre>- Profile of the committed state (/tmp/prof-r37, two updates): the device is idle for 46 ms of the 1860 ms span (2.5 percent). Most of
+  it is about 16000 gaps of about 2 microseconds between kernels (the cost of about 8600 kernels per update). The part that can be
+  removed is about 0.85 ms of idle at each micro-step boundary (4 per update, about 3.4 ms): the GPU drains after the backward&#x27;s
+  last kernel, while the host runs <code>next(train_loader)</code> (a Python packing loop with one <code>torch.tensor</code> per document) before the next
+  forward is queued.
+- Change under test: fetch the next micro-batch before <code>loss.backward()</code> (the same batches in the same order), and double-buffer the
+  loader&#x27;s device and pinned staging buffers so the batch in use is not overwritten (copy events guard the staging buffer).
+- Record: runs 1 to 4 of this configuration: run 1 differed from the committed record from update 1 on (6 entries, the twelve
+  12x12 <code>ve_gate</code> weights, then 73 and about 88 entries); runs 2, 3 and 4 were identical to the committed record at every update.
+  The committed configuration gave identical records in four runs and in a stressed copy (a 3 ms host delay before each backward,
+  /tmp/checkq-stress1). The loader change alone (committed switches, one run) was identical.
+- Ruled out while investigating: (1) a torch.compile&#x27;d kernel reading a 0-d CPU scalar late (/tmp/dev/race/cpu_scalar_race.py: the
+  value at call time is used in every trial, with the GPU lagging); (2) <code>future.wait()</code> not ordering the compute stream after an NCCL
+  collective (/tmp/dev/race2/nccl_wait_test.py, 2 ranks, 512 MB all-reduce: both <code>future.wait()</code> and <code>work.wait()</code> gave the reduced
+  value in every trial). The root cause is not found; the divergence is rare (1 of 4 runs) and appears only with the early fetch.
+- Decision: not adopted. The change is reverted (the patch is kept at /tmp/dev/r38/early_batch_and_double_buffer.patch). The tree
+  is at cad6639. A nondeterministic record is not acceptable in the judged state, and the expected gain (about 0.3 percent, not
+  measured) does not justify it.
+- Open question for a later round: find the root cause of the rare divergence in the Muon path (the 12x12 group is first affected),
+  because the committed state may have the same latent timing dependence; the decisive test would be many records with different
+  host timing and a per-buffer checksum after each stage of the optimizer step.
+
+- Addendum (round 38 investigation, same day): the early-fetch configuration gave identical records in runs 2 to 4 (run 1 was the
+  only divergence). A repeatability test of <code>MuonAdamW.step</code> alone (/tmp/dev/race3/test_muon_det.py: the candidate group order with
+  the real shapes, two ranks, random gradients, random host delays of up to 6 ms before each step; 8 repetitions with
+  NANOCHAT_OPT_STACK_OUT=1, and 4 without) gave identical parameter checksums after every step in every repetition. So the
+  optimizer on its own is repeatable; the rare divergence needs the real backward (gradients produced by autograd, and the memory
+  they reuse). Not reproduced in isolation; not explained. The committed configuration stayed identical in five records (four
+  normal, one with a 3 ms host delay before each backward, /tmp/checkq-stress1).</pre></details><details><summary><em class="">8.7 h</em><span>Status after round 38</span></summary><pre>- Submission: /submission/nanochat at cad6639 (tree clean), switches as in the summary after round 37 (twelve switches, both round-37
+  switches on). Latest full judge check of this state: /tmp/check-r37-full, PASS, tier N1, speedup 1.0739.
+- Round 38 changed nothing in the submission (early fetch reverted; patch kept in /tmp/dev/r38).
+- Open: the rare record divergence seen with the early fetch (not explained; the committed configuration is identical in five records).
+- Remaining candidates (estimates, each 0.1 to 0.3 percent): copy-back fused with the cache refresh&#x27;s abs-max (about 1 ms); the
+  attention output&#x27;s FP8 quantization with its transpose in one pass (about 1.5 ms); the lm_head gradient abs-max fused with the
+  cross-entropy backward (about 2.4 ms); the early fetch of the next batch (about 3.4 ms, blocked by the open divergence).</pre></details><details><summary><em class="">9.4 h</em><span>Round 39 (22:00-22:44 UTC): indexed loader (no gain, reverted); source of the record divergence localized (benign, ulp-level)</span></summary><pre>- Profile (CPU, cProfile of the loader, 40 batches, /tmp/dev/loader/profile_loader.py): the best-fit scan of the 1000-document
+  buffer (per placement and per crop) was about 65 percent of the host time (scan 0.37 s, length calls 0.14 s, crop minima 0.09 s,
+  of 0.93 s). The indexed buffer (switch NANOCHAT_OPT_LOADER_INDEX, commit 8b715fc) removes the scan (the generator&#x27;s own time
+  0.37 s to 0.03 s). Exactness on CPU: 300 batches of 16 x 2048 identical across the committed loader, the list version and the
+  indexed version (inputs, targets, state dictionaries; /tmp/dev/loader/test_equal.py).
+- Judge <code>time</code>, two alternated pairs (/tmp/time-r39h1, -r39a, -r39h2, -r39b; HEAD exported to /tmp/dev/head_tree): HEAD 0.93977 and
+  0.94141 s per update; indexed 0.94124 and 0.94163 s. Mean 0.94059 against 0.94143: -0.09 percent, within noise. The host time
+  that the indexed buffer removes is not on the critical path between the micro-steps. Reverted (30f0bed); the code is identical to
+  cad6639. Consequence: the early fetch of the next micro-batch (round 38) is not expected to gain either; not pursued.
+- Record divergence (the six <code>ve_gate</code> entries at update 1, then 73 and about 88 entries): seen in 2 of 7 runs with the loader
+  changes (round 38 early fetch: 1 of 4; round 39 indexed: 1 of 3), in 5 of 10 runs of the committed code with a 4 ms host delay
+  before <code>optimizer.step()</code> (stress copies, /tmp/checkq-stress2a|b, /tmp/checkq-dbg[A-H]), and in 0 of about 6 normal runs of the
+  committed code.
+- Localization: an instrumented copy (/tmp/dev/stress2; clones of the twelve 12x12 tensors at each optimizer stage, dumped per step;
+  /tmp/dev/dbgtools/compare2.py) shows that the first differing stage is the gradient of the <code>ve_gate</code> weights at update 1 (<code>grad_in</code>,
+  before the optimizer); every later stage of that group differs as a consequence. The optimizer is not the source.
+- Source: the compiled backward contains Inductor kernels with relaxed <code>tl.atomic_add</code> for embedding gradients (token-embedding
+  scatter fused with the rms-norm backward, <code>/tmp/torchinductor_agent/q2/...py</code>; a kernel with <code>embedding_dense_backward</code> and
+  <code>sigmoid_backward</code>, <code>.../uk/...py</code>). The order of atomic additions depends on CTA scheduling, so the sums differ at the ulp level
+  with GPU timing. Parameters in bf16 (embeddings, AdamW) mostly absorb the difference in rounding; the fp32 Muon matrices of the
+  value-embedding gate pass it through the Newton-Schulz normalization, which is why only those show it.
+- Consequence: the tree is not run-to-run bitwise deterministic under the judge&#x27;s deterministic mode with warn-only (it has never been
+  bitwise against the reference: gate 2 is NOT_BITWISE by design). The verdict comes from gate 3, which the full checks pass with the
+  endpoints within 0.2 to 0.3 sigma; an ulp-level difference does not move that. A deterministic embedding gradient (aten&#x27;s
+  <code>embedding_dense_backward</code> through a custom op) would remove the atomics but adds a separate embedding backward (13 per
+  micro-step); expected cost about 1 percent of the update, so not done.
+- Status after round 39: code identical to cad6639 (HEAD 30f0bed is the revert); /submission/switches.json unchanged (twelve switches);
+  the latest full judge check of cad6639 is /tmp/check-r37-full (PASS, tier N1, 1.0739).
+- Next (round 40): profile the CPU and GPU timelines at the micro-step boundary (the 0.85 ms GPU gap before the next forward&#x27;s first
+  kernel, about 3.4 ms per update); the loader is ruled out, so the candidates are the forward&#x27;s Python and dispatch work and the
+  per-micro-step synchronization.</pre></details><details><summary><em class="">9.8 h</em><span>Round 40 (22:43-23:05 UTC): the batch transfer was synchronous; asynchronous with an event guard (switch NANOCHAT_OPT_ASYNC_COPY, exact)</span></summary><pre>- Profile (the round-37 trace /tmp/prof-r37): one <code>cudaStreamSynchronize</code> of 57 to 94 ms per micro-step (8 in the two profiled
+  updates), inside <code>aten::copy_</code> of the batch fetch, and one device gap of 1.1 to 1.2 ms right after each of them (before the next
+  forward&#x27;s first kernel). The round-39 loader result was a symptom of this: the host work of the loader ran behind the GPU, and the
+  copy waited for the GPU queue.
+- Cause: base_train passes the loader a <code>torch.device</code>; the loader decided whether to pin its staging buffer and to copy without
+  waiting with <code>device == &quot;cuda&quot;</code>. That comparison is False for a torch.device (checked: <code>torch.device(&quot;cuda&quot;) == &quot;cuda&quot;</code> is False).
+  The transfer was therefore synchronous from pageable memory. The reference has the same loader, so this stall is in its baseline too.
+- Change (commit 52b700a, switch NANOCHAT_OPT_ASYNC_COPY): the device type is compared properly; the copy is non-blocking from the
+  pinned staging buffer; a CUDA event guards the reuse of that buffer (the next fetch waits for the previous transfer only if it has
+  not completed, which in steady state it has). The batches are unchanged.
+- Checks: <code>check --quick</code> (/tmp/checkq-r40): the record is identical to the committed record at every update; rows, loaders and models
+  equal. Profile (/tmp/prof-r40): the large gaps before the forwards are gone (device idle over the profiled span 45.9 to 37.2 ms).
+- Judge <code>time</code>, two alternated pairs (/tmp/time-r40h1, -r40a, -r40h2, -r40b): HEAD 0.94035 and 0.94152 s per update; with the switch
+  0.93769 and 0.93943 s. Means 0.94094 against 0.93856 s: +0.25 percent, both pairs in the same direction.
+- Full judge <code>check</code> of 52b700a (/tmp/check-r40-full): PASS, tier N1, speedup 1.0761 (windows 1.0849 / 1.0829 / 1.0761), trajectory
+  equivalent. The minimum window moved from 1.0739 to 1.0761.
+- Remaining at the boundary (not pursued): after the judge&#x27;s post-step synchronization, about 0.8 ms of host work precedes the forward&#x27;s
+  first kernel (the <code>.item()</code> of the loss, the step&#x27;s logging, torch.compile&#x27;s cache lookup and entry); about 0.3 ms of it could move
+  behind the forward&#x27;s dispatch. Below what the timing can resolve.
+- Corrections to earlier notes: the round-39 conclusion that the loader&#x27;s host time is off the critical path stands (the indexed buffer
+  did not gain), but the reason is the synchronous copy, not the loader&#x27;s own time; the round-38 early fetch was planned against the same
+  wrong cause and is not expected to gain.
+- Next candidates: the optimizer&#x27;s internal waits (the RS/AG completions are CPU-visible; about 3 ms of device idle per update in the
+  optimizer window); the atomic-order nondeterminism of the token-embedding backward (benign; a deterministic path would cost speed).</pre></details><details><summary><em class="">9.8 h</em><span>Official judge result for the current submission (round 40): PASS (N1)</span></summary><pre>- <code>check</code> (/tmp/check-r40-full, submission 52b700a with thirteen switches): PASS, tier N1, performance.speedup 1.0761 (window ratios
+  1.0849 / 1.0829 / 1.0761), bar 1.02, reference spread 0.0013, trajectory equivalent (seed 1).</pre></details><details><summary><em class="">9.8 h</em><span>Current summary (after round 40; supersedes the summary after round 37)</span></summary><pre>- Submission: /submission/nanochat at 52b700a (branch opt, tree clean). Since round 37: 30f0bed (revert of the indexed loader, which had
+  no gain) and 52b700a (asynchronous batch transfer, NANOCHAT_OPT_ASYNC_COPY). /submission/switches.json has thirteen switches: the
+  twelve of round 37 plus NANOCHAT_OPT_ASYNC_COPY = &quot;1&quot;.
+- Latest full judge check: /tmp/check-r40-full (52b700a), PASS, tier N1, speedup 1.0761 (windows 1.0849 / 1.0829 / 1.0761).
+  Previous: /tmp/check-r37-full (cad6639), PASS, tier N1, 1.0739.
+- Gains since round 23 (full-check or time numbers): fp32 weight gradients (WGRAD_FP32, N1) about +0.4 percent; 128-wide relu^2
+  transposes (exact) about +0.1 to 0.2; per-consumer norm aliases with the fused gradient sum (FUSED_NORM, N1) about +0.3; narrow
+  value-embedding gate input (N1) about +0.3; fused norm and FP8 quantization (NORM_QUANT, N1) about +0.3 to 0.5; fused attention residual
+  add (N1) about +0.25; cross-entropy forward without masks (N1) about +0.1; group order, stacking and per-group refresh (exact) about +0.2
+  together; asynchronous batch transfer (exact) about +0.25.
+- Known and benign: the tree is not run-to-run bitwise deterministic in the training record. The cause is nondeterministic atomic
+  accumulation of the token-embedding gradient in an Inductor-generated kernel (round 39). It changes the record at the ulp level in some
+  runs; the gate-3 trajectory is unaffected in every full check so far.
+- Directions that did not work (details in the rounds): CUDA graphs (FlashAttention-3 segfaults on any non-default stream); backward fast
+  accumulation (INCORRECT); Work.wait in the optimizer (+0.07 percent, round 5); gradient abs-max replacements (no gain over Inductor&#x27;s
+  kernel); relu^2 cast tiles of 128 (slower for the backward kernels); cross-entropy and rope block configurations (no gain); batched
+  cache-refresh transposes (no measurable gain); in-register transposed e5m2 (miscompiled by Triton); persistent reductions for
+  DEFAULT-hint kernels (much slower); custom norm backward without the residual gradient (no gain); precomputed amax passed through the
+  autograd boundary (slower); group order without the all-gather lifetime fix (nondeterministic records); indexed best-fit buffer (exact,
+  no gain, reverted); early fetch of the next micro-batch (not measured; the copy synchronization it was meant to fix is the real cause).
+- Remaining candidates (estimates): the optimizer window&#x27;s internal device idle (about 3 ms per update); the attention output&#x27;s FP8
+  quantization with its transpose in one pass (about 1.5 ms); the lm_head gradient abs-max fused with the cross-entropy backward (about
+  2.4 ms); copy-back fused with the cache refresh&#x27;s abs-max (about 1 ms); a deterministic token-embedding gradient (determinism, about 1
+  percent cost, not planned).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-nanochat-mm.html"><small>← 1.13×</small><strong>MiniMax M3.1 Flash</strong></a><a class="up" href="nanochat.html">↑ NanoChat</a><a class="next" href="t-nanochat-ds.html"><small>1.06× →</small><strong>DeepSeek V4.1 Flash-1017</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-nanochat-opus.html", "pts": [[1.36, 1.056, 4], [3.926, 1.097, 5]], "end": 10.0, "final": 1.2018}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-nanochat-sonnet.html", "pts": [[0.83, 1.026, 2], [0.83, 1.044, 3], [1.365, 1.066, 6], [2.175, 1.129, 7], [2.694, 1.147, 8], [3.013, 1.154, 9], [3.181, 1.159, 10], [3.63, 1.164, 11], [5.189, 1.186, 14], [5.693, 1.188, 15]], "end": 10.0, "final": 1.2141}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-nanochat-haiku.html", "pts": [[0.728, 1.005, 2], [1.35, 1.01, 5], [1.638, 1.01, 10], [1.942, 1.01, 12], [2.047, 1.012, 13], [2.212, 1.02, 14], [2.526, 1.021, 16], [2.848, 1.022, 17], [3.225, 1.028, 18], [3.855, 1.03, 19], [4.078, 1.049, 20], [4.336, 1.053, 21], [4.559, 1.054, 22], [4.85, 1.054, 23], [5.201, 1.061, 24], [5.461, 1.062, 25], [6.031, 1.066, 27], [6.244, 1.07, 28], [6.625, 1.073, 29], [6.777, 1.073, 30], [6.993, 1.075, 31], [7.18, 1.075, 33], [7.405, 1.075, 35], [7.902, 1.075, 36], [8.444, 1.075, 37], [8.798, 1.075, 38], [9.797, 1.076, 40]], "end": 9.999, "final": 1.0821}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-nanochat-astra.html", "pts": [[0.126, 1.065, 1], [0.748, 1.08, 2], [1.613, 1.093, 5], [2.001, 1.1, 6], [2.51, 1.1, 7], [2.919, 1.101, 8], [3.124, 1.101, 9], [3.793, 1.105, 10], [4.073, 1.105, 11], [4.636, 1.132, 12], [4.901, 1.135, 13], [5.162, 1.135, 14], [5.53, 1.135, 15], [6.041, 1.16, 16], [6.24, 1.176, 17], [6.628, 1.176, 18], [6.977, 1.195, 19], [7.39, 1.196, 20], [7.738, 1.196, 21], [8.014, 1.197, 22], [8.385, 1.197, 23], [9.221, 1.197, 24], [9.602, 1.197, 25], [9.816, 1.206, 26]], "end": 10.001, "final": 1.1342}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-nanochat-glm.html", "pts": [[1.325, 1.009, 2], [3.116, 1.022, 7], [4.38, 1.027, 9], [6.228, 1.027, 10], [7.66, 1.047, 11], [8.492, 1.048, 12], [9.298, 1.048, 14]], "end": 10.002, "final": 1.046}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-nanochat-kimi.html", "pts": [[0.88, 1.015, 3], [3.69, 1.026, 19], [3.912, 1.026, 20], [5.396, 1.026, 28], [5.769, 1.026, 29], [6.412, 1.026, 32], [6.764, 1.026, 33], [7.632, 1.026, 34], [7.78, 1.026, 35], [8.151, 1.026, 36], [8.604, 1.026, 37], [8.875, 1.026, 38], [9.109, 1.026, 39], [9.391, 1.026, 40], [9.606, 1.027, 41]], "end": 10.004, "final": 1.0264}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-nanochat-ds.html", "pts": [[0.553, 1.026, 1], [0.553, 1.026, 2], [0.866, 1.026, 4], [0.866, 1.026, 5], [0.927, 1.032, 7], [1.074, 1.032, 8], [1.683, 1.035, 10], [2.007, 1.038, 13], [2.261, 1.038, 14], [2.324, 1.04, 15], [2.383, 1.04, 16], [2.626, 1.04, 17], [2.705, 1.04, 18], [3.407, 1.051, 19], [3.532, 1.051, 20], [3.593, 1.051, 21], [3.835, 1.051, 22], [3.974, 1.051, 24], [4.099, 1.051, 25], [4.166, 1.051, 26], [4.27, 1.051, 27], [4.463, 1.051, 29], [4.64, 1.052, 31], [4.854, 1.052, 35], [4.944, 1.052, 36], [5.007, 1.052, 38], [5.079, 1.052, 39], [5.148, 1.052, 40], [5.377, 1.052, 41], [5.445, 1.052, 42], [5.562, 1.052, 43], [5.748, 1.052, 46], [5.94, 1.052, 47], [5.998, 1.052, 48], [6.074, 1.052, 49], [6.147, 1.052, 50], [6.211, 1.052, 51], [6.278, 1.052, 52], [6.467, 1.052, 53], [6.604, 1.052, 59], [6.667, 1.052, 60], [6.993, 1.055, 63], [7.485, 1.061, 64], [7.552, 1.061, 65], [7.618, 1.061, 66], [7.808, 1.061, 67], [7.975, 1.061, 71], [8.166, 1.061, 73], [8.268, 1.061, 74], [8.325, 1.061, 75], [8.516, 1.061, 76], [8.72, 1.061, 81], [8.814, 1.061, 82], [8.926, 1.061, 85], [9.01, 1.061, 88]], "end": 9.019, "final": 1.0599}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-nanochat-mm.html", "pts": [[3.554, 1.016, 7], [3.554, 1.022, 8], [4.279, 1.022, 9], [4.623, 1.043, 10], [5.089, 1.043, 11], [5.408, 1.072, 12], [6.349, 1.082, 13], [7.751, 1.091, 14], [7.938, 1.095, 15], [8.818, 1.098, 16], [8.818, 1.1, 17], [9.649, 1.128, 18], [9.917, 1.128, 19]], "end": 10.004, "final": 1.1268}], "focus": "haiku", "xmax": 10.5, "aria": "Claude Haiku 5.5 on NanoChat: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

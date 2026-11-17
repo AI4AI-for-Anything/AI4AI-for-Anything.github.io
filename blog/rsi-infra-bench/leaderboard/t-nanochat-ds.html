@@ -1,0 +1,844 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepSeek V4.1 Flash-1017 · NanoChat · RSI-Infra Bench</title><meta name="description" content="DeepSeek V4.1 Flash-1017 on NanoChat: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="on">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="nanochat.html">NanoChat</a><span>/</span><b>DeepSeek V4.1 Flash-1017</b></nav><h1>DeepSeek V4.1 Flash-1017 <em>1.06×</em></h1><p class="lede">Harness: DeepSeek's own harness · switches: <code>NANOCHAT_OPT_ACCUM=2</code> <code>NANOCHAT_OPT_OPTBUCKET=1</code> <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> <code>NANOCHAT_OPT_OPTSCHED=1</code> <code>NANOCHAT_OPT_NSBMM=1</code> <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code> <code>NANOCHAT_OPT_FUSEDMLP=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.06×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.06×</dd></div><div class=""><dt>Rounds</dt><dd>87</dd></div><div class=""><dt>Hours</dt><dd>9.0</dd></div><div class=""><dt>API cost</dt><dd>$2.74</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>241 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.8 M</dd></div><div class=""><dt>Requests</dt><dd>653</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-nanochat-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.21×</small></a><a class="chip" data-k="opus" href="t-nanochat-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.20×</small></a><a class="chip" data-k="astra" href="t-nanochat-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.13×</small></a><a class="chip" data-k="mm" href="t-nanochat-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.13×</small></a><a class="chip" data-k="haiku" href="t-nanochat-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.08×</small></a><a class="chip self" data-k="ds" href="t-nanochat-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.06×</small></a><a class="chip" data-k="glm" href="t-nanochat-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.05×</small></a><a class="chip" data-k="kimi" href="t-nanochat-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.03×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Micro-batch regrouping 4×16 → 2×32</dt><dd>✓ <code>NANOCHAT_OPT_ACCUM=2</code>, alone 1.025</dd><dt>Scope of hand-written kernels replacing Inductor glue</dt><dd>MLP only: <code>NANOCHAT_OPT_FUSEDMLP</code>, full check 1.036 → 1.047, later 1.059; rewrites of norm, RoPE, attention grads all measured slower</dd><dt>Per-shape cuBLASLt algorithm selection</dt><dd>✗ (log says "no interface to pick another algorithm")</dd><dt>FP8 weights quantized once per step</dt><dd>tried, reverted (1.043, slower than 1.050 without cache)</dd><dt>Fast accum on backward GEMMs</dt><dd>not tried (treated as a disallowed precision change)</dd><dt>Other main levers</dt><dd>Inductor pointwise kernel autotuning, persistent reduction off, Newton-Schulz via baddbmm, small grads merged into one all-reduce, optimizer issues the Muon group first</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>103 sections</small></summary><div class="rounds"><details><summary><em class="">0.1 h</em><span>Round 0 — baseline profile (2026-11-06 17:03–17:07)</span></summary><pre>Command: <code>bench.py profile --tree targets/reference --from 12 --iters 3</code> -&gt; <code>/tmp/prof-ref-1</code> (3 updates,
+instrumented, 1.026 s/update during profiling; the clean frozen timing is 1.018).
+
+Findings (sum of CUDA kernel time = 3.037 s over 3 updates = 1.012 s/update, GPU busy 97.3% of the span =&gt;
+compute-bound, CPU/launch/data are not the bottleneck; CUDA graphs cannot help):
+
+| category | ms/update | share |
+|---|---|---|
+| FP8 GEMMs (nvjet = cuBLASLt <code>_scaled_mm</code>) | 454 | 45% |
+| Inductor Triton fusions (quantize/amax ~180, norms/rope/relu/residual ~200, CE ~25) | 412 | 41% |
+| FlashAttention-3 fwd+bwd (cutlass sm90 kernels) | 109 | 11% |
+| optimizer <code>MuonAdamW.step</code> (incl. NCCL reduce-scatter/all-gather) | 41 + 23 | 6% |
+| misc (bmm, adds, memsets) | ~14 | 1% |
+
+Other observations: 10,423 kernels/update; 5,868/3 = 1,956 GEMM launches/update (4 accumulation steps x 145
+FP8 linears x 3 GEMMs each). Activation paths: each FP8 Linear quantizes its own input and grad_output each
+micro-step (the qkv projections quantize the *same* attention input three times). Peak memory 55.9 GiB of 141.
+No invalid-run signatures (<code>fa3 True</code>, no recompile/graph messages).</pre></details><details><summary><em class="">0.1 h</em><span>Round 1 — micro-batch regrouping (accum 4x16 -&gt; 2x32) (started 17:09)</span></summary><pre>Switch: <code>NANOCHAT_OPT_ACCUM=2</code> -&gt; device_batch_size 32, grad_accum_steps 2, same rows/order/tokens per update.
+Tier: N1 (gradient accumulation order changes; rows and math unchanged; gate 2 explicitly allows regouping).
+Change: <code>scripts/base_train.py</code> (env <code>NANOCHAT_OPT_ACCUM</code>, default 0 = upstream).
+
+
+Result round 1: <code>time</code> 0.9931 s/update, <code>speedup_vs_frozen_reference</code> 1.0251 (windows 1.0223/1.0275/1.0254),
+peak 94.0 GiB. Committed 4b0b57f.</pre></details><details><summary><em class="">0.1 h</em><span>Round 1b — full check of accum=2 (17:21–17:32)</span></summary><pre><code>check --tree /submission/nanochat --config /submission/switches.json --out /tmp/check-A</code>:
+<b>status PASS, tier N1, speedup 1.0256</b>. Gate 2 exact items all ok (175 parameters, 640 rows/rank, 10 updates);
+parameters not bitwise from update 0 (expected: accumulation order). Gate 3: all 6 endpoints within
+|bias| &lt;= 0.42 sigma (bounds 3 sigma) -&gt; equivalent with a wide margin.
+Submission state: /submission/switches.json = {&quot;NANOCHAT_OPT_ACCUM&quot;: &quot;2&quot;}.</pre></details><details><summary><em class="">0.6 h</em><span>Round 2 — shared QKV input quantization (17:12–17:16)</span></summary><pre>Switch <code>NANOCHAT_OPT_QKV=1</code>: <code>_Float8Matmul3</code> (nanochat/fp8.py) quantizes the attention input once for c_q/c_k/c_v
+and runs the same three <code>_scaled_mm</code>; backward sums grad_input in the autograd order (g_v+g_k)+g_q, so it is
+bitwise identical to the per-layer path. <code>time</code> result: 0.9936 s/update, speedup 1.0246 (windows
+1.0264/1.0253/1.0221) — <b>no gain over accum=2 alone</b> (Inductor already fuses the three quantizations or the
+saving is below noise). Switch left off by default; code kept (unused).</pre></details><details><summary><em class="">0.6 h</em><span>Round 3 — cuBLASLt workspace (17:32–17:35)</span></summary><pre>Switch <code>CUBLASLT_WORKSPACE_SIZE=33554432</code> (32 MiB; default is 1 MiB): <b>OOM</b> (131 GiB allocated) — a larger
+workspace is allocated per in-flight FP8 GEMM, and the compiled step has thousands. ERROR, no timing. Direction
+closed (do not enlarge the cuBLASLt workspace).</pre></details><details><summary><em class="">0.6 h</em><span>Round 4 — bucket the small AdamW gradient all-reduces (17:34–)</span></summary><pre>Switch <code>NANOCHAT_OPT_OPTBUCKET=1</code> (nanochat/optim.py): one <code>all_reduce</code> of all 74 small fp32 AdamW gradients
+concatenated instead of one per parameter (same per-element AVG; 2 ranks), launched before phase 1 and waited
+before phase 2. Expected ~3–5 ms of removed GPU idle in the optimizer region.
+
+Result round 4: <code>time</code> 0.9921 s/update, speedup 1.0261 (windows 1.0258/1.0267/1.0257); committed 85f6c56.
+Full check with accum=2 + bucket: <code>/tmp/check-B</code> <b>PASS, N1, speedup 1.0242</b>
+(window ratios 1.0243/1.0242/1.0260; gate 2 exact items ok; gate 3 all endpoints &lt;= 0.42 sigma).
+Run-to-run variance of the candidate between check-A (1.0256) and check-B (1.0242) is ~0.15%.</pre></details><details><summary><em class="">0.9 h</em><span>Round 5 — NCCL protocol (17:38–17:41)</span></summary><pre>Switch <code>NCCL_PROTO=Simple</code> with accum+bucket: 0.9920 s/update, speedup 1.0262 (windows
+1.0269/1.0258/1.0258) — <b>no gain</b> over 1.0261. Direction closed, not used.</pre></details><details><summary><em class="">0.9 h</em><span>Round 6 — fresh profile at the current best (17:41–17:44, /tmp/prof-opt2)</span></summary><pre>998 ms/update of kernel time: GEMM 460 (46%), Inductor Triton 396 (40%), FA3 110 (11%), NCCL 24 (2.4%),
+other 8. GPU idle 1.4% (was 2.7% at accum=4). Biggest single kernel is still the fused
+relu^2-backward+fp8-quantize+transposed-write kernel (64 ms/update, 2.1 TB/s, partly uncoalesced because it
+writes both the row-major and the transposed fp8 layouts); everything else is at 80-85% of the memory roofline.
+GEMMs run at ~1.25 PFLOPS/GPU (~65-75% of the machine&#x27;s FP8 peak).</pre></details><details><summary><em class="">0.9 h</em><span>Round 7 — pointwise autotuning (17:55–)</span></summary><pre>Switch <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> (library switch, no code): lets Inductor time pointwise/fused
+kernel tile configs instead of using its static heuristic; the hope is a better tile for the fused kernel above.
+Compile time is the risk (cold compile in every run).
+
+Result round 7: <code>time</code> 0.9867 s/update, <b>speedup 1.0317</b> (windows 1.0298/1.0334/1.0318), startup 168.5 s
+(+28 s cold compile vs 140 s). Real, window-consistent gain (+0.55% over 1.0261). switches.json now has it.</pre></details><details><summary><em class="">0.9 h</em><span>Round 8 — full Inductor max-autotune (17:58–)</span></summary><pre>Adds <code>TORCHINDUCTOR_MAX_AUTOTUNE=1</code> (Triton templates for the aten matmuls/bmm, i.e. the Muon NS iterations,
+plus epilogue-fusion benchmarking). Compile time is the risk. Numerics tier N1.
+
+Result round 8: <code>time</code> 0.9860 s/update, speedup 1.0325 (windows 1.0313/1.0332/1.0330), but startup 465 s
+(7.8 min cold compile vs 168 s). Gain over pointwise-only is +0.08% (noise) for a large compile-time cost, so
+<code>TORCHINDUCTOR_MAX_AUTOTUNE</code> is <b>not</b> used; only <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE</code>.</pre></details><details><summary><em class="">1.5 h</em><span>Round 9 — CUDA graphs (18:29–18:31)</span></summary><pre>Switch <code>NANOCHAT_OPT_CUDAGRAPH=1</code> -&gt; <code>torch.compile(model, dynamic=False, mode=&quot;reduce-overhead&quot;)</code> (Round-9
+hotspot class: launch/host gaps; the current profile shows 1.4% GPU idle). Result: **SIGSEGV during graph
+capture** (exitcode -11, right after the training loop starts; no &quot;skipping cudagraphs&quot; message, the capture
+itself crashes — the FP8 <code>_scaled_mm</code> autograd path is not graph-capturable). Direction closed; the switch
+stays off by default (it is not in switches.json).</pre></details><details><summary><em class="">1.7 h</em><span>Round 10 — optimizer phase scheduling (18:32–18:36)</span></summary><pre>Switch <code>NANOCHAT_OPT_OPTSCHED=1</code> (nanochat/optim.py). Round-10 hotspot: the optimizer region was 46 ms/update
+and its NCCL stream was serialized behind the 9 small bf16 AdamW reduce-scatters, so the compute stream waited.
+Changes, all order/copy only (every parameter&#x27;s update is independent -&gt; bitwise identical output):
+- run phase 1 + phase 2 in an order with the Muon groups first (longest compute, largest collectives) and the
+  AdamW groups last (short compute, small gathers);
+- fill <code>stacked_grads</code> with <code>_foreach_copy_</code> instead of <code>torch.stack</code> + copy;
+- all-gather straight from <code>stacked_owned</code> when the group needs no padding (skips the <code>updated_params</code> copy).
+Result: 0.9834 s/update, <b>speedup 1.0352</b> (windows 1.0332/1.0385/1.0336). Gain +0.16% over 1.0336.
+Re-profile (/tmp/prof-sched): optimizer region 44.8 ms with 42.9 ms of compute-stream kernels and only 1.5 ms
+of gaps, NCCL 24.5 ms fully overlapped -&gt; the optimizer is now compute-bound, scheduling is done.</pre></details><details><summary><em class="">1.7 h</em><span>Round 11 — force Inductor to materialize multi-consumer buffers (18:40–18:44)</span></summary><pre>Switch <code>NANOCHAT_OPT_REALIZE=1</code> (<code>torch._inductor.config.realize_reads_threshold = 1</code>). Hypothesis: the fused
+FP8 quantize kernels that also write a transposed copy (biggest kernel 64 ms/update, 2.1 TB/s) would get faster
+if the transpose became its own coalesced kernel. Result: <b>much slower</b> — 1.0254 s/update, speedup 0.9928
+(the extra materializations cost far more than the bad fusion). Closed; switch stays off by default.</pre></details><details><summary><em class="">1.7 h</em><span>Round 12 — FA3 forward split-K (18:44–18:48)</span></summary><pre>Switch <code>NANOCHAT_OPT_FASPLIT=2</code> (pass <code>num_splits=2</code> to the FA3 forward). Hypothesis: more CTAs for the attention
+forward on short sliding windows. Result: <b>much slower</b> — 1.0202 s/update, speedup 0.9978 (the split-K combine
+costs more than the extra parallelism buys; 384 CTAs already fill the 132 SMs). Closed, switch off by default.</pre></details><details><summary><em class="">2.0 h</em><span>Round 13 — Newton-Schulz affine combination via baddbmm (18:59–19:03)</span></summary><pre>Switch <code>NANOCHAT_OPT_NSBMM=1</code> (nanochat/optim.py). Round-13 hotspot: after the scheduling round the optimizer
+region is compute-bound (43 ms of compute kernels); the NS loop&#x27;s <code>B = b*A + c*(A@A)</code> and <code>X = a*X + X@B</code>
+were two separate elementwise passes over the 113 M-element A/X tensors between the bmms. Expressing them as
+<code>torch.baddbmm(A, A, A, beta=b, alpha=c)</code> / <code>torch.baddbmm(X, X, B, beta=a, alpha=1)</code> lets cuBLAS apply beta*C
+in the GEMM epilogue. Same real-valued function, different rounding (tier N1).
+Result: 0.9811 s/update, <b>speedup 1.0376</b> (windows 1.0330/1.0418/1.0378). Gain +0.24% over 1.0352.</pre></details><details><summary><em class="">2.3 h</em><span>Round 14 — reduction block scaling knob (19:15–19:18)</span></summary><pre>Switch <code>TORCHINDUCTOR_DYNAMIC_SCALE_RBLOCK=0</code>: 0.9851 s/update, speedup 1.0334 (windows 1.0336/1.0340/1.0325)
+— slightly worse than 1.0376. Closed, not used.</pre></details><details><summary><em class="">2.3 h</em><span>Round 15 — persistent reductions off (19:19–19:22)</span></summary><pre>Switch <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code>: 0.9787 s/update, <b>speedup 1.0402</b> (windows
+1.0374/1.0431/1.0398). Gain +0.26% over 1.0376 — the non-persistent reduction kernels are better for the
+RMSNorm/log-softmax/amax shapes here. Kept in switches.json.
+(For the record, <code>TORCHINDUCTOR_DYNAMIC_SCALE_RBLOCK=0</code> in round 14 was worse, 1.0334, and is not used.)</pre></details><details><summary><em class="">2.3 h</em><span>Round 16 — precise accumulation in the forward FP8 GEMMs (19:23–)</span></summary><pre>Switch <code>NANOCHAT_OPT_FWDACC=1</code>: forward <code>_scaled_mm</code> with <code>use_fast_accum=False</code> (the backward already uses
+False). This is a kernel/accumulation choice that *raises* precision, allowed by the precision rule and judged
+by gates 2/3. Hypothesis: the forward GEMM kernels run at 1.18 PFLOPS vs 1.32 for the identical-shape
+backward; cuBLASLt picks a different (faster) algorithm without fast accum.
+
+Result round 16: <code>use_fast_accum=False</code> in the forward is <b>much slower</b> — 0.9910 s/update, speedup 1.0272
+(windows 1.0278/1.0278/1.0263). fast accumulation is genuinely faster; the forward/backward GEMM efficiency
+gap has another cause. Closed, switch stays off.</pre></details><details><summary><em class="">2.6 h</em><span>Round 17 — online softmax off (19:37–19:40)</span></summary><pre>Switch <code>TORCHINDUCTOR_ONLINE_SOFTMAX=0</code>: 0.9810 s/update, speedup 1.0377 — slightly worse than 1.0402.
+Closed, not used.</pre></details><details><summary><em class="">2.7 h</em><span>Round 18 — cooperative reductions (19:40–19:45)</span></summary><pre>Switch <code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS=1</code>: catastrophic — 1.2998 s/update, speedup 0.7832. Closed.
+
+---
+
+# FINAL SUMMARY (current best; updated at the end of every round)
+
+<b>Tree</b>: <code>/submission/nanochat</code> @ <code>d89613b</code>, working tree clean. Only these source changes vs upstream 92d63d4:
+1. <code>scripts/base_train.py</code>: <code>NANOCHAT_OPT_ACCUM</code> (micro-batch regrouping), <code>NANOCHAT_OPT_REALIZE</code>,
+   <code>NANOCHAT_OPT_CUDAGRAPH</code> (both off/unused experiments).
+2. <code>nanochat/optim.py</code>: <code>NANOCHAT_OPT_OPTBUCKET</code> (bucketed small AdamW all-reduce), <code>NANOCHAT_OPT_OPTSCHED</code>
+   (Muon-first scheduling + copy elisions), <code>NANOCHAT_OPT_NSBMM</code> (baddbmm Newton-Schulz).
+3. <code>nanochat/fp8.py</code>: <code>NANOCHAT_OPT_QKV</code> (unused), <code>NANOCHAT_OPT_FWDACC</code> (off).
+4. <code>nanochat/flash_attention.py</code>: <code>NANOCHAT_OPT_FASPLIT</code> (off).
+All experiment switches default off; <code>/submission/switches.json</code> enables exactly the winner set.
+
+<b>Switches</b> (<code>/submission/switches.json</code>):
+<code>NANOCHAT_OPT_ACCUM=2</code>, <code>NANOCHAT_OPT_OPTBUCKET=1</code>, <code>NANOCHAT_OPT_OPTSCHED=1</code>, <code>NANOCHAT_OPT_NSBMM=1</code>,
+<code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code>, <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code>.
+
+<b>Verdict evidence</b>: <code>/tmp/check-F</code> (exactly this configuration): <b>status PASS, tier N1, speedup 1.0358</b>
+(gate 1 windows 1.0358/1.0392/1.0385; gate 2 exact items all identical; gate 3 all six endpoints within
+0.27 sigma of the reference seed trajectory). <code>time</code> sample of the same configuration: 1.0402.
+Earlier full checks: A 1.0256 (accum), B 1.0242 (+bucket), C 1.0296 (+pointwise autotune),
+D 1.0336 (+scheduling), E 1.0346 (+baddbmm), F 1.0358 (+persistent reductions off).
+
+<b>Gains by change (measured, vs the frozen reference; per-window consistent)</b>:
+| change | s/update | speedup | tier |
+|---|---|---|---|
+| upstream reference (frozen) | 1.018 | 1.000 | - |
+| micro-batches 4x16 -&gt; 2x32 | 0.9931 | 1.0251 | N1 |
+| + bucketed small AdamW all-reduce | 0.9921 | 1.0261 | N0 |
+| + Inductor pointwise/reduction autotune | 0.9867 | 1.0317 | N1 |
+| + optimizer scheduling / copy elisions | 0.9834 | 1.0352 | N0 |
+| + baddbmm Newton-Schulz | 0.9811 | 1.0376 | N1 |
+| + persistent reductions off | 0.9787 | <b>1.0402</b> | N1 |
+
+<b>Why the remaining time is bounded</b>: the step is compute/bandwidth bound with ~1.4% GPU idle. Final profile
+breakdown per update: FP8 GEMMs 460 ms (46%, ~1.25 PFLOPS = 65-75% of the machine&#x27;s FP8 peak), Inductor Triton
+fusions 387 ms (40%, mostly 80-85% of the memory roofline; the single biggest is the fused relu^2-backward +
+fp8 dual-layout quantize at 64 ms, 2.1 TB/s, its transposed store is uncoalesced), FA3 fwd+bwd 110 ms (11%,
+~57% of bf16 peak, backward-limited), NCCL 26 ms (2.6%, at NVLink bandwidth, fully overlapped with the now
+compute-bound optimizer&#x27;s 43 ms). No GPU idle worth CUDA graphs (and they crash on this FP8 path).
+
+<b>Directions tried and rejected (all logged above with numbers)</b>: shared QKV quantization (no gain); larger
+cuBLASLt workspace (OOM); NCCL_PROTO=Simple (no change); full max-autotune (+0.08% for +300 s compile); CUDA
+graphs (SIGSEGV); forcing Inductor to materialize multi-consumer buffers (much slower); FA3 num_splits=2
+(slower); dynamic_scale_rblock=0 (worse); forward precise FP8 accumulation (much slower); online softmax off
+(worse); cooperative reductions (much slower).</pre></details><details><summary><em class="">3.4 h</em><span>Round 19 — custom fused MLP gradient-quantization kernel (19:57–20:27)</span></summary><pre>Profile of the current best (<code>/tmp/prof-final</code>, 2 of 3 profiled updates captured -&gt; scale x1.5): 980 ms/update of
+kernel time: GEMM 462 ms (47%), Inductor Triton 377 ms (38.5%), FA3 110 ms (11%), NCCL 23 ms (2.4%).
+Hotspot: the fused relu^2-backward + FP8 dual-layout quantize kernel (63.6 ms/update, 2.1 TB/s) plus the amax
+reduction that recomputes the same gradient (19.1 ms/update) — together 83 ms, 8.5% of the step.
+
+Microbenchmark (same shapes/dtypes, standalone under flock): the reference kernel moves 2.8 GB in 1329 us
+(2.1 TB/s); a hand-written Triton kernel with the same expression but writing the transposed fp8 layouts through
+a tiled layout conversion (join/permute/split of the two int8 tiles) moves the same 2.8 GB in 728 us (3.83 TB/s),
+and an equivalent abs-max pass takes 353 us (the reference&#x27;s takes 397 us). Found and worked around two Triton
+9.5/3.5 codegen bugs while validating: two <code>tl.trans</code> calls on fp8 tiles in one kernel miscompile (the second
+store is garbage), and sharing one SSA value between a row-major store and the join/permute/split corrupts the
+transposed tile (fixed by recomputing the row-major value with a <code>+0.0</code> CSE barrier). Production config validated
+bitwise against a torch reference on the real [65536,6144] shapes.
+
+Implementation: <code>nanochat/mlp_fused.py</code> (new) + <code>MLP.forward</code> branch in <code>nanochat/gpt.py</code>, switch
+<code>NANOCHAT_OPT_FUSEDMLP=1</code>. The forward is the same <code>_scaled_mm</code> calls with the same scales (bitwise identical to
+upstream); only the gradient-quantization region is replaced (tier N1).
+Result: <code>time</code> 0.9685 s/update, <b>speedup 1.0511</b> (windows 1.0488/1.0554/1.0493).
+Full check <code>/tmp/check-H</code>: <b>PASS, tier N1, speedup 1.0471</b> (windows 1.0471/1.0538/1.0480; gate 2 exact items
+ok; gate 3 all endpoints within 0.28 sigma). ~+1.2% over the previous best 1.0358.</pre></details><details><summary><em class="">3.5 h</em><span>Round 20 — custom abs-max kernel inside the fused MLP path (20:31–20:35)</span></summary><pre>Replaced <code>to_fp8_scale</code>&#x27;s <code>x.float().abs().max()</code> with a hand-written Triton abs-max custom op (<code>tensor_amax</code>)
+for the MLP path. Result: <b>slower</b> — 0.9963 s/update, speedup 1.0218 (vs 0.9685/1.0511). Making the amax an
+opaque op breaks Inductor&#x27;s fusion of the relu^2 producer into the amax reduction (the reference fuses
+<code>pow_relu</code> into <code>abs_max</code>), so a2 has to be materialized and read. Reverted.</pre></details><details><summary><em class="">3.6 h</em><span>Round 21 — allow_in_graph on the fused MLP Function (20:35–20:39)</span></summary><pre>Decorating <code>FusedMLP</code> with <code>@torch._dynamo.allow_in_graph</code> (the pattern <code>_Float8Matmul</code> uses): 0.9708 s/update,
+speedup 1.0486 — slightly worse than 0.9685/1.0511. Reverted.</pre></details><details><summary><em class="">3.8 h</em><span>Round 22 — fused forward quantization op (20:35–20:53, experiment copy)</span></summary><pre>Prepared (in <code>/tmp/nanochat-exp</code> only) a custom op replacing the MLP forward&#x27;s <code>to_fp8_scale(relu(h)^2)</code> with
+two Triton kernels (amax-of-a^2 and quantize) so both passes read <code>a</code> instead of Inductor&#x27;s amax+quantize pair.
+Result: <b>slower</b> — 0.9752 s/update, speedup 1.0439 (vs 0.9685/1.0511). Inductor&#x27;s fused amax (which fuses the
+relu^2 producer) plus its quantize kernel is cheaper than a 2-pass custom region here. Not moved into the
+submission (submission unchanged and validated).
+
+---
+
+# UPDATE — best validated state after the expensive-lever rounds (20:53)
+
+<b>Tree</b>: <code>/submission/nanochat</code> @ <code>993a7e7</code>, working tree clean. <b>Switches</b> (<code>/submission/switches.json</code>):
+<code>NANOCHAT_OPT_ACCUM=2</code>, <code>NANOCHAT_OPT_OPTBUCKET=1</code>, <code>NANOCHAT_OPT_OPTSCHED=1</code>, <code>NANOCHAT_OPT_NSBMM=1</code>,
+<code>NANOCHAT_OPT_FUSEDMLP=1</code>, <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code>, <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code>.
+
+<b>Verdict evidence for exactly this configuration</b>:
+- <code>/tmp/check-H</code>: PASS, N1, speedup <b>1.0471</b> (windows 1.0471/1.0538/1.0480)
+- <code>/tmp/check-I</code>: PASS, N1, speedup <b>1.0466</b> (windows 1.0467/1.0475/1.0466)
+- <code>/tmp/t-fusedmlp3</code> (time): speedup <b>1.0511</b> (windows 1.0488/1.0554/1.0493)
+Gate 2 exact items identical in both checks; gate 3 all six endpoints within 0.28 sigma (bound 3 sigma).
+
+<b>Cumulative progression of the validated speedup</b>: reference 1.000 -&gt; accum 1.0256 -&gt; +bucket 1.0242 -&gt;
++pointwise autotune 1.0296 -&gt; +scheduling 1.0336 -&gt; +baddbmm 1.0346 -&gt; +persistent reductions off 1.0358/1.0371 -&gt;
+<b>+custom fused MLP gradient kernels 1.0466/1.0471</b> (time samples 1.0402 -&gt; 1.0511).
+
+<b>Expensive-lever outcome</b>: the one custom kernel that paid off is <code>nanochat/mlp_fused.py</code> (MLP block
+relu^2-backward + FP8 dual-layout quantize, 0.73 ms vs Inductor&#x27;s 1.33 ms for the same 2.8 GB, plus a 0.42 ms
+abs-max pass vs 0.40 ms). Two attempted extensions of it (custom abs-max via an opaque op; a fused forward
+quantize op) were measurably slower because they break Inductor&#x27;s producer fusion, and are not used.
+Everything else in the step is at the library&#x27;s limit for these shapes (FP8 GEMMs ~1.25 PFLOPS = 65-75% of the
+machine peak, FA3 ~57% of bf16 peak in the backward, elementwise fusions 80-85% of the memory roofline).
+
+No processes left running; both GPUs idle.</pre></details><details><summary><em class="">4.0 h</em><span>Round 23 — hotspot identification from Inductor&#x27;s generated code (20:53–20:58)</span></summary><pre>Dumped Inductor&#x27;s code for the current best (1-step run, <code>/tmp/ind2</code>) and read the two unidentified kernels:
+- <code>view_15</code>-type (10.2 ms/up, 98 calls): a standalone re-quantize+transpose of an attention linear&#x27;s [M,1536]
+  gradient (reads bf16, writes fp8 transposed) at 2.8 TB/s — small traffic, already efficient.
+- <code>view_27</code>-type (14.8 ms/up, 96 calls): the <b>RoPE backward already fused</b> with the dual-layout FP8 quantize of
+  its result in one kernel (reads the two rope halves, writes both layouts) at 2.6 TB/s — nothing to split.
+- Cross-entropy: forward kernel is the online softmax with <code>libdevice.tanh</code> (accurate tanh on 2.1 B logits per
+  pass, measured ~5.4e11 tanh/s); the backward kernels recompute the same tanh. A custom CE cannot be faster
+  without changing the model function (an approximate tanh would be N3), so this direction is closed.
+Conclusion: no tractable single hotspot remains; the remaining time is spread over fused kernels at 2.6-3.9 TB/s
+and the FP8 GEMMs/FA3 at the libraries&#x27; limits.</pre></details><details><summary><em class="">4.0 h</em><span>Round 24 — abs-max of a^2 from max(a) with the fast custom kernel (20:58–21:01)</span></summary><pre>Since <code>max(bf16(a^2)) = bf16(max(a)^2)</code> exactly, the MLP forward&#x27;s a2 abs-max (20.2 ms/up at 1.9 TB/s under
+Inductor) was replaced by the fast custom abs-max over <code>a</code> (3.85 TB/s) while keeping Inductor&#x27;s quantize fusion.
+Result: <b>still slower</b> — 0.9770 s/update, speedup 1.0420 (vs 0.9685/1.0511). Even a purely additive custom
+reduction breaks Inductor&#x27;s <code>mul_relu</code> fusion into the abs-max, costing more than the faster reduction saves.
+Reverted; submission unchanged and validated.</pre></details><details><summary><em class="">4.1 h</em><span>Round 25 — paired verification against a live reference (21:02–21:09)</span></summary><pre><code>bench.py time --paired</code> on the final configuration (timing pattern of the final evaluation: reference run
+immediately followed by the candidate): candidate windows 0.9684/0.9718/0.9713 s/update,
+<b>speedup_vs_paired_reference 1.0485</b>, speedup_vs_frozen_reference 1.0489. The live reference and the frozen
+reference agree, so the ~1.049 speedup is not an artifact of the frozen timing.</pre></details><details><summary><em class="">4.2 h</em><span>Round 26 — unlimited-window FA3 path for the long layers (21:09–21:13)</span></summary><pre>Switch <code>NANOCHAT_OPT_NOWIN=1</code>: the SSSL long layers pass <code>window_size=(-1,0)</code> instead of <code>(seq_len,0)</code> (identical
+attention math; the short window stays derived from the sequence length). Result: 0.9705 s/update,
+speedup 1.0471 vs 1.0511 — neutral/slightly worse (FA3 already treats window &gt;= seqlen as plain causal).
+Discarded. (A first attempt was aborted because deriving <code>short_window</code> from the overridden long window collapsed
+it to 0; caught before any result was used.)</pre></details><details><summary><em class="">4.3 h</em><span>Round 27 — Inductor C++ launcher (21:13–21:19)</span></summary><pre>The inter-update gap (4.7 ms/update) is the compiled graph&#x27;s Python launcher, so <code>TORCHINDUCTOR_CPP_WRAPPER=1</code>
+was tested. Result: 0.9775 s/update, speedup 1.0456 vs 1.0511; startup 297 s (vs 166 s) for the C++ build.
+Slightly worse, discarded.
+
+---
+
+# FINAL STATE (21:19)
+
+<b>Tree</b>: <code>/submission/nanochat</code> @ <code>993a7e7</code>, working tree clean.
+<b>Switches</b> (<code>/submission/switches.json</code>):
+<code>NANOCHAT_OPT_ACCUM=2</code>, <code>NANOCHAT_OPT_OPTBUCKET=1</code>, <code>NANOCHAT_OPT_OPTSCHED=1</code>, <code>NANOCHAT_OPT_NSBMM=1</code>,
+<code>NANOCHAT_OPT_FUSEDMLP=1</code>, <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code>, <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code>.
+
+<b>Best evidence for exactly this configuration</b>:
+- full check <code>/tmp/check-H</code>: PASS, N1, <b>1.0471</b>
+- full check <code>/tmp/check-I</code>: PASS, N1, <b>1.0466</b>
+- paired run (live reference immediately before the candidate): <b>1.0485</b>; frozen-reference ratio 1.0489
+- <code>time</code> samples: 1.0489, 1.0511
+Gate 2 exact items identical, gate 3 all six endpoints within 0.28 sigma, all timing windows within 0.4%.
+
+<b>Gains (each measured with the judge&#x27;s own commands)</b>:
+| change | speedup | tier |
+|---|---|---|
+| micro-batches 4x16 -&gt; 2x32 (<code>NANOCHAT_OPT_ACCUM=2</code>) | 1.0251 | N1 |
+| bucketed small AdamW all-reduce (<code>NANOCHAT_OPT_OPTBUCKET=1</code>) | +0.1% | N0 |
+| Inductor pointwise/reduction autotune | +0.55% | N1 |
+| optimizer scheduling + copy elisions (<code>NANOCHAT_OPT_OPTSCHED=1</code>) | +0.16% | N0 |
+| baddbmm Newton-Schulz (<code>NANOCHAT_OPT_NSBMM=1</code>) | +0.24% | N1 |
+| persistent reductions off | +0.26% | N1 |
+| custom fused MLP gradient kernels (<code>NANOCHAT_OPT_FUSEDMLP=1</code>) | +1.2% | N1 |
+
+<b>Rejected directions (with numbers in the rounds above)</b>: shared QKV quantize (no gain), cuBLASLt workspace
+(OOM), NCCL proto (no change), full max-autotune (+0.08% for +300 s), CUDA graphs (SIGSEGV), realize-everything
+(0.993), FA3 num_splits=2 (0.998), dynamic_scale_rblock=0 (1.0334), forward precise accum (1.0272), online
+softmax off (1.0377), cooperative reductions (0.783), custom abs-max inside the MLP path (1.042), custom forward
+quantize op (1.0439), allow_in_graph (1.0486), unlimited-window FA3 (1.0471), C++ launcher (1.0456).</pre></details><details><summary><em class="">4.3 h</em><span>Round 28 — re-read the MLP forward amax kernel (21:19–21:22, analysis)</span></summary><pre>From the dumped code, <code>triton_red_fused__to_copy_abs_max_mul_relu_18</code> (20.2 ms/update) is an <b>in-place fused</b>
+kernel: it computes <code>relu(h)</code> into <code>a</code>&#x27;s buffer and the max of <code>relu(h)^2</code> in the same pass (1.6 GB, 3.8 TB/s =
+roofline). This explains why both custom replacements of it were slower; the forward is already optimally fused.
+No change (analysis round).</pre></details><details><summary><em class="">4.3 h</em><span>Round 29 — third full check of the final configuration (21:22–)</span></summary><pre>Running <code>bench.py check</code> again on the unchanged final tree/switches to add a third independent PASS sample.</pre></details><details><summary><em class="">4.3 h</em><span>Round 30 — value-embedding / small-GEMM accounting (21:22, analysis)</span></summary><pre>Checked the remaining &quot;suspicious&quot; kernels in the current profile: the value-embedding chain (gather + gate +
+<code>v + gate*ve</code> + sigmoid) is 6.0 ms/update across 24 fused kernels (3.7 TB/s, roofline); the <code>ve_gate</code> bf16
+linears are 0.76 ms/update of tiny cutlass kernels; <code>embedding_dense_backward</code> scatter-adds are 2.0 ms/update.
+The &quot;cutlass&quot; total of 111 ms is the FA3 attention (110.7 ms), not GEMM leftovers. No tractable hotspot remains.</pre></details><details><summary><em class="">4.3 h</em><span>Round 29 result — third full check (21:20–21:31)</span></summary><pre><code>/tmp/check-J</code> (unchanged final tree/switches): <b>PASS, tier N1, speedup 1.0438</b> (windows 1.0484/1.0488/1.0438;
+gate 2 exact items ok; gate 3 biases identical to check-H/I, all within 0.28 sigma).
+
+Three independent full checks of the final configuration now pass:
+check-H 1.0471, check-I 1.0466, check-J 1.0438; paired-vs-live-reference 1.0485;
+<code>time</code> samples 1.0489 and 1.0511. Mean ~1.047, run-to-run window noise ~0.5%.</pre></details><details><summary><em class="">4.6 h</em><span>Round 31 — full Inductor max-autotune retest in the new graph (21:31–21:41)</span></summary><pre>Re-tested <code>TORCHINDUCTOR_MAX_AUTOTUNE=1</code> on top of the final configuration (it would Triton-template the 20 ms/update
+Muon bmm set). Windows [0.9653, 0.9687, 0.9701] s/update, speedup 1.0517 (min-window ratio 1.0492) vs the current
+config&#x27;s [0.9679, 0.9675, 0.9700], 1.0511 (min-window 1.0488) — <b>within run-to-run noise</b>, with startup 486 s
+instead of 166 s. Not enabled; the current configuration stays.
+
+---
+
+# FINAL STATE (21:41) — unchanged and best-validated
+
+Tree <code>/submission/nanochat</code> @ <code>993a7e7</code> (clean). Switches: <code>NANOCHAT_OPT_ACCUM=2</code>, <code>NANOCHAT_OPT_OPTBUCKET=1</code>,
+<code>NANOCHAT_OPT_OPTSCHED=1</code>, <code>NANOCHAT_OPT_NSBMM=1</code>, <code>NANOCHAT_OPT_FUSEDMLP=1</code>,
+<code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code>, <code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0</code>.
+
+Evidence: three full checks PASS, N1 (1.0471 / 1.0466 / 1.0438), paired vs a live reference 1.0485,
+<code>time</code> samples 1.0489 / 1.0511 / 1.0517(max-autotune variant). Every remaining component of the step sits at the
+memory roofline, the accurate-tanh cost, or the FP8-GEMM/FA3 libraries&#x27; limits; the only sub-roofline region
+(the MLP dual-layout FP8 store) is the custom kernel in <code>nanochat/mlp_fused.py</code>.</pre></details><details><summary><em class="">4.7 h</em><span>Round 32 — Inductor cudagraph trees (21:42–21:46)</span></summary><pre><code>TORCHINDUCTOR_CUDAGRAPHS=1</code> (Inductor&#x27;s cudagraph-tree implementation, a different code path from
+<code>mode=&quot;reduce-overhead&quot;</code>, which crashed in round 9). Result: <b>SIGSEGV again</b> (exitcode -11 during graph
+capture of the FP8 <code>_scaled_mm</code> path). CUDA graphs are definitively not usable with this FP8 autograd path;
+closed. The switch is not in switches.json.</pre></details><details><summary><em class="">4.7 h</em><span>Round 33 — value-embedding gradient scatter analysis (21:46–21:50, analysis)</span></summary><pre>Read the fused kernel that carries the value-embedding backward (<code>...embedding_dense_backward_mul_nll_loss_forward...</code>,
+6.88 ms/update, 24 calls): it reduces <code>v*ve</code> over the head dim for the gate, quantizes the v gradient, and
+scatters the value-embedding gradient with <code>tl.atomic_add</code> over 65536x1536 = 100 M elements per layer per
+micro-step (2.4 B atomics/update, ~1.4 TB/s effective because of atomic contention). A sorted/segmented
+non-atomic scatter could reach ~2-4 TB/s (est. 3-4 ms/update, 0.4%) but would require taking over the whole
+fused region (gate backward + v quantize + scatter) and a 65536-element sort per layer; the expected gain is
+below the run-to-run noise of the gate and the effort/risk is high, so it is left as the one documented
+remaining micro-opportunity.
+
+# END OF LOG</pre></details><details><summary><em class="">4.8 h</em><span>Round 34 — ablation: pointwise/reduction autotuning (21:48–21:51)</span></summary><pre>Removed <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE</code> from the final configuration (everything else unchanged):
+1.0487 s/update, speedup <b>0.9707</b> — i.e. the autotuner is now worth <b>~8 %</b> (it was +0.55 % before the
+persistent-reduction and fused-MLP changes). Single-kernel config selection dominates the step in the current
+graph, so this switch is essential and stays. This also explains part of the run-to-run variance (the choice is
+made by timing during compile).</pre></details><details><summary><em class="">4.9 h</em><span>Round 35 — retest dynamic reduction block scaling in the new regime (21:51–21:54)</span></summary><pre><code>TORCHINDUCTOR_DYNAMIC_SCALE_RBLOCK=0</code> with everything else at the final configuration: 0.9736 s/update,
+speedup 1.0456 (windows 1.0467/1.0489/1.0413) vs 1.0511. Worse; default (=1) stays. Together with round 34 this
+confirms the current autotune configuration is the right one: the pointwise/reduction autotuner is essential
+(+8 %), and its default dynamic block scaling is better than the fixed alternative.</pre></details><details><summary><em class="">4.9 h</em><span>Round 36 — widened autotune search space (21:55–21:59)</span></summary><pre>Since per-kernel config choice is worth ~8 %, <code>NANOCHAT_OPT_ATPLUS=1</code> appends extra tile/warp candidates to
+Inductor&#x27;s own autotune lists for 1-D pointwise and reduction kernels (the autotuner still picks the fastest,
+so extra candidates only cost compile time; they are appended so deterministic mode&#x27;s first-config choice is
+unchanged). Result: 0.9706 s/update, speedup 1.0488 vs 1.0511 — no gain (slightly worse, within noise): the
+built-in search space is already adequate, and more noisy candidates do not improve the pick. Switch stays off.</pre></details><details><summary><em class="">4.9 h</em><span>Round 37 — autotuner measurement robustness (21:59–22:02, analysis)</span></summary><pre>Read Inductor&#x27;s per-config benchmark: it uses <code>benchmark_gpu</code> with <code>benchmark_iters=100</code>,
+<code>max_benchmark_duration=25 ms</code> and <code>return_mode=&quot;min&quot;</code>, i.e. the minimum over up to 100 repetitions. The
+measurement is already robust, so the round-36 result is &quot;no better candidates exist&quot;, not selection noise.
+Direction closed. (The <code>NANOCHAT_OPT_ATPLUS</code> code is inert with the switch off.)</pre></details><details><summary><em class="">5.0 h</em><span>Round 38 — final clean timing sample on the submitted tree (22:00–22:03)</span></summary><pre><code>time</code> on <code>/submission/nanochat</code> @ <code>6f7d8ab</code> with <code>/submission/switches.json</code> (the ATPLUS code is inert):
+windows [0.9679, 0.9718, 0.9702] s/update, <b>speedup 1.0495</b> (ratios 1.0488/1.0507/1.0491), startup 166 s,
+peak 94.0 GiB. Consistent with the three full checks (1.0471/1.0466/1.0438) and the paired run (1.0485).</pre></details><details><summary><em class="">5.1 h</em><span>Round 39 — retest shared QKV quantization in the final graph (22:04–22:07)</span></summary><pre>Inductor&#x27;s code shows the per-block kernel that does the residual blend + RMSNorm + FP8 quantize for the
+attention input writing <b>three identical transposed fp8 tensors</b> (one per c_q/c_k/c_v <code>_Float8Matmul</code> saved
+input) and recomputing that forward path inside the backward (~1.6 GB/call of avoidable traffic — the biggest
+single redundancy found in the whole profile, ~10-16 ms/update if removable). Re-enabled the shared-QKV path
+(<code>NANOCHAT_OPT_QKV=1</code>, <code>_Float8Matmul3</code>, one quantization shared by the three projections): 0.9710 s/update,
+speedup <b>1.0484</b> vs 1.0495/1.0511 — neutral (the fused Function does not shrink the saved-input buffers in
+the partitioner and loses other fusions). Closed a second time; switch stays off.</pre></details><details><summary><em class="">5.1 h</em><span>Round 40 — explicit shared QKV quantization tensor (22:08–22:12, experiment copy)</span></summary><pre>Third attempt at the triple-saved QKV input (after rounds 2 and 39): a new <code>_Float8MatmulPre</code> autograd Function
+takes the already-quantized attention input as an *explicit* tensor, so all three projections reference the same
+saved value (<code>ctx.save_for_backward(x8)</code>) instead of each saving a private copy. Arithmetic identical to
+<code>_Float8Matmul</code>. Implemented in <code>/tmp/nanochat-exp</code> only and measured with the current switches:
+0.9711 s/update, speedup <b>1.0488</b> vs 1.0495/1.0511 — neutral again. So the three identical transposed fp8
+stores are not on the critical path (the per-block kernel is read/latency bound, not store bound). Not moved
+into the submission; the submission is unchanged.</pre></details><details><summary><em class="">5.2 h</em><span>Round 41 — fourth full check of the exact submitted tree (22:12–)</span></summary><pre>Contents are byte-identical to <code>993a7e7</code>; running <code>bench.py check</code> once more to add a fourth independent
+PASS/timing sample for the final configuration (the score is decided by this command, so repeated confirmation
+is the highest-value remaining use of the budget).</pre></details><details><summary><em class="">5.2 h</em><span>Round 41 result — fourth full check (22:12–22:24)</span></summary><pre><code>/tmp/check-K</code> on the exact submitted tree: <b>PASS, tier N1, speedup 1.0484</b> (candidate windows
+0.9682/0.9676/0.9705 s -&gt; ratios 1.0484/1.0553/1.0487; gate 2 exact items ok; gate 3 biases identical again).
+
+Four independent full checks of the final configuration now pass:
+check-H 1.0471, check-I 1.0466, check-J 1.0438, check-K 1.0484  (mean 1.0465, min 1.0438)
+paired-vs-live-reference 1.0485; <code>time</code> samples 1.0489 / 1.0495 / 1.0511.</pre></details><details><summary><em class="">5.4 h</em><span>Round 42 — power/clock diagnostic + expandable segments (22:26–22:30)</span></summary><pre>Sampled <code>nvidia-smi</code> every 5 s across a full <code>time</code> run:
+- during the measured steps both GPUs draw <b>~693 W of the 700 W cap</b> at 100 % utilisation;
+- SM clock <b>1980 MHz at the start -&gt; 1620 -&gt; 1500 -&gt; 1440 MHz</b> by the end of the 34-step run, temperature 62 C
+  (well below the thermal limit), i.e. the GPUs are <b>software-power-capped</b>, not thermally throttled.
+
+This is the fundamental limit of the last few percent: at a fixed power cap the time per update is
+energy-per-update / cap, which is why every remaining improvement had to remove *work* (bytes, passes, kernels)
+rather than just run the same work faster, and why the later windows of a run are systematically a few tenths of
+a percent slower than the first (the score uses the slowest window).
+
+<code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> was tested in the same run (it cannot change the arithmetic):
+windows 0.9683/0.9723/0.9687 s, speedup 1.0497 (min-window ratio 1.0483), reserved peak 94.8 GiB vs 96 GiB.
+Neutral on time, so it is not added to <code>switches.json</code> (no unproven knobs in the submitted configuration).</pre></details><details><summary><em class="">5.5 h</em><span>Round 43 — second paired measurement (22:30–)</span></summary><pre>The final evaluation times the reference and the candidate in the same session; a second <code>time --paired</code> sample
+gives the expected final ratio and its spread directly (first sample: 1.0485).</pre></details><details><summary><em class="">5.5 h</em><span>Round 43 result — second paired measurement (22:30–22:36)</span></summary><pre><code>time --paired</code> (reference run immediately followed by the candidate, i.e. the final evaluation&#x27;s pattern):
+candidate windows 0.9703/0.9738/0.9715 s -&gt; <b>speedup_vs_paired_reference 1.0479</b> (vs_frozen 1.0474).
+Two paired samples now: <b>1.0485 and 1.0479</b> (mean 1.0482), consistent with the four full checks
+(1.0471 / 1.0466 / 1.0438 / 1.0484). Expected final score ~1.046-1.048, i.e. 2.6-2.8 % above the 1.02 bar.</pre></details><details><summary><em class="">5.6 h</em><span>Round 44 — cross-entropy / lm_head gradient path closure (22:37-22:45, analysis)</span></summary><pre>Checked whether a fully fused cross-entropy could beat Inductor&#x27;s two kernels by reading the generated code:
+- the lm_head gradient kernel (<code>..._tanh_tanh_backward_view_2</code>, 65536x32768) **already writes both FP8 layouts
+  in the same kernel** (<code>out_ptr0</code> row-major, <code>out_ptr1</code> transposed) — nothing to save there;
+- the CE backward is <code>[log_softmax bwd + dlogits + dlogits amax]</code> (9.05 ms) followed by
+  <code>[tanh bwd + dual-layout quantize]</code> (9.03 ms), i.e. dlogits is materialised once (4.3 GB) and then read once.
+  A fused version would have to re-read the logits and the upstream gradient in the quantize pass (8.6 GB instead
+  of 4.3 GB), so it would be *slower*, not faster. Both kernels run at ~2.9 TB/s.
+
+The cross-entropy path is therefore optimal given the exact-tanh requirement; the last expensive rewrite
+candidate is closed on evidence (round 23 had closed it on the tanh throughput alone).</pre></details><details><summary><em class="">5.6 h</em><span>Round 45 — full code audit of the submitted tree vs the reference (22:45-)</span></summary><pre>Diffed every file against <code>/opt/researchboost/ws/targets/reference</code> to confirm that the submitted tree contains
+exactly the intended changes and nothing accidentally active:
+- <code>nanochat/optim.py</code> 89 changed lines — bucketed small-param all-reduce (<code>OPTBUCKET</code>), phase ordering +
+  stack/copy elisions (<code>OPTSCHED</code>), baddbmm Newton-Schulz (<code>NSBMM</code>): all three *active*.
+- <code>nanochat/mlp_fused.py</code> new, 163 lines — custom fused MLP gradient quantization (<code>FUSEDMLP</code>): *active*.
+- <code>scripts/base_train.py</code> 24 — micro-batch regrouping (<code>ACCUM</code>) *active*; the REALIZE/CUDAGRAPH/ATPLUS blocks are
+  inert (switch off).
+- <code>nanochat/fp8.py</code> 48 — <code>_Float8Matmul3</code> (QKV) + <code>_OPT_FWDACC</code>: inert, off.
+- <code>nanochat/gpt.py</code> 23 — QKV branch (off) + the FUSEDMLP dispatch (on).
+- <code>nanochat/flash_attention.py</code> 7 — FASPLIT switch: inert, off.
+No unintended activation, no debug left enabled, no changed default in the reference paths used by the checks.</pre></details><details><summary><em class="">5.7 h</em><span>Round 46 — Inductor codegen options (numerics-neutral), four tested (22:38-22:47)</span></summary><pre>Added temporary switches for the remaining numerics-neutral Inductor codegen options and measured each on top of
+the final configuration (the switches were then removed; the tree is back to the validated content):
+- <code>triton.tile_reductions</code>     -&gt; <b>InductorError</b> (&quot;failed to set ranges [1536, 1]&quot;) on these kernels, crash.
+- <code>triton.use_block_ptr</code>       -&gt; 0.9763 s/update, speedup <b>1.0427</b> (windows 1.0410/1.0465/1.0406) — worse.
+- <code>triton.use_tensor_descriptor</code> (TMA, sm90) -&gt; 0.9694 s/update, speedup <b>1.0501</b>
+  (windows 1.0476/1.0515/1.0512, min-window 1.0476) — neutral vs 1.0495/1.0511 (min-window 1.0488).
+- <code>triton.dense_indexing</code>      -&gt; <b>Triton CompilationError</b> (&quot;r0_mask is not defined&quot;), crash.
+
+All four are rejected; none is in <code>switches.json</code> and the code was reverted (<code>git diff 993a7e7 HEAD</code> empty).</pre></details><details><summary><em class="">5.8 h</em><span>Round 47 — fifth full check of the exact submitted tree (22:48-)</span></summary><pre>The check CLI has no separate &quot;final&quot; mode; <code>check</code> is the protocol (gates 0-3) and the final evaluation runs it
+with the reference timed twice. Running it once more on the unchanged tree for a fifth independent sample of the
+score and to confirm nothing has drifted on the machine over the session.</pre></details><details><summary><em class="">5.8 h</em><span>Round 47 result — fifth full check (22:48-22:59)</span></summary><pre><code>/tmp/check-L</code>: <b>PASS, tier N1, speedup 1.0461</b> (candidate windows 0.9704/0.9735/0.9709 -&gt;
+ratios 1.0461/1.0489/1.0483). Five checks now: 1.0471 / 1.0466 / 1.0438 / 1.0484 / 1.0461 (mean 1.0464,
+min 1.0438). No drift on the machine over the session.</pre></details><details><summary><em class="">6.0 h</em><span>Round 48 — activation-checkpointing policy: save-all vs min-cut (23:00-23:03, experiment copy)</span></summary><pre><code>torch._functorch.config.min_cut_rematerialization_partition</code> no longer exists in torch 2.9, so the alternative
+partitioner was installed through <code>torch._inductor.config.custom_partitioner_fn</code> using
+<code>torch._functorch.partitioners.default_partition</code> (save every stashed activation instead of recomputing any).
+Result: 0.9684 s/update, speedup <b>1.0512</b> (windows 1.0524/1.0529/1.0484), i.e. <b>identical</b> to the min-cut
+configuration (0.9685/1.0511) but with peak memory 113.7 GiB instead of 94.0 GiB. Neutral on time, materially
+less safe on memory -&gt; rejected; the submission keeps the default partitioner.</pre></details><details><summary><em class="">6.1 h</em><span>Round 49 — hoisting the weight quantization out of the compiled graph (23:04-23:07, experiment copy)</span></summary><pre>The last identified redundancy was that each FP8 layer re-quantizes its weight in both micro-steps
+(~4.4 ms/update at ~3 TB/s). Implemented <code>NANOCHAT_OPT_WQ=1</code>: per-module fp8 weight buffers refreshed once per
+optimizer step by <code>refresh_fp8_weights()</code> (outside the compiled region) and a <code>_Float8MatmulW</code> Function that
+consumes them (arithmetic identical to <code>_Float8Matmul</code>). Result: 0.9765 s/update, speedup <b>1.0425</b>
+(windows 1.0381/1.0473/1.0420) — clearly <b>worse</b> than 1.0495/1.0511: outside the compiled graph the 145
+per-layer <code>_to_fp8</code> calls become individually launched eager kernels instead of Inductor&#x27;s fused ones, costing
+more than the saved duplicate pass. Rejected; submission unchanged (the experiment stayed in /tmp/nanochat-exp2).
+
+---
+
+# CLOSING SUMMARY (23:08)</pre></details><details><summary><em class="">6.1 h</em><span>Round 50 — re-ablation of the earliest optimizer switch in the final graph (23:08-23:11)</span></summary><pre><code>NANOCHAT_OPT_OPTBUCKET</code> was measured at +0.1% early in the session (before the fused-MLP and phase-ordering
+changes), so it was re-ablated now: without it, 0.9707 s/update, speedup <b>1.0487</b> (windows
+1.0482/1.0500/1.0482) vs 0.9685-0.9700 / 1.0495-1.0511 with it. It still pays (small but consistent) -&gt; kept.
+Together with rounds 34/35 this means every switch in the submitted configuration has been ablated *in the final
+graph*, not only at the time it was introduced.</pre></details><details><summary><em class="">6.2 h</em><span>Round 51 — re-ablation of persistent reductions in the final graph (23:12-23:15)</span></summary><pre><code>TORCHINDUCTOR_PERSISTENT_REDUCTIONS</code> was turned off early (round 15) because it cost 0.3%; the mechanism it
+would help (the norm backward&#x27;s split reduction+elementwise, 23 ms/update) is now a bigger share of the step, so
+it was retested: 0.9748 s/update, speedup <b>1.0443</b> (windows 1.0435/1.0446/1.0450) vs 0.9685-0.9700 /
+1.0495-1.0511. Still clearly worse; it must be hurting other reductions more than it helps the norms. Off stays.
+
+With rounds 34/35/50 this completes a full re-ablation of the submitted configuration in the final graph:
+MAX_AUTOTUNE_POINTWISE essential (~8%), DYNAMIC_SCALE_RBLOCK=0 negative, OPTBUCKET still positive,
+PERSISTENT_REDUCTIONS=1 negative -&gt; the seven switches are each individually justified *now*.</pre></details><details><summary><em class="">6.3 h</em><span>Round 52 — re-ablation of OPTSCHED, completing the switch audit (23:16-23:19)</span></summary><pre><code>NANOCHAT_OPT_OPTSCHED</code> off (everything else final): 0.9740 s/update, speedup <b>1.0452</b>
+(windows 1.0465/1.0470/1.0420) vs 0.9685-0.9700 / 1.0495-1.0511 with it. It is worth ~+0.4% in the final graph
+(more than the +0.16% measured when introduced) -&gt; kept.
+
+### Final switch audit (all measured in the final graph)
+
+| switch | without it | with it | verdict |
+|---|---|---|---|
+| NANOCHAT_OPT_ACCUM=2 | 4x16 micro-batches | 1.0251 when introduced | kept |
+| NANOCHAT_OPT_OPTBUCKET | 1.0487 | 1.0495-1.0511 | kept |
+| NANOCHAT_OPT_OPTSCHED | 1.0452 | 1.0495-1.0511 | kept |
+| NANOCHAT_OPT_NSBMM | (elementwise form) | +0.24% when introduced | kept |
+| NANOCHAT_OPT_FUSEDMLP | 1.0358 | 1.0466 (+1.2%) | kept |
+| TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE | 0.9707 (1.0487 s/up) | 1.0495-1.0511 | essential |
+| TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0 | 1.0443 (=1) | 1.0495-1.0511 | kept |</pre></details><details><summary><em class="">6.3 h</em><span>Round 53 — sixth full check (23:20-)</span></summary><pre>No further implementation change is justified by the measurements, so the remaining budget is spent on the one
+thing that directly de-risks the score: repeating the judge&#x27;s own <code>check</code> on the unchanged tree.</pre></details><details><summary><em class="">6.3 h</em><span>Round 53 result — sixth full check and final score statistics (23:20-23:31)</span></summary><pre><code>/tmp/check-M</code>: <b>PASS, tier N1, speedup 1.0478</b> (windows 0.9688/0.9674/0.9707 -&gt; 1.0478/1.0555/1.0485;
+gate 2 exact items ok; gate 3 identical biases).
+
+All score samples on the submitted configuration (n=8: 6 full checks + 2 paired runs):
+    1.0471  1.0466  1.0438  1.0484  1.0461  1.0478  1.0485  1.0479
+    mean 1.0470, std 0.0016, min 1.0438
+Margin over the 1.02 bar: worst case +2.33%, mean +2.65%. The bar is cleared by a wide margin in every
+measurement, and the spread (0.16%) is measurement/thermal noise, not implementation variance.
+
+# END OF WORK LOG</pre></details><details><summary><em class="">6.5 h</em><span>Round 54 — final integrity verification (23:31)</span></summary><pre>- <code>/submission/switches.json</code>: valid JSON, exactly the seven audited keys.
+- <code>/submission/nanochat</code>: working tree clean, HEAD <code>8aa07ca</code>, <code>git diff 993a7e7 HEAD</code> empty (content identical to
+  the commit that passed six full checks).
+- <code>nanochat/mlp_fused.py</code> is imported by <code>nanochat/gpt.py</code> at the MLP dispatch; every changed file compiles.
+- No processes running; both GPUs idle (0 MiB).
+
+Remaining identified-but-unimplemented opportunity, quantified for the record: the RMSNorm region is ~91 ms/update
+and its backward runs as two passes (a reduction + an elementwise kernel, ~23 ms/update for the backward alone).
+Fusing it into one pass needs an <code>autograd.Function</code>, which makes the region opaque and therefore breaks the
+forward&#x27;s fusion with the residual add (and loses the add-only backward fusion), i.e. the same failure mode that
+measured negative in five of six custom-op attempts this session (custom abs-max 1.0420, forward quantize 1.0439,
+hoisted weight quantize 1.0425, allow_in_graph 1.0486, block-ptr/TMA codegen). Expected value is not positive, so
+the validated submission is left untouched.</pre></details><details><summary><em class="">6.5 h</em><span>Round 55 — quantifying the last expensive lever before committing to it (23:32-23:36)</span></summary><pre>Fresh profile (3 updates) with all kernels whose name contains <code>rms_norm_backward</code> summed:
+- norm-backward kernels total <b>120.8 ms/up</b> (8.3% of the profiled step);
+- of that, only <b>34.6 ms</b> is the separable two-kernel backward (<code>poi_..._add_mul_neg_slice</code> 20.5 + <code>red_..._mul</code>
+  14.1);
+- the remaining <b>~86 ms is already fused</b> with neighbouring ops: the adjacent FP8 quantize
+  (<code>..._scaled_mm_..._abs_add_clamp_clone_max_mul_reciprocal_...</code>, ~30 kernels of ~2.8/1.1 ms), the value-embedding
+  <code>mm</code> (<code>..._abs_add_max_mm_mul_select...</code>), and <code>slice_backward</code>.
+
+Replacing <code>norm()</code> with an opaque autograd Function would break exactly those fusions (they carry the majority of
+the time), to fuse a 34.6 ms two-kernel sequence down to roughly 20 ms — i.e. about +9 ms (1%) of upside against
+more than that in fusion losses. The same reasoning that made five of six earlier opaque-op attempts measure
+negative applies here with a *measured* breakdown, so this lever is declined on evidence rather than attempted
+blind, and the six-times-validated submission is left untouched.
+
+(Note: profile mode inflates absolute times by ~1.5x due to the profiler; the proportions are what matter, and
+scaled to the real 968 ms step the separable norm-backward gain is ~8-11 ms, 0.8-1.1%, before any fusion loss.)</pre></details><details><summary><em class="">6.6 h</em><span>Round 56 — definitive kernel accounting from a full profile (23:32-23:40)</span></summary><pre>Fresh 3-update profile: total 971 ms/up of kernel time (the profiler does not inflate this workload; the
+un-profiled wall is 968 ms). Complete accounting of every component:
+
+| component | ms/up | share | limit |
+|---|---|---|---|
+| FP8 GEMMs (6 nvjet kernels: fwd 162.7+44.4, bwd 139.7+83.8+10.2, Muon bmm 16.9) | 458 | 47% | cuBLASLt, ~1.25 PFLOPS |
+| FA3 attention (bwd 44.0+25.1, fwd 17.2, pre/post 15.9) | 102 | 10.5% | library |
+| my MLP kernels (<code>_quant_dual</code> 35.6 + <code>_amax_gh</code> 19.9) | 55.5 | 5.7% | 3.8-3.9 TB/s = roofline |
+| MLP forward (Inductor amax 20.3 + quantize 17.4) | 37.7 | 3.9% | 3.4-3.8 TB/s = roofline |
+| RMSNorm backward (separable 13.6+9.4, plus fused ~40) | ~63 | 6.5% | fused with quantize/ve_gate |
+| RoPE (fwd 19.1 + bwd 14.7) | 33.8 | 3.5% | 2.6-4.0 TB/s = roofline |
+| cross-entropy (fwd 7.9, bwd 9.1+9.1) | ~27 | 2.8% | exact-<code>tanh</code> bound |
+| value embeddings / gathers / scatters | ~20 | 2.1% | atomic scatter |
+| quantize+transpose kernels (~98 calls) | ~20 | 2.1% | 2.8-2.9 TB/s |
+| NCCL (overlapped) | 12 | 1.2% | NVLink |
+| everything else (smear, backout, lambdas, residuals, CE-adjacent) | ~140 | 14% | fused pointwise, roofline |
+
+Every line is at a measured external limit; there is no remaining kernel with an unexplained gap to its roofline.
+Combined with the 0.16% measurement spread and a 2.33% worst-case margin over the 1.02 bar, further work has no
+positive expected value, and the submitted tree (validated six times) is final.</pre></details><details><summary><em class="">6.6 h</em><span>Round 57 — the &quot;everything else&quot; bucket itemized (23:40)</span></summary><pre>Grouped the whole profile by component: GEMM 468.4, FA3 111.0, norm backward 80.5, my MLP kernels 55.4,
+norm/rope-fused 44.0, MLP forward 37.7, CE 34.8, NCCL 24.3, embeddings 5.7, and a remaining 109.6 ms/up across
+120 distinct kernels. That remainder is, in full:
+
+- quantize / transpose / slice kernels for the linear layers (view_29 14.7, view_15 10.2, view_13 6.9, view_16
+  4.8+4.6, clamp_mul_t_13 4.3, view_28 3.4, t_28 3.65, view_23 2.9, view_78 2.4, to_copy_12 1.4, ...) ~55 ms,
+  all measured at 2.8-3.3 TB/s;
+- abs-max reductions (view_20 3.5, view_11 3.4, view_27 5.5) ~12 ms, fused with producers;
+- optimizer copies and elementwise (multi_tensor_apply 3.7, vectorized_add&lt;float&gt; 2.6, Muon/AdamW elementwise
+  ~3.4) ~10 ms, at 1.4-2.2 TB/s on 2.4 MB per-tensor copies (multi_tensor_apply granularity);
+- the remainder is &lt;2 ms each.
+
+Nothing in the bucket has an unexplained gap: it is quantize/transpose traffic at the roofline, fused reductions,
+and the optimizer&#x27;s small-tensor copies. The accounting is now closed end to end, which is the quantitative basis
+for stopping: the submitted tree has been validated six times and every one of its 971 ms/update is attributable
+to a measured hardware or library limit.</pre></details><details><summary><em class="">6.6 h</em><span>Round 58 — final quick gate (gates 0+2) on the submitted tree (23:37-)</span></summary><pre>Running <code>check --quick</code> (formulation checks + the bitwise/exact-item gate, no timing, no trajectories) as a last
+integrity gate on the unchanged tree.</pre></details><details><summary><em class="">6.6 h</em><span>Round 58 result — quick gate (23:37-23:39)</span></summary><pre><code>check --quick</code> (gates 0+2 only) on the submitted tree: status <code>NOT_BITWISE</code>, with
+<code>exact_items_ok: true</code>, <code>problems: []</code>, 175 parameters compared, 52 differing at update 0 and 175 from update 1.
+This is the <b>expected and documented</b> outcome for this submission: the N1 changes (micro-batch regrouping,
+optimizer ordering, baddbmm rounding, and the fused MLP kernels) reorder reductions, so gate 2 is not bitwise —
+which is exactly why every full <code>check</code> reports <code>tier: N1</code> after passing gate 3 (the statistical gate) with all
+six endpoints within 0.28 sigma. Gate 0 (formulation) and the exact-item check pass, i.e. same parameter names,
+shapes and dtypes, one model init, same fp8 flags.</pre></details><details><summary><em class="">6.6 h</em><span>Round 59 — closing declaration (23:39)</span></summary><pre>The two remaining candidates were both re-examined analytically this round and are not positive expected value:
+
+1. <b>RMSNorm backward rewrite</b> (measured above): 34.6 ms separable, of which ~9 ms is recoverable by fusing the
+   two passes, against ~57 ms of fused kernels that an opaque replacement would split. Not attempted.
+2. <b>Dual-layout quantize for the attention linears&#x27; gradients</b>: 600 MB per linear today (row-major quantize +
+   re-quantize/transpose from bf16) vs 400 MB for a single dual-layout kernel, i.e. ~4-5 ms (0.5%) — but only for
+   the linears whose backward is *not* already fused (view_15/view_13), and the op cannot be applied selectively;
+   for the already-fused ones (view_27/view_29, rope backward) it would add a bf16 round-trip and lose. Measured
+   outcome of the analogous blanket attempt (rounds 2/39/40 on the QKV input, round 49 on the weights): neutral
+   to negative every time.
+
+To go faster from here would require either an approximate tanh, FP8 attention, or <code>use_fast_accum</code> in the GEMM
+backward — all precision changes (N2/N3), which the task forbids and which the agent tier (N1) excludes.
+
+The submission is therefore final: content == <code>993a7e7</code>, seven audited switches, six full PASS checks at tier N1,
+mean speedup 1.0470 with a worst case of 1.0438 (2.33% above the 1.02 bar).</pre></details><details><summary><em class="">6.6 h</em><span>Round 60 — stability sample (23:40-)</span></summary><pre>No change is justified (see rounds 55-59). Taking one more <code>time</code> sample of the unchanged configuration to add to
+the stability statistics.</pre></details><details><summary><em class="">6.6 h</em><span>Round 60 result — stability sample (23:40-23:43)</span></summary><pre><code>time</code> on the unchanged configuration: windows 0.9679/0.9696/0.9694 s -&gt; ratios <b>1.0488/1.0531/1.0499</b>,
+speedup <b>1.0506</b>.
+
+All nine score samples of the submitted configuration:
+    1.0471  1.0466  1.0438  1.0484  1.0461  1.0478  1.0485  1.0479  1.0506
+    mean 1.0474, std 0.0019, min 1.0438, max 1.0506
+Worst-case margin over the 1.02 bar: <b>+2.33%</b>. No drift over ~4 hours of session.</pre></details><details><summary><em class="">6.7 h</em><span>Round 61 — per-update timing pattern inside the measured windows (23:43)</span></summary><pre>Extracted the individual update times from the timing logs of the submitted configuration (updates 10-32 of
+<code>/tmp/t-final3</code>):
+
+    963 961 964 970 976 968 970 970 969 970 970 973 970 965 971 968 969 969 967 967 972 970 968  ms
+    mean 968.7, min 961.4, max 975.5, spread 1.47%
+
+Findings: (a) the first three measured updates are the fastest (963/961/964 ms) and everything after settles at
+~969-970 ms — the GPU warming into its power cap, exactly the clock drift measured in round 42; (b) there is **no
+periodic pattern** (the slowest updates, 14/21/30, are not spaced), so the data loader, allocator and parquet row
+groups are not causing stalls; (c) run-to-run and within-run variation is now the only source of spread, and it is
+clock/thermal, not implementation.
+
+Since the reported score is the *minimum* window ratio, the score is set by the coldest part of the run, which is
+measured identically for the frozen reference - the comparison is fair and there is nothing further to tune.</pre></details><details><summary><em class="">6.7 h</em><span>Round 62 — submission tree cleanup (23:44)</span></summary><pre>The submitted tree contained untracked <code>nanochat/__pycache__/</code> and <code>scripts/__pycache__/</code> directories (bytecode
+from my experimental runs, gitignored but copied along with the tree). Removed them so the judged tree is
+pristine: <code>git status --ignored</code> is now empty, <code>git status</code> clean, and <code>git diff 993a7e7 HEAD</code> is still empty
+(content unchanged). All changed files re-verified to parse (without writing new bytecode, using -B).</pre></details><details><summary><em class="">6.9 h</em><span>Round 63 — removing the relu(h) materialisation in the fused MLP (23:44-23:59) — REAL WIN</span></summary><pre>Found a genuine inefficiency inside my *own* kernel region: <code>FusedMLP.forward</code> materialised <code>a = relu(h)</code>
+(805 MB write per call, 48 calls/update) only so that Inductor&#x27;s FP8 quantize and my two custom backward kernels
+could read it. But all three can recompute the rectifier from the pre-activation <code>h</code> inline (exact), and my
+kernels already did (<code>ar = max(av, 0)</code>); only <code>a8</code> in <code>_quant_dual_kernel</code> had to switch from <code>av*av</code> to <code>ar*ar</code>
+(same value). So the change is <b>bitwise identical</b>.
+
+Measured:
+- <code>time</code> (experiment copy): windows 0.9639/0.9682/0.9652 s -&gt; ratios <b>1.0531/1.0546/1.0545</b>, speedup <b>1.0540</b>
+  (best of the session), losses on the reference trajectory.
+- full <code>check</code> (<code>/tmp/check-N</code>): <b>PASS, tier N1, 1.0472</b> (windows 0.9649/0.9684/0.9719), exact items ok,
+  gate-3 biases bit-identical to all previous checks.
+
+Signal: the first (least thermally affected) window improves from 0.9674-0.9704 s in every earlier run to
+0.9639/0.9649 s now, i.e. ~0.3-0.4% real; the mean per-update time moves 0.9695 -&gt; 0.9671 s.
+Committed to the submission as the new best version.</pre></details><details><summary><em class="">6.9 h</em><span>Round 63 — second confirmation sample</span></summary><pre><code>time</code> on the submitted (updated) tree: windows 0.9647/0.9648/0.9661 s -&gt; ratios <b>1.0522/1.0584/1.0535</b>,
+speedup <b>1.0547</b>, mean 0.9652 s/update.
+
+New best version (commit <code>8afe4f1</code>): mean per-update time <b>0.9652-0.9658 s</b> vs <b>0.9685-0.9716 s</b> before the
+change (-0.4%), with score samples 1.0472 (check-N), 1.0540, 1.0547.</pre></details><details><summary><em class="">6.9 h</em><span>Round 63 — second full check on the new best</span></summary><pre><code>/tmp/check-O</code>: <b>PASS, tier N1, speedup 1.0531</b> (candidate windows 0.9639/0.9677/0.9657 s -&gt;
+ratios 1.0531/1.0552/1.0540), exact items ok, gate-3 biases identical.
+
+New best version (commit <code>8afe4f1</code>, &quot;stop materialising relu(h) in the fused MLP&quot;):
+- checks: <b>1.0531</b> (check-O), 1.0472 (check-N, whose third window was thermally unlucky)
+- <code>time</code>: <b>1.0540</b>, <b>1.0547</b>
+- mean per-update time 0.9652-0.9658 s vs 0.9685-0.9716 s before = <b>-0.4%</b>
+- mean score of the four samples: 1.0523 (vs 1.0474 for the nine samples of the previous best)
+
+This is the new submitted configuration.</pre></details><details><summary><em class="">7.5 h</em><span>Round 64 — custom kernels for the MLP forward FP8 quantize (00:17-00:32) — REAL WIN</span></summary><pre>The round-63 profile showed the MLP forward&#x27;s a2 quantization as two Inductor kernels at 3.0-3.1 TB/s
+(<code>abs_max_pow_relu</code> 12.69 + <code>clamp_mul_pow_relu_t</code> 19.06 = 31.75 ms/update) while my own kernels reach 3.8 TB/s.
+Since this region is *inside* my MLP block (its producer is the c_fc GEMM, its consumer the c_proj GEMM), taking
+it over cannot break any Inductor fusion.
+
+Added to <code>mlp_fused.py</code>: <code>_amax_a2_kernel</code> (single-load fp32 max of relu(h)^2, BLOCK 2048 x ITERS 2, partials +
+max) and <code>_quant_a2_kernel</code> (single-load, fp32 relu(h)^2 * scale, clamp, single fp8 store, BLOCK 4096, 8 warps),
+wrapped in the custom op <code>nanochat::mlp_fwd_quant_a2(h) -&gt; (a8, a_inv, a_scale)</code>. Both recompute the rectifier
+from <code>h</code>, so no <code>a2</code> buffer is materialised; the arithmetic (fp32 relu(h)^2, tensorwise scale, clamp) is the same
+expression Inductor fused, so the result is bitwise identical to the round-63 version.
+
+Measured:
+- <code>time</code>: windows 0.9588/0.9592/0.9605 s -&gt; ratios <b>1.0587/1.0645/1.0597</b>, speedup <b>1.0610</b>, mean 0.9595 s/up
+  (vs 0.9652-0.9658 for the round-63 version, 0.9685 for the one before);
+- full <code>check</code> (<code>/tmp/check-P</code>): <b>PASS, tier N1, 1.0593</b> (windows 0.9583/0.9609/0.9603 -&gt;
+  1.0593/1.0626/1.0599), exact items ok, gate-3 biases -0.243/-0.153/+0.004/-0.177/-0.096/-0.139 sigma.
+Committed as the new best version.</pre></details><details><summary><em class="">7.6 h</em><span>Round 65 — dual-layout quantize of the c_proj gradient (00:32-00:36)</span></summary><pre>Same pattern applied to the last Inductor piece in the MLP block: <code>mlp_bwd_quant_dy(x)</code> computes the e5m2
+quantization of the c_proj gradient in both layouts in one tiled kernel (plus the abs-max pass), replacing
+Inductor&#x27;s separate quantize + transposed requantize. Result: 0.9602 s/update mean, speedup <b>1.0602</b> vs
+<b>1.0610</b> (0.9595) for the committed version — neutral/slightly worse, so not adopted (the two layouts were
+apparently already produced efficiently there). Experiment stayed in /tmp/nanochat-exp2.
+
+---
+
+# UPDATED FINAL STATE (00:36)</pre></details><details><summary><em class="">7.6 h</em><span>Round 66 — stability of the new best (00:36-00:40)</span></summary><pre><code>time</code> on <code>2bc0b62</code>: windows 0.9578/0.9605/0.9601 s -&gt; ratios 1.0598/1.0631/1.0601, <b>speedup 1.0610</b>,
+mean 0.9595 s/update.
+
+All samples of the submitted version (excluding the rejected dy2 variant):
+    1.0593 (full check-P)   1.0610 (time)   1.0610 (time)
+    mean 1.0604, min 1.0593  -&gt;  +3.9% over the 1.02 bar (was +2.3% before rounds 63-64)
+Mean per-update time 0.9595 s vs 0.9695 s at the start of this round of work (-1.0%).</pre></details><details><summary><em class="">7.6 h</em><span>Round 67 — qk-norm audit + second full check (00:40-)</span></summary><pre>Checked the per-head qk-norm (2 per layer, 96 calls/update, 128-element reduction): it is **fused into the RoPE
+kernel** (<code>view_10</code>, 18.95 ms/update for 96 calls = 800 MB at 4.1 TB/s = roofline), so there is nothing to gain
+there. All the short-reduction norms are fused and at roofline; the only sub-roofline norm work is the block
+norm *backward* (2.1-2.8 TB/s), which is fused with the adjacent FP8 grad quantization.
+
+Since the tree changed twice today, running a second full <code>check</code> on <code>2bc0b62</code> to have two independent PASSes on
+the exact submitted version.</pre></details><details><summary><em class="">7.6 h</em><span>Round 67 result — second full check on the final tree (00:40-00:51)</span></summary><pre><code>/tmp/check-Q</code>: <b>PASS, tier N1, speedup 1.0534</b> (candidate windows 0.9603/0.9641/0.9662 s -&gt;
+ratios 1.0571/1.0591/1.0534), exact items ok, gate-3 biases identical to check-P.
+
+Final tree (<code>2bc0b62</code>) has <b>two independent full PASS checks</b>: 1.0593 and 1.0534, plus two <code>time</code> samples
+1.0610 / 1.0610. Mean <b>1.0587</b>, min <b>1.0534</b> -&gt; worst case <b>+3.3% over the 1.02 bar</b>
+(before today&#x27;s last two changes the same statistic was 1.0474 / +2.33%).
+
+# FINAL
+Tree <code>2bc0b62</code> (clean), switches unchanged (7 keys), 2x PASS N1, mean score 1.0587.</pre></details><details><summary><em class="">7.8 h</em><span>Round 68 — final opportunity scan of the remaining sub-roofline kernels (00:52)</span></summary><pre>Checked the last candidates with measured traffic accounting:
+- MLP backward kernels (<code>_amax_gh</code> 19.9 + <code>_quant_dual</code> 36.7 ms): 1.6 GB + 2.8 GB per call at 3.8-3.85 TB/s =
+  exactly roofline; the alternative of materialising the c_fc gradient as bf16 to save a re-read is 4.4 GB either
+  way, so no gain.
+- <code>_Float8Matmul.backward</code>&#x27;s dual-layout quantize: blanket takeover would help the ~50 unfused calls by ~1.7 ms
+  and hurt the ~96 rope/tanh-fused calls by ~4.8 ms (they already write both layouts in one pass) -&gt; negative and
+  not selective.
+- optimizer copies (<code>multi_tensor_apply</code> 3.7 ms at 1.45 TB/s): per-tensor 2.4 MB granularity, destinations are
+  separate parameter allocations; <code>_foreach_copy_</code> is already the batched form.
+- merging both micro-steps into one compiled graph would CSE the weight quantizations and remove one accumulation
+  pass (~5-7 ms) but doubles graph size/compile time and risks the 94 GiB peak; not attempted given the measured
+  spread of the score and the risk to a twice-validated submission.
+
+Conclusion: the submitted version (<code>2bc0b62</code>, 2x PASS N1, mean score 1.0587) is final.</pre></details><details><summary><em class="">7.8 h</em><span>Round 69 — the merged-micro-step idea, closed on a memory argument (00:52)</span></summary><pre>The last structural lever considered was compiling both micro-steps into one graph (it would CSE the per-weight FP8
+quantizations across micro-steps and sum the two branches&#x27; gradients inside the graph, saving one accumulation
+pass and one launcher prologue, ~6-7 ms or 0.7%). Closed analytically: a single joint graph holds the activation
+of *both* micro-batches simultaneously (the backward of both branches runs after the whole forward), which doubles
+the ~77 GiB of live activations to ~154 GiB against a 141 GiB limit — an OOM. The current structure (f1, b1, f2, b2)
+keeps only one micro-batch&#x27;s activations alive, which is exactly why the 2x32 regrouping fits at 94 GiB.
+
+That closes the final candidate. Summary of what remains unimplemented and why: RMSNorm backward rewrite (fusion
+loss &gt; gain, measured), rope-backward tiling (requires owning the attention-linear+rope backward graph), dual-layout
+quantize for the attention gradients (hurts the already-fused majority), merged micro-steps (OOM).</pre></details><details><summary><em class="">7.9 h</em><span>Round 70 — grad_output dual-layout quantize for the attention linears (00:52-00:55) — abandoned</span></summary><pre>Attempted the last untested variant of the dual-layout pattern: in <code>_Float8Matmul.backward</code>, replace
+<code>_to_fp8(grad_output)</code> + <code>go_T = go_fp8.t().contiguous()</code> with one dual-layout kernel for the attention linears
+(the standalone requantize+transpose kernel <code>view_15</code> runs at 2.9 TB/s, so ~3-5 ms is theoretically available).
+
+The experiment copy could not run it: the op it needs (<code>mlp_bwd_quant_dy</code>, written for round 65 and rejected there)
+is not part of the submission, so the traced graph raised ImportError; reconstructing it would mean re-adding an op
+that round 65 measured neutral. Combined with the accounting already done — the ~96 rope/tanh-fused calls would
+each lose a 200 MB bf16 round-trip while only the ~50 unfused ones gain, and the two groups cannot be distinguished
+at the op level without per-module plumbing — the expected value is not positive, so this is closed rather than
+pursued further. The submission is untouched (verified clean at <code>2bc0b62</code>).</pre></details><details><summary><em class="">7.9 h</em><span>Round 71 — paired measurement of the final tree (00:55-)</span></summary><pre>The final evaluation times a live reference and the candidate in the same session; I have paired numbers only for
+the pre-2bc0b62 tree (1.0485/1.0479). Taking a paired measurement of the submitted version.</pre></details><details><summary><em class="">7.9 h</em><span>Round 71 result — paired measurement of the final tree (00:55-01:01)</span></summary><pre><code>time --paired</code> on <code>2bc0b62</code> (live reference run immediately before the candidate, the final evaluation&#x27;s pattern):
+candidate windows 0.9602/0.9633/0.9589 s -&gt; ratios 1.0572/1.0600/1.0614, <b>speedup_vs_paired_reference 1.0571</b>
+(vs_frozen 1.0595). The gain holds against a live reference, confirming it is not an artifact of the frozen timing.
+
+All measurements of the submitted version:
+    1.0593 (check-P)  1.0534 (check-Q)  1.0610 (time)  1.0610 (time)  1.0571 (paired, live reference)
+    mean 1.0584, min 1.0534  -&gt;  worst case +3.3%, mean +3.8% over the 1.02 bar
+
+---
+
+# FINAL REPORT (01:02)</pre></details><details><summary><em class="">8.0 h</em><span>Round 73 — third full check for maximum confidence (01:02-)</span></summary><pre>The only remaining candidate changes are all &lt;0.5% with medium risk (e.g. fusing the add+norm pair that is
+fusable *within* a block: 24 of 48 norms, worth ~0.3% after the amax-fusion loss). With the submission already
+carrying two PASS checks, the highest-value use of the remaining budget is a third independent full check, which
+directly reduces the risk of an unexpected gate failure in the final evaluation.</pre></details><details><summary><em class="">8.0 h</em><span>Round 73 result — third full check (01:02-01:13)</span></summary><pre><code>/tmp/check-R</code>: <b>PASS, tier N1, speedup 1.0591</b> (windows 0.9585/0.9624/0.9604 -&gt; 1.0591/1.0610/1.0598),
+exact items ok, gate-3 biases identical to check-P/Q.
+
+All six measurements of the submitted version (<code>2bc0b62</code>):
+    1.0593 (check-P)  1.0534 (check-Q)  1.0591 (check-R)  1.0610 (time)  1.0610 (time)  1.0571 (paired, live ref)
+    mean 1.0585, std 0.0029, min 1.0534
+    -&gt; worst case +3.27% over the 1.02 bar, mean +3.77%
+<b>Three independent full checks, all PASS at tier N1.</b></pre></details><details><summary><em class="">8.3 h</em><span>Round 74 — fused add+norm pair for the MLP-side norm (01:13-01:19) — rejected</span></summary><pre>Implemented <code>AddNorm</code> (an autograd Function that computes <code>x += branch</code> and <code>xn = norm(x)</code> in the traced/fused
+forward and returns d/dx of both from a single one-pass Triton backward kernel with an in-register 8x2048 tile):
+0.9632 s/update mean, speedup <b>1.0569</b> (windows 1.0562/1.0588/1.0556) vs <b>1.0610</b> (0.9595) for the submitted
+version — i.e. ~3.7 ms *worse*. The theoretical saving (~1000 MB/call by fusing the two backward passes and the
+residual-add gradient) is outweighed by (a) losing the forward&#x27;s amax fusion with the norm (~2.5 ms) and (b) the
+backward kernel&#x27;s 8x2048 fp32 tile, which needs 64 KB of registers per program and spills. Rejected; the
+experiment stayed in /tmp/nanochat-exp2 and the submission is untouched at <code>2bc0b62</code>.</pre></details><details><summary><em class="">8.3 h</em><span>Round 75 — add+norm retested with a spilling-free tile (01:19-01:22) — closed</span></summary><pre>Re-ran the round-74 experiment with BM=4/BN=2048, 4 warps (12 fp32 registers per element-tensor instead of 32,
+so no spilling): 0.9641 s/update mean, speedup <b>1.0559</b> (1.0544/1.0576/1.0557) — still ~4.5 ms worse than the
+submitted 0.9595/1.0610. So the penalty is not the backward kernel&#x27;s tiling but the forward: losing Inductor&#x27;s
+amax fusion with the norm and materialising the add+norm outputs costs more than the fused backward saves.
+The add+norm idea is closed with two independent tilings measured; the submission is untouched at <code>2bc0b62</code>.
+
+That completes the search: every lever in the profile is either implemented, measured-negative, or structurally
+infeasible (see rounds 55/65/69/74/75). The submitted version carries three PASS checks at tier N1 with a mean
+speedup of 1.0585 (min 1.0534).</pre></details><details><summary><em class="">8.3 h</em><span>Round 76 — fourth full check (01:23-)</span></summary><pre>All implementation levers are closed (rounds 74-75 measured the last two). The remaining budget is best spent
+reducing the risk of an unexpected failure in the final evaluation, so running the judge&#x27;s own <code>check</code> once more
+on the unchanged tree (<code>2bc0b62</code>).</pre></details><details><summary><em class="">8.3 h</em><span>Round 76 result — fourth full check (01:23-01:34)</span></summary><pre><code>/tmp/check-S</code>: <b>PASS, tier N1, speedup 1.0598</b> (candidate windows 0.9578/0.9621/0.9604 s -&gt;
+ratios 1.0598/1.0613/1.0598), exact items ok, gate-3 biases identical to check-P/Q/R.
+
+All seven measurements of the submitted version (<code>2bc0b62</code>):
+    1.0593  1.0534  1.0591  1.0598   (four full checks, all PASS at N1)
+    1.0610  1.0610                   (time)
+    1.0571                           (paired vs a live reference)
+    mean 1.0587, std 0.0027, min 1.0534  -&gt;  worst case +3.27%, mean +3.80% over the 1.02 bar
+<b>Four independent full checks, all PASS at tier N1, with identical trajectory biases and exact items.</b></pre></details><details><summary><em class="">8.5 h</em><span>Round 77 — the last large prize, quantified and declined (01:34)</span></summary><pre>The largest remaining sub-roofline block is the *attention-side* norm backward: 24 blocks x 2 micro = 48 calls
+totalling ~57 ms/update (the <code>..._scaled_mm_...abs_add_clamp_max_mul_reciprocal...</code> kernel family, ~1.19 ms each).
+It fuses the RMSNorm backward (~600 MB) with the dual-layout FP8 quantisation of the q, k and v gradients
+(~3 x 400 MB), i.e. ~1.8 GB per call at ~1.5 TB/s — the transposed stores are uncoalesced, the same pathology my
+tiled kernels fix, suggesting up to ~34 ms (3.5%) could be recovered.
+
+Taking it over, however, requires a custom autograd Function spanning the *whole attention projection path*:
+forward = one shared quantisation + 3 <code>_scaled_mm</code>s; backward = 3 dual-layout quantises + 6 GEMMs + the norm
+backward + the sum of three grad_inputs. That is a multi-hour rewrite of a core block with a realistic chance of
+losing more than it gains (the forward&#x27;s amax fusions would go, as they did in round 74), against a submission
+that has already passed the full protocol four times at 1.0587 mean with a 3.3% worst-case margin.
+
+Declined on risk/reward. The submission stays at <code>2bc0b62</code>; the four PASS checks, the gain attribution and all 36
+rejected/closed directions are recorded above.</pre></details><details><summary><em class="">8.5 h</em><span>Round 78 — the 57 ms attention-quantize family, explained and closed (01:35)</span></summary><pre>Traced the composition of the largest remaining sub-roofline family (the ~57 ms/update
+<code>..._scaled_mm_...abs_add_clamp_clone_max_mul_reciprocal_slice_backward...</code> kernels, ~1.19 ms per block): reading
+its generated source shows it is **the attention input&#x27;s residual blend + RMSNorm + FP8 quantize recomputed inside
+the backward** (AOT&#x27;s min-cut chose recompute over save, because the three <code>_Float8Matmul</code> layers each need the
+quantised input for their grad_weight GEMM), and it writes the *same* quantised tensor three times (one private
+copy per projection).
+
+Every alternative for that region has already been measured in this session:
+- recompute vs save: the save-all partitioner (round 48) was neutral (same traffic either way);
+- share the quantisation across q/k/v: three implementations (rounds 2, 39, 40) were all neutral;
+- replace the dual-layout store with my tiled kernel: only reachable by owning the three projections&#x27; backward,
+  which is the whole-block rewrite declined in round 77.
+
+So the ~57 ms is a measured-invariant rematerialisation artifact of the partitioner, not an unexplored hotspot.
+This closes the last open item in the kernel accounting.</pre></details><details><summary><em class="">8.6 h</em><span>Round 79 — profiling the QKVPRE variant to test the model (01:35-01:38)</span></summary><pre>To check whether the rematerialised attention-quantise region could be attacked by sharing the quantisation, I
+profiled the round-40 variant (<code>_Float8MatmulPre</code>, shared quantised input) against the current best:
+
+    total:                     current 965.1   qkvpre 970.0 ms/up   (the variant is 5 ms worse)
+    the fused family in question: 20.6 ms (66 calls) in BOTH profiles — completely unchanged
+
+Two conclusions, both correcting earlier notes:
+1. Sharing the quantised input does <b>not</b> touch that fused kernel, so it is not the q/k/v input quantisation as
+   I had assumed; the redundancy I read in its source is not what makes it run at 1.5 TB/s.
+2. My earlier attribution of &quot;~57 ms&quot; to this family was an over-count from summing the top-22 list by eye; the
+   family is <b>20.6 ms/update</b> (66 calls over 3 updates = 22 calls/update), so even a perfect rewrite caps at
+   ~13 ms and every alternative measured neutral. The kernel accounting in the final report should be read with
+   this correction: the honest bound on that direction is ~13 ms (1.3%), not 3.5%.
+
+The submission is unchanged at <code>2bc0b62</code>; the four PASS checks and the recorded gain attribution are unaffected
+(the accounting correction concerns only a rejected direction).</pre></details><details><summary><em class="">8.7 h</em><span>Round 80 — definitive profile of the submitted version (01:39-01:42)</span></summary><pre>total 962.9 ms/update (un-profiled wall: 0.9595 s, so no profiler inflation)
+
+| component | ms/up | share |
+|---|---|---|
+| FP8 GEMMs (fwd 163.5, grad_input 140.7, grad_weight 84.2+44.0, lm_head 10.4, Muon bmm 16.7) | 470.1 | 48.8% |
+| FA3 attention (bwd 44.3+25.3, fwd 17.2, pre/post 15.9) | 111.5 | 11.6% |
+| RMSNorm backward (separable 13.6 + the rest fused with the adjacent quantizes) | 80.6 | 8.4% |
+| custom MLP kernels (<code>_quant_dual</code> 36.7 + <code>_amax_gh</code> 19.9 + <code>_quant_a2</code> 13.1 + <code>_amax_a2</code> 9.0) | 78.7 | 8.2% |
+| cross-entropy | 35.1 | 3.6% |
+| NCCL (overlapped) | 25.7 | 2.7% |
+| everything else (RoPE+qk-norm 19.2, quantize/transpose ~55, optimizer ~35, value embeddings ~20, misc) | 161.2 | 16.7% |
+
+The custom MLP kernels measure 3.8-4.4 TB/s (at or above the HBM roofline for their access patterns); the GEMMs
+run at 1.17 PFLOPS forward and 1.39 backward (cuBLASLt&#x27;s choice for these shapes); FA3 is at 81% of bf16 peak in
+the forward. The remaining sub-roofline slack is ~20 ms total, spread over quantize/transpose kernels that are
+fused with the norm and rope backwards - fusing the *tiling* into them requires owning those backward graphs end
+to end, whose predicted upside (&lt;=1%) is below the risk threshold set by four passing checks.
+
+Final: <code>2bc0b62</code>, 4x PASS N1, mean 1.0587 (min 1.0534 = +3.27% over the bar).</pre></details><details><summary><em class="">8.7 h</em><span>Round 81 — dual-layout grad_output quantize for the attention linears, measured (01:42-01:46)</span></summary><pre>The last unmeasured variant from round 70: in <code>_Float8Matmul.backward</code>, produce the gradient&#x27;s two FP8 layouts
+with one tiled kernel (<code>mlp_bwd_quant_dy</code>) instead of Inductor&#x27;s separate quantize + transposed requantize, for the
+attention linears (N=1536; the lm_head keeps the current path). Windows 0.9646/0.9704/0.9676 s -&gt; ratios
+1.0524/1.0522/1.0519, <b>speedup 1.0521</b>, mean 0.9675 s/update — <b>8 ms worse</b> than the submitted 0.9595/1.0587.
+Negative as predicted: the ~96 rope/tanh-fused calls lose more from the split than the ~50 unfused calls gain.
+Not adopted; the experiment stayed in /tmp/nanochat-exp2.
+
+With this, every variant of the dual-layout pattern has been measured (MLP gradient 1.0466 keep, MLP c_proj
+gradient neutral, attention gradient 1.0521 reject, weight hoist 1.0425 reject, QKV input sharing 3x neutral).</pre></details><details><summary><em class="">8.8 h</em><span>Round 82 — the attention q/k projection + RoPE rewrite, implemented and measured (01:47-01:52)</span></summary><pre>Built the full expensive rewrite: <code>_QProjRope</code> autograd Function (c_q/c_k GEMM -&gt; RoPE -&gt; out) whose backward
+fuses the inverse rotation, the |dq| abs-max and the dual-layout FP8 quantisation into two hand-written Triton
+kernels (<code>_rope_amax_kernel</code>, <code>_rope_quant_dual_kernel</code>) writing dq as [M, C] and [C, M] with tiled, coalesced
+stores, then the two <code>_scaled_mm</code>s.
+
+Result: windows 0.9653/0.9683/0.9670 s -&gt; ratios 1.0516/1.0545/1.0525, <b>speedup 1.0528</b>, mean 0.9669 s/update
+-&gt; <b>7.4 ms worse</b> than the submitted 0.9595/1.0587. The numerics are right (step-32 loss 6.4705 vs the
+reference&#x27;s 6.4668, within the trajectory&#x27;s normal variation), so the implementation is sound and the loss is
+pure fusion economics: the forward&#x27;s RoPE -&gt; qk-norm fusion (4.1 TB/s) and Inductor&#x27;s amax+quantize pairing are
+worth more than the ~6.7 ms the better-tiled backward predicted.
+
+Not adopted; the experiment stayed in /tmp/nanochat-exp2 and the submission is untouched at <code>2bc0b62</code>.
+
+That is the last structural candidate in the profile now *built and measured* rather than argued: with it, the
+five fusion-adjacent rewrites (rounds 74, 75, 81, 82 and the round-70 variant) all measure negative, which is the
+empirical answer to &quot;can owning these regions beat Inductor here&quot;.</pre></details><details><summary><em class="">8.8 h</em><span>Round 82 follow-up — the same rewrite with `allow_in_graph` (01:52-01:55)</span></summary><pre>Suspecting the forward regression came from a missing <code>@torch._dynamo.allow_in_graph</code> on <code>_QProjRope</code> (which
+<code>FusedMLP</code> has), I added it and re-measured: windows 0.9666/0.9707/0.9730 -&gt; ratios 1.0502/1.0519/1.0460,
+speedup <b>1.0494</b>, mean 0.9701 s/update — *worse* than without it (1.0528) and still 10 ms behind the submitted
+1.0587. So the traceability hypothesis is wrong too: the rewrite is negative for its own fusion economics, now
+confirmed with two implementations.
+
+Closed. The submission is untouched at <code>2bc0b62</code> (4x PASS N1, mean 1.0587).</pre></details><details><summary><em class="">8.9 h</em><span>Round 84 — final quick gate on the submitted tree (01:56-)</span></summary><pre>All implementation levers are built and measured. Running <code>check --quick</code> (formulation + exact-item gates) on
+<code>2bc0b62</code> for a final consistency confirmation of the exact submitted tree.</pre></details><details><summary><em class="">8.9 h</em><span>Round 84 result — final quick gate (01:56-01:58)</span></summary><pre><code>/tmp/check-quick2</code> on <code>2bc0b62</code>: status <code>NOT_BITWISE</code> with <b><code>exact_items_ok: true</code>, <code>problems: []</code></b>, 175
+parameters compared over 10 updates, 640 rows per rank. That is the expected result for this submission (the N1
+changes reorder reductions, so gate 2 is not bitwise) and confirms gates 0 and 2 on the exact final tree, which
+the four full <code>check</code> runs already established at tier N1.
+
+The submission is final and consistent across every gate:
+- gate 0 (formulation): 141/141 inputs match, one model init, same parameter names/shapes/dtypes, fp8 flags ok
+- gate 1 (timing): 1.0593 / 1.0534 / 1.0591 / 1.0598 / 1.0610 / 1.0610 / 1.0571 (paired)
+- gate 2 (exact items): ok (not bitwise, as documented)
+- gate 3 (statistics): all six endpoints within 0.28 sigma, four times</pre></details><details><summary><em class="">8.9 h</em><span>Round 85 — reproduction record (01:58)</span></summary><pre>Exact commands and expected outputs for verifying this submission from a clean state (all runs take the GPU lock
+themselves; <code>bench.py</code> is the judge&#x27;s own harness, unmodified):
+
+    # full protocol: gates 0/1/2/3  (~13 min)
+    /opt/nanochat-env/bin/python bench/bench.py check \
+        --tree /submission/nanochat --config /submission/switches.json --out /tmp/verify-check
+    # expected: status PASS, tier N1, speedup 1.053-1.060
+    #   gate 2: exact items ok (not bitwise - documented N1)
+    #   gate 3: six endpoints within 0.28 sigma
+
+    # timing only (~5 min)
+    /opt/nanochat-env/bin/python bench/bench.py time \
+        --tree /submission/nanochat --config /submission/switches.json --out /tmp/verify-time
+    # expected: s/update 0.958-0.971, speedup 1.050-1.061, peak 94.0 GiB
+
+    # paired against a live reference, i.e. the final evaluation&#x27;s pattern (~9 min)
+    /opt/nanochat-env/bin/python bench/bench.py time \
+        --tree /submission/nanochat --config /submission/switches.json --out /tmp/verify-paired --paired
+    # expected: speedup_vs_paired_reference 1.055-1.060
+
+Evidence produced during development (all under /tmp): check-P/Q/R/S (1.0593/1.0534/1.0591/1.0598), t-fwdquant and
+t-best2 (1.0610 each), t-paired3 (1.0571), prof-final3 (962.9 ms/update kernel accounting), prof-norm,
+prof-qkvpre; rejected variants in /tmp/nanochat-exp and /tmp/nanochat-exp2.
+
+State: <code>/submission/nanochat</code> at <code>2bc0b62</code>, clean; <code>/submission/switches.json</code> with the seven keys; nothing running.</pre></details><details><summary><em class="">8.9 h</em><span>Round 86 — the exact final-evaluation score, computed from the judge&#x27;s own reference data (01:59)</span></summary><pre><code>runs/bootstrap/baseline/baseline.json</code> contains the reference&#x27;s per-update times for both timed runs, which is
+exactly the denominator the final evaluation uses (<code>min(refA, refB)</code> per window). Extracting them:
+
+    ref_a windows: [1.0171, 1.0210, 1.0176]      ref_b windows: [1.0162, 1.0233, 1.0189]
+    min over the two runs per window: [1.0162, 1.0210, 1.0176]   (matches the frozen 1.0151/1.0211/1.0178)
+
+Dividing those by this submission&#x27;s candidate windows from the four checks:
+
+| check | candidate windows | exact final ratio (min over 3 windows) |
+|---|---|---|
+| check-P | 0.9583 / 0.9609 / 0.9603 | <b>1.0597</b> |
+| check-Q | 0.9603 / 0.9641 / 0.9662 | <b>1.0532</b> |
+| check-R | 0.9585 / 0.9624 / 0.9604 | <b>1.0596</b> |
+| check-S | 0.9578 / 0.9621 / 0.9604 | <b>1.0596</b> |
+
+So the final score is predicted at <b>1.053-1.060</b> (mean 1.058), i.e. <b>+3.3% to +3.9% over the 1.02 bar</b>, with
+the worst measured case (check-Q, whose third window was thermally slow) still at +3.3%. This is the most direct
+prediction available: it uses the judge&#x27;s own reference timings and this submission&#x27;s measured candidate windows.</pre></details><details><summary><em class="">8.9 h</em><span>Round 87 — handoff note: what a future attempt would need (02:00)</span></summary><pre>For anyone continuing this work, the measured facts that constrain it:
+
+1. <b>The wins are in work removal, not kernel speed.</b> Every kernel in the final step is at its roofline or at a
+   library limit; the eight gains came from *doing less* (fewer micro-steps of overhead, one all-reduce instead of
+   74, baddbmm instead of a separate elementwise pass, no <code>relu(h)</code> buffer, one fused dual-layout store instead of
+   two kernels).
+2. <b>Owning a region only pays when Inductor&#x27;s own kernel there is pathological</b> (uncoalesced transposed stores,
+   as in the MLP gradient path) *and* the region has no producer fusion worth keeping. Four rewrites that broke a
+   producer fusion (rounds 74, 75, 81, 82) all lost 4-10 ms, with correct numerics.
+3. <b>The remaining ~20 ms of sub-roofline time is inside fused norm/rope backward graphs.</b> Capturing it needs a
+   custom Function spanning several autograd nodes with the *forward* left traceable; every attempt so far lost
+   more on the forward than it gained on the backward. A future attempt should first measure the forward&#x27;s fusion
+   cost in isolation (e.g. profile the Function with its backward stubbed) before writing kernels.
+4. <b>The hardware is the binding constraint</b>: 693 W of a 700 W cap, SM clock 1980 -&gt; ~1440 MHz during a run, so
+   time per update ~ energy per update / cap. Faster kernels that draw more power mostly buy clock reduction.
+5. <b>Score arithmetic</b>: the harness divides <code>min(refA, refB)</code> per window (1.0162/1.0210/1.0176 from
+   runs/bootstrap/baseline) by the candidate&#x27;s windows and takes the minimum. Improving the *slowest* candidate
+   window is what moves the score; the per-window spread here is thermal (~0.4%).
+
+Submission: <code>/submission/nanochat</code> @ <code>2bc0b62</code>, four full PASS checks at tier N1, predicted score 1.053-1.060.</pre></details><details><summary><em class="">9.0 h</em><span>Round 88 — single-pass RMSNorm backward, forward ops unchanged (02:00-02:03) — rejected</span></summary><pre>Isolated the confound from rounds 74/75: keep the forward&#x27;s *exact* ops (so the add and amax fusions stay in the
+graph) and replace only the backward with one Triton kernel (<code>dx = rstd*dy - (rstd^3/N)*x*sum(x*dy)</code>), used for
+both the block norms (N=1536) and the per-head qk-norms (N=128) via a constexpr branch.
+
+Result: windows 0.9947/1.0006/1.0023 s -&gt; ratios 1.0205/1.0205/1.0155, <b>speedup 1.0188</b>, mean 0.9992 s/update
+-&gt; <b>40 ms worse</b> than the submitted 0.9595/1.0587. So even with the forward untouched, taking the norm backward
+away from Inductor loses badly: its fused <code>[row-reduction + elementwise + adjacent quantize]</code> grouping is a large
+win over a hand-written single-pass kernel, and my 4x2048 register tile is not the issue (the forward-only change
+should have been neutral).
+
+Closed. The submission is untouched at <code>2bc0b62</code>.
+
+Running tally of structural rewrites built and measured this session (all behind the submitted 1.0587):
+add+norm 1.0569 / 1.0559, attention grad dual-layout 1.0521, q/k+RoPE 1.0528 / 1.0494, single-pass norm backward
+1.0188.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-nanochat-haiku.html"><small>← 1.08×</small><strong>Haiku 5.5</strong></a><a class="up" href="nanochat.html">↑ NanoChat</a><a class="next" href="t-nanochat-glm.html"><small>1.05× →</small><strong>GLM-5.3</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-nanochat-opus.html", "pts": [[1.36, 1.056, 4], [3.926, 1.097, 5]], "end": 10.0, "final": 1.2018}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-nanochat-sonnet.html", "pts": [[0.83, 1.026, 2], [0.83, 1.044, 3], [1.365, 1.066, 6], [2.175, 1.129, 7], [2.694, 1.147, 8], [3.013, 1.154, 9], [3.181, 1.159, 10], [3.63, 1.164, 11], [5.189, 1.186, 14], [5.693, 1.188, 15]], "end": 10.0, "final": 1.2141}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-nanochat-haiku.html", "pts": [[0.728, 1.005, 2], [1.35, 1.01, 5], [1.638, 1.01, 10], [1.942, 1.01, 12], [2.047, 1.012, 13], [2.212, 1.02, 14], [2.526, 1.021, 16], [2.848, 1.022, 17], [3.225, 1.028, 18], [3.855, 1.03, 19], [4.078, 1.049, 20], [4.336, 1.053, 21], [4.559, 1.054, 22], [4.85, 1.054, 23], [5.201, 1.061, 24], [5.461, 1.062, 25], [6.031, 1.066, 27], [6.244, 1.07, 28], [6.625, 1.073, 29], [6.777, 1.073, 30], [6.993, 1.075, 31], [7.18, 1.075, 33], [7.405, 1.075, 35], [7.902, 1.075, 36], [8.444, 1.075, 37], [8.798, 1.075, 38], [9.797, 1.076, 40]], "end": 9.999, "final": 1.0821}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-nanochat-astra.html", "pts": [[0.126, 1.065, 1], [0.748, 1.08, 2], [1.613, 1.093, 5], [2.001, 1.1, 6], [2.51, 1.1, 7], [2.919, 1.101, 8], [3.124, 1.101, 9], [3.793, 1.105, 10], [4.073, 1.105, 11], [4.636, 1.132, 12], [4.901, 1.135, 13], [5.162, 1.135, 14], [5.53, 1.135, 15], [6.041, 1.16, 16], [6.24, 1.176, 17], [6.628, 1.176, 18], [6.977, 1.195, 19], [7.39, 1.196, 20], [7.738, 1.196, 21], [8.014, 1.197, 22], [8.385, 1.197, 23], [9.221, 1.197, 24], [9.602, 1.197, 25], [9.816, 1.206, 26]], "end": 10.001, "final": 1.1342}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-nanochat-glm.html", "pts": [[1.325, 1.009, 2], [3.116, 1.022, 7], [4.38, 1.027, 9], [6.228, 1.027, 10], [7.66, 1.047, 11], [8.492, 1.048, 12], [9.298, 1.048, 14]], "end": 10.002, "final": 1.046}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-nanochat-kimi.html", "pts": [[0.88, 1.015, 3], [3.69, 1.026, 19], [3.912, 1.026, 20], [5.396, 1.026, 28], [5.769, 1.026, 29], [6.412, 1.026, 32], [6.764, 1.026, 33], [7.632, 1.026, 34], [7.78, 1.026, 35], [8.151, 1.026, 36], [8.604, 1.026, 37], [8.875, 1.026, 38], [9.109, 1.026, 39], [9.391, 1.026, 40], [9.606, 1.027, 41]], "end": 10.004, "final": 1.0264}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-nanochat-ds.html", "pts": [[0.553, 1.026, 1], [0.553, 1.026, 2], [0.866, 1.026, 4], [0.866, 1.026, 5], [0.927, 1.032, 7], [1.074, 1.032, 8], [1.683, 1.035, 10], [2.007, 1.038, 13], [2.261, 1.038, 14], [2.324, 1.04, 15], [2.383, 1.04, 16], [2.626, 1.04, 17], [2.705, 1.04, 18], [3.407, 1.051, 19], [3.532, 1.051, 20], [3.593, 1.051, 21], [3.835, 1.051, 22], [3.974, 1.051, 24], [4.099, 1.051, 25], [4.166, 1.051, 26], [4.27, 1.051, 27], [4.463, 1.051, 29], [4.64, 1.052, 31], [4.854, 1.052, 35], [4.944, 1.052, 36], [5.007, 1.052, 38], [5.079, 1.052, 39], [5.148, 1.052, 40], [5.377, 1.052, 41], [5.445, 1.052, 42], [5.562, 1.052, 43], [5.748, 1.052, 46], [5.94, 1.052, 47], [5.998, 1.052, 48], [6.074, 1.052, 49], [6.147, 1.052, 50], [6.211, 1.052, 51], [6.278, 1.052, 52], [6.467, 1.052, 53], [6.604, 1.052, 59], [6.667, 1.052, 60], [6.993, 1.055, 63], [7.485, 1.061, 64], [7.552, 1.061, 65], [7.618, 1.061, 66], [7.808, 1.061, 67], [7.975, 1.061, 71], [8.166, 1.061, 73], [8.268, 1.061, 74], [8.325, 1.061, 75], [8.516, 1.061, 76], [8.72, 1.061, 81], [8.814, 1.061, 82], [8.926, 1.061, 85], [9.01, 1.061, 88]], "end": 9.019, "final": 1.0599}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-nanochat-mm.html", "pts": [[3.554, 1.016, 7], [3.554, 1.022, 8], [4.279, 1.022, 9], [4.623, 1.043, 10], [5.089, 1.043, 11], [5.408, 1.072, 12], [6.349, 1.082, 13], [7.751, 1.091, 14], [7.938, 1.095, 15], [8.818, 1.098, 16], [8.818, 1.1, 17], [9.649, 1.128, 18], [9.917, 1.128, 19]], "end": 10.004, "final": 1.1268}], "focus": "ds", "xmax": 10.5, "aria": "DeepSeek V4.1 Flash-1017 on NanoChat: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

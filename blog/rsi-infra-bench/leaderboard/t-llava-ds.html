@@ -1,0 +1,436 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepSeek V4.1 Flash-1017 · LLaVA · RSI-Infra Bench</title><meta name="description" content="DeepSeek V4.1 Flash-1017 on LLaVA: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="on">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="llava.html">LLaVA</a><span>/</span><b>DeepSeek V4.1 Flash-1017</b></nav><h1>DeepSeek V4.1 Flash-1017 <em>2.22×</em></h1><p class="lede">Harness: DeepSeek's own harness · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.22×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.23×</dd></div><div class=""><dt>Rounds</dt><dd>32</dd></div><div class=""><dt>Hours</dt><dd>7.7</dd></div><div class=""><dt>API cost</dt><dd>$2.58</dd></div><div class=""><dt>Input tokens · 99.6% cached</dt><dd>249 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.6 M</dd></div><div class=""><dt>Requests</dt><dd>696</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-llava-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.92×</small></a><a class="chip" data-k="sonnet" href="t-llava-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.80×</small></a><a class="chip" data-k="haiku" href="t-llava-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.46×</small></a><a class="chip" data-k="mm" href="t-llava-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.34×</small></a><a class="chip self" data-k="ds" href="t-llava-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>2.22×</small></a><a class="chip" data-k="glm" href="t-llava-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.52×</small></a><a class="chip" data-k="astra" href="t-llava-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.41×</small></a><a class="chip" data-k="kimi" href="t-llava-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.38×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Sequence packing</dt><dd>✓ round 4 <code>LLAVA_PACK</code>, 1.28 → 1.77×</dd><dt>Recompute / activations</dt><dd>✓ stepped from "save MLP only" to no recompute at all (adding qkv / attention saves + expandable segments)</dd><dt>Optimizer</dt><dd>✓ fused AdamW on fp32 master partitions</dd><dt>Communication &amp; libraries</dt><dd>all params resident; ZeRO-3</dd><dt>Other main levers</dt><dd>installed Liger fused kernels (RMSNorm / SwiGLU / RoPE) into <code>/opt/candidate-env</code>; fused linear + cross-entropy; tried caching CLIP features, reverted halfway</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>33 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 (start 19:08, GPU lock 19:09)</span></summary><pre>### Profile of the unchanged tree (<code>/tmp/r1/profile</code>, <code>profile_tree.md</code>)
+GPU kernel sum 2707 ms/step of 2785 ms wall (union busy 2409 ms, 192 ms idle). Breakdown:
+- GEMM 1380 ms (50.5%): sm90 xmma bf16 (cuBLAS) + a few cutlass kernels.
+- elementwise/copy 809 ms (29.6%): RoPE <code>rotate_half</code> cats (1276 cat kernels), RMSNorm chains,
+  SwiGLU, residual adds, and DeepSpeed ZeRO-3 gather copies.
+- NCCL 333 ms (12.2%): 758 AllGather calls 259 ms + 293 ReduceScatter 71 ms.
+- flash-attn fwd+bwd 79 ms (2.9%); reductions 30 ms.
+- CPU: 112 <code>aten::nonzero</code> calls/step (791 ms of CPU time incl. device waits) from
+  transformers 4.37 <code>_get_unpad_data</code>, recomputed in every layer and again under gradient
+  checkpointing recompute. <code>CheckpointFunction</code> 56 calls, <code>aten::item</code> 165 calls.
+- GEMMs are already near peak; the win is in non-GEMM work + recompute + ZeRO traffic.
+
+### Changes tested
+1. ZeRO-2 (<code>scripts/zero3.json</code> stage 2): <code>/tmp/r1/time</code> 2684.7 ms/step, speedup 1.0375,
+   BUT gate-1 first-loss check ERROR: first logged loss 1.3758 vs 1.3839 (0.585% &gt; 0.5%).
+   Forward numerics change with the ZeRO stage (different GEMM/linear path + memory footprint).
+   Rejected: cannot pass gate 1. Logged as a failed round (no commit).
+2. ZeRO-3 with all params persistent (<code>stage3_param_persistence_threshold=1e9</code>,
+   prefetch bucket 1e9): <code>/tmp/r1/time_persist</code> 2752.9 ms/step, speedup 1.0118, status ok,
+   first logged loss 1.3839 (identical). Keeps the stage-3 forward path, drops the per-layer
+   all-gather. N0 (no math change).
+
+### In flight
+3. Selective activation checkpointing: keep activations of N of the 32 decoder layers instead
+   of recomputing them (<code>LLAVA_GC_SKIP_LAYERS</code>, env switch) + cache <code>_get_unpad_data</code> per
+   attention-mask tensor (<code>LLAVA_UNPAD_CACHE</code>), together with (2).
+   Note: first round started without a clean WORK_LOG; details above reconstructed from /tmp.</pre></details><details><summary><em class="">0.4 h</em><span>Round 2 (19:20-19:35): fused kernels (Liger) + unpad cache</span></summary><pre>Profile after (1) (persistent params, unpad cache): <code>/tmp/r1/prof_gc/profile_tree.md</code>
+GPU 2531 ms/step: GEMM 1325, elementwise/copy 797, NCCL 211, flash 79, reduce 30.
+Still 112 <code>aten::nonzero</code>/step (64 with the full 17808-entry mask, from
+transformers&#x27; <code>_get_unpad_data</code> in every layer and again under recompute).
+
+Changes:
+- <code>_get_unpad_data</code> result cached per attention-mask object (exact, no math change).
+- Liger-Kernel 0.2.1 Triton ops (installed in /opt/candidate-env, no-deps) for
+  Llama RMSNorm, SwiGLU (silu(gate)*up), RoPE.  N1 (rounding order only).
+  Switch <code>LLAVA_LIGER</code> (default on).
+
+<code>time /tmp/r1/time_liger</code>: <b>2245.8 ms/step, speedup_vs_frozen_reference 1.2402</b>,
+status ok, peak 83.58 GiB, first logged loss 1.3838 (ref 1.3839). Committed 609551e.
+
+Also implemented (switch off by default, <code>LLAVA_MLP_STORE_LAYERS</code>): selective
+activation checkpointing that checkpoints only the attention block of N layers and
+keeps the MLP activations (2/3 of the recompute FLOPs).  Whole-layer skipping with
+<code>LLAVA_GC_SKIP_LAYERS</code> OOMs at 8 layers (each uncheckpointed layer costs ~4.6 GiB),
+so the finer-grained variant is the one to use.
+
+Gate check running: <code>check --skip-timing</code> (gates 0, 2, 3) in /tmp/r1/check_skip.</pre></details><details><summary><em class="">0.7 h</em><span>Round 3 (19:35-19:55): selective activation checkpointing</span></summary><pre>Profile with liger (<code>/tmp/r3/profile_liger</code>): GPU kernels 1980 ms/step, GEMM (incl. flash)
+1490, elementwise/copy 237, other 143, NCCL 95. Recompute is ~1/3 of the GEMM work.
+Idea: keep the MLP activations of N decoder layers (checkpoint only their attention block),
+which removes 2/3 of the recompute of those layers.
+
+- Whole-layer skip (LLAVA_GC_SKIP_LAYERS) OOMs at 8 layers: ~4.6 GiB/layer.
+- MLP-only store costs ~1.5 GiB/layer at seq 1113, ~2.7 GiB/layer at seq 2048.
+- Fixed 12/32 layers OOM&#x27;d because of an implementation bug (non-stored layers were
+  left uncheckpointed); fixed by keeping the whole-layer checkpoint for them.  Tiny-model
+  test: gradients are bitwise identical between full checkpointing and MLP-store.
+- Adaptive count (from the batch&#x27;s padded sequence length) makes DeepSpeed&#x27;s ZeRO trace
+  cache invalidate (&quot;Invalidate trace cache ... expected module 44, got 32&quot;) and the run
+  stalls; not usable. Fixed count keeps the graph constant.
+- Fixed 32 layers OOMs (133.5 GiB allocated); at seq 2048 the safe fixed count is ~14.
+
+Current experiment: fixed 14 layers (<code>/tmp/r3/time_mlp14</code>), liger on.</pre></details><details><summary><em class="">0.7 h</em><span>Round 3 result</span></summary><pre>- N=14: <code>/tmp/r3/time_mlp14</code> 2113.1 ms/step, speedup 1.3181, peak 120.8 GiB allocated.
+  ~9.5 ms saved per stored layer (recompute total ~456 ms).
+- N=8: <code>/tmp/r3/time_mlp8</code> <b>2169.8 ms/step, speedup 1.2837</b>, peak 104.8 GiB.
+  Chosen for the submission: the trajectory (60 steps, other data order) contains
+  batches up to the 2048-token truncation; at seq 2048 a stored layer costs ~4.9 GiB,
+  so N=8 peaks at ~128 GiB, while N=14 would OOM there.
+- Gate 3 validation running: <code>check --n1</code> -&gt; /tmp/r3/check_n1.
+- Adaptive per-step N (LLAVA_MLP_STORE_LAYERS=auto) stalls: ZeRO-3 trace cache is
+  invalidated whenever the checkpoint graph changes. Default is now 0 (off).</pre></details><details><summary><em class="">1.0 h</em><span>Round 4 (19:56-20:10): padding-free packing</span></summary><pre>Profile of the n=8 config (<code>/tmp/r4/profile</code>): 1905 ms GPU kernels, GEMM 1328,
+elementwise 233, NCCL 95, other 89, liger triton 63, flash 82.
+25% of the padded rows of a micro-batch are padding (16 x 1113 rows = 17808, real
+tokens 13269) and every GEMM processed them.
+
+- Tried dropping the flash padding mask instead (<code>LLAVA_SKIP_PAD_ATTN</code>): 2227 ms,
+  slower (the full-causal attention on padded rows costs more than the copies saved).
+- Implemented packing: concatenate the real tokens of the micro-batch, run the
+  decoder on the packed sequence, flash-attn varlen with cu_seqlens, per-sample
+  position ids, first label of each sample masked so the causal shift cannot cross
+  a sample boundary. The loss stays the micro-batch token mean (upstream&#x27;s
+  normalization). Caught a real bug with it: Liger&#x27;s RoPE ignores position_ids and
+  uses cos rows 0..seq-1, which is only right for arange positions; the wrapper now
+  indexes cos/sin by position_ids (HF semantics), bitwise identical for the
+  non-packed path.
+- <code>time /tmp/r5/time_pack2</code>: <b>1572.2 ms/step, speedup 1.7716</b>, status ok,
+  first logged loss 1.383 (ref 1.3839), peak 83.6 GiB. Committed cbbc84f.
+- Gate 3 validation running: <code>check --n1</code> -&gt; /tmp/r5/check_n1.
+
+### Full check PASS (20:16-20:24, /tmp/r5/check_full)
+Gates 0,1,2,3 all pass. speedup <b>1.804</b> (candidate 1544.0 ms/step, frozen reference
+2785.3), windows 15.66/15.22 s, window ratio to frozen 0.556/0.552, peak 88.6 GiB,
+first logged loss 1.383. Gate 2 NOT_BITWISE with 0 exact failures (29 diagnostic
+per-tensor overruns, mostly Adam exp_avg_sq of near-zero-gradient norm weights).
+Gate 3: canonical -0.098 sigma, probe -0.210 sigma.
+Switch file at this point: {&quot;LLAVA_UNPAD_CACHE&quot;:&quot;1&quot;,&quot;LLAVA_LIGER&quot;:&quot;1&quot;,
+&quot;LLAVA_MLP_STORE_LAYERS&quot;:&quot;12&quot;,&quot;LLAVA_PACK&quot;:&quot;1&quot;}.</pre></details><details><summary><em class="">1.3 h</em><span>Round 5: push the selective checkpointing further</span></summary><pre>- N=16 (<code>/tmp/r6/time_pack16</code>): 1522.5 ms/step, speedup 1.8295, peak 93.7 GiB.
+  <code>check --n1</code> PASS (0.046 / 0.202 sigma), trajectory peak sampled ~106 GiB.
+- N=24 (<code>/tmp/r6/check_n1_24</code>): gate 3 PASS (0.114 / 0.237 sigma), trajectory peak
+  sampled 121.6 GiB (18 GiB headroom). Chosen.
+- N=28: gate 3 PASS but peak 142.5 GiB of 140.4 GiB usable -&gt; rejected as too close
+  to the OOM limit (only ~1 GiB headroom).
+
+### Full check PASS at N=24 (20:38-20:45, /tmp/r6/check_full24)
+status PASS, <b>speedup 1.8967</b> (candidate 1468.5 ms/step vs frozen 2785.3), timing
+windows 14.88/14.49 s, peak 103.2 GiB (timing run), gate 2 NOT_BITWISE with 0 exact
+failures, gate 3 0.130 / 0.286 sigma.  Current switch file = the one above with
+LLAVA_MLP_STORE_LAYERS=24.
+
+Remaining profile (<code>/tmp/r6/profile24</code>): 1450 ms GPU kernels, GEMM ~1126 (~75% of peak),
+NCCL 95 (reduce-scatter 48.7 + all-gather 46.5, the price of persistent params),
+optimizer ~50, flash 79, elementwise ~100.  Remaining recompute is the attention block
+of all layers plus the MLP of the 8 un-stored layers.</pre></details><details><summary><em class="">1.8 h</em><span>Round 6: whole-layer activation keeping on top of MLP-store</span></summary><pre><code>LLAVA_GC_SKIP_LAYERS=6</code> (skip takes precedence over the MLP-store set) + MLP-store 24.
+<code>time /tmp/r7/time_mix</code>: <b>1446.5 ms/step, speedup 1.9255</b>, peak 106.5 GiB.
+<code>check --quick</code> PASS (gate-2 case peak sampled 125.7 GiB), <code>check --n1</code> PASS
+(0.052 / 0.235 sigma, trajectory peak sampled 127.8 GiB of 140.4 GiB).
+Memory budget note: N=28 peaked at 139.2 GiB (rejected); this mixed config keeps
+~12 GiB of headroom at its worst observed point.
+
+### Final full check PASS with the mixed config (20:57-21:03, /tmp/r7/check_full)
+status PASS, <b>speedup 1.9245</b> (candidate 1446.9 ms/step vs frozen 2785.3).
+Gate 2 NOT_BITWISE, 0 exact failures. Gate 3 0.052 / 0.235 sigma.
+Committed 8cb2f86.</pre></details><details><summary><em class="">2.3 h</em><span>Round 7 (21:14-21:30): where the remaining gain comes from</span></summary><pre>- <code>LLAVA_GC_SKIP_LAYERS=8</code> (all skip layers inside the MLP-store set): 1387.1 ms/step,
+  speedup 2.008, but timing peak 117.5 GiB -&gt; trajectory would be ~142 GiB. Rejected.
+- Choosing the skip layers *outside* the MLP-store set (<code>LLAVA_GC_SKIP_MODE=outside</code>)
+  keeps a whole checkpointed layer instead of converting an MLP-stored one:
+  skip=6 outside -&gt; 1402.3 ms/step, 1.986, timing peak 114.1 GiB.
+- <code>preserve_rng_state=False</code>: no measurable effect (1446.9 vs 1446.5), reverted.
+- skip=6 outside, check --n1: PASS, trajectory peak 133.0 GiB (7.4 GiB headroom) -
+  a bit tight.
+- Trying store=23 + skip=6 outside (one less MLP-stored layer, ~4 GiB less peak).</pre></details><details><summary><em class="">2.7 h</em><span>Round 8 (21:30-21:55): profiled the validated best, tested the remaining cheap levers</span></summary><pre>Profile of the submitted config (<code>/tmp/r9/profile</code>, 1436 ms GPU kernels):
+GEMM 991 (69%), flash 83, NCCL 102 (reduce-scatter 50.8 + all-gather 49.4),
+elementwise/copy 117 (adds 24, DeepSpeed grad copies 37, mul 15, fills 11, rest),
+other 87 (optimizer multi_tensor ~65 + fill), liger triton 43, reductions 13.
+GPU idle 151 ms in the profiled step, but ~52 ms of the big pre-reduce-scatter gap
+has no CPU work in it (profiler-induced), and the real run&#x27;s kernels sum to within
+~4% of the wall time.
+
+Tested (each with the judge&#x27;s <code>time</code>, all reverted: inside the +-0.3% noise):
+- pack text-only micro-batches after embedding them: 1447.1 ms (no change).
+- preallocated padded-embedding buffer instead of 16 zeros+cat+stack: 1449.5.
+- reduce_bucket_size=1e9: 1443.1.  contiguous_gradients=false: 1447.6.
+- 8 dataloader workers: 1444.5.
+- <code>LLAVA_GC_SKIP_MODE=outside</code> (keep 4 more layers): 1402.3 ms, 1.986, but dense
+  (200 ms) sampling of the 60-step trajectory shows a true peak of **142.2 GiB of
+  143.8** -&gt; rejected. The submitted config&#x27;s true peak, measured the same way, is
+  130.2 GiB (13.3 GiB headroom).
+Microbenchmarks: the model&#x27;s GEMM shapes run at 640-760 TF/s, varlen flash at
+155 TF/s, NCCL at ~280 GB/s - all near the practical limits of this 2-GPU box.
+The remaining recompute (12.7 layer-equivalents ~ 112 ms) would need ~30 GB more
+activation memory (~2.1 GiB per stored layer), which the card does not have.</pre></details><details><summary><em class="">3.3 h</em><span>Round 9 (21:55-22:30): copy-free loss unlocks two more stored layers</span></summary><pre>- Dense-sampled (200 ms) trajectory peaks: submitted 24+skip6 = 130.2 GiB;
+  store=28+skip6 = 142.0 GiB; outside-selection = 142.2 GiB. Only the submitted one
+  has real headroom, and store=26 has the same composition as the 142.2 variant.
+- New change: the packed loss is computed directly on the bf16 shifted-logits view
+  (<code>cross_entropy(logits[0,:-1], labels[0,1:])</code>) instead of LlamaForCausalLM&#x27;s
+  <code>logits.float()</code> + a second fp32 contiguous copy of the shifted logits. bf16-&gt;fp32
+  is exact, so the number is the same; it removes ~2.7 GiB of peak memory.
+  N1 (loss-path rounding), gate 3 -0.066 / 0.353 sigma, first loss 1.3828 vs 1.3830.
+  <code>time</code> 1440.4 ms (1.9336), full check PASS 1.931 -&gt; committed f546e48.
+- With that memory back, <code>store=26 + skip6 + fast_loss</code>: <code>time</code> **1400.8 ms/step,
+  speedup 1.9883**, timing peak 111.4 GiB, dense-sampled trajectory peak 129.9 GiB
+  (10.7 GiB headroom), gate 3 PASS. Full check running (/tmp/r9/check_26fl).
+
+### Full check PASS at store=26 + fast_loss (22:25-22:31, /tmp/r9/check_26fl)
+status PASS, <b>speedup 1.9846</b> (1401.4 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 within 3 sigma, timing peak 111.4 GiB.
+- Discrete layer-set analysis: the MLP-store set positions interact with the skip set,
+  so the stored-layer counts are not monotone in the switch. <code>store=26</code> is the
+  optimum before the all-layers point: 24 MLP-store + 6 full-store + 2 checkpointed
+  (recompute 10 layer-forwards). <code>store=28</code> is worse (22 + 6 + 4, recompute 11.3);
+  <code>store=30</code> equals 26; <code>store=32</code> is all-stored (26 + 6, recompute 8.7) but its
+  dense-sampled trajectory peak is 139.6 GiB of 143.8 -&gt; rejected.
+- Kept: <code>store=26 + skip6 + fast_loss</code>, full check PASS 1.9846 at 10.7 GiB headroom.
+- Second full check on the same state (22:37-22:43, /tmp/r9/check_final2): PASS,
+  <b>speedup 1.9945</b> (1400 ms/step). Reproducible (1.9846 and 1.9945).</pre></details><details><summary><em class="">3.8 h</em><span>Round 10 (22:45-23:00): trying to shrink the per-layer activation footprint</span></summary><pre>Goal: drop the SwiGLU product <code>h</code> (down_proj&#x27;s saved input) from the MLP-store
+layers, since it is a cheap elementwise function of gate/up. Tried two ways:
+1. checkpoint only the MLP tail (silu*mul + down_proj, keeping gate/up):
+   microbenchmark on the real layer shape (T=13269, H=4096, I=11008):
+   plain 1834 MiB vs checkpointed tail 1938 MiB -&gt; *more* memory, not less.
+2. a purpose-built autograd Function saving only (gate, up, W) and rebuilding h,
+   dgate and dup in the backward: 3123 MiB -&gt; much more (all the recompute
+   temporaries are live at once).
+Both reverted (tree f546e48). A full tail checkpoint would avoid h but costs more
+recompute than it saves; the stored-activation set is already minimal.
+State restored: switch file = store=26 + fast_loss, the validated 1.985-1.995 tree.
+- The next discrete point, <code>store=31</code> (25 MLP + 6 full + 1 checkpointed), was
+  measured too: dense-sampled trajectory peak 139.6 GiB (same as store=32), i.e. the
+  memory curve has a cliff between store=26 (129.9 GiB) and store=31. Rejected;
+  store=26 remains the validated maximum.</pre></details><details><summary><em class="">4.2 h</em><span>Round 11 (23:00-23:25): projections outside the attention checkpoint (2.089x)</span></summary><pre>Hotspot: with store=26/32 the remaining recompute was the attention block of the MLP-
+stored layers. New split in <code>_layer_forward_keep_mlp</code>: for layers flagged
+<code>_llava_qkv_store</code>, the q/k/v projections + RoPE run OUTSIDE the checkpoint (their
+graph is kept, so the backward never recomputes those three GEMMs) and only the
+flash-attention + o_proj tail is checkpointed, which stores q/k/v (~0.18 GiB/layer
+at the timing fixture). Same ops in the same order: first logged loss identical,
+gate 3 -0.003 / 0.249 sigma.
+- store=26 + qkv(all 24 MLP layers): time <b>1340.2 ms, 2.0782</b>, timing peak
+  allocated 119.8 GiB.  store=32 + qkv: time <b>1333.4 ms, 2.0889</b>, peak 123.0 GiB.
+- Important measurement correction: the nvidia-smi &quot;memory cliff&quot; seen in rounds 8-10
+  (several configs all reading ~139.6 GiB) is allocator *reservation*, not live
+  memory. Temporary env-gated atexit instrumentation of torch.cuda.max_memory_allocated
+  on the real 60-step trajectory gives the true peaks: store=26 129.9 (nvidia-smi)
+  is ~117 GiB allocated; store=26+qkv 126.8 GiB; store=32+qkv 130.4 GiB; reserved
+  stays ~137.6 GiB. The instrumentation was removed before committing.
+- Committed a0030b0 (qkv split, no debug code). Full check running (/tmp/r11/check).
+
+### Full check PASS at store=32 + qkv-store (23:22-23:28, /tmp/r11/check)
+status PASS, <b>speedup 2.0987</b> (1327 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 within 3 sigma (0.0 / 0.25 sigma on the n1 run), timing peak 123.0 GiB.
+Committed a0030b0.
+- Tried removing the last attention checkpoint too (<code>LLAVA_QKV_FULL</code>, store the
+  attention output): the 60-step trajectory OOMs at 131.09 GiB allocated with
+  5.78 GiB of fragmented reserved memory, i.e. the practical allocated ceiling on
+  this card is ~131-133 GiB, not ~140. Consequence: the store=32+qkv config
+  (measured 130.4 GiB) has only ~2-3 GiB of margin while store=26+qkv (126.8 GiB)
+  has ~6 GiB, for only 0.5% speed difference. Submitting <b>store=26 + qkv</b>
+  (<code>time</code> 1340.2 ms, 2.0782; full check re-running).
+
+### Full check PASS at store=26 + qkv-store (23:36-23:42, /tmp/r12/check26q)
+status PASS, <b>speedup 2.0653</b> (1348.6 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 0.060 / 0.266 sigma, timing peak 119.8 GiB. This is the submitted state.</pre></details><details><summary><em class="">4.8 h</em><span>Round 12 (23:45-00:05): removing the last recompute via the allocator</span></summary><pre>Profile of the submitted 2.065 config: 1329 ms kernels (GEMM 905, NCCL 90, flash 76,
+elementwise 90, optimizer 65). The only recompute left was the flash+o_proj of the
+MLP-stored layers; the attempt to store the attention output had OOM&#x27;d not because
+the live set was too big but because the caching allocator could not split a 1 GiB
+allocation out of 5.8 GiB of reserved-but-fragmented memory.
+Fix: <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> (an allowed switch, not a
+judge-managed variable). With it the same aggressive config passes:
+- store=32 + qkv-store + attention-store (<code>LLAVA_QKV_FULL</code>): time **1297.9 ms/step,
+  speedup 2.1459**; true 60-step peak 133.8 GiB allocated / 137.4 reserved
+  (fragmentation-free, ~3.5 GiB under the usable limit); gate 3 0.076 / 0.266 sigma.
+- Committed 9a1322e (attention output stored for MLP-store layers, no debug code).
+  Full check running (/tmp/r13/check).
+At this point no layer recomputes anything: 6 layers are fully stored and 26 keep
+q/k/v + attention output + MLP activations, so the step is a pure forward+backward.
+
+### Full check PASS at store=32 + qkv + attention-store + expandable segments
+(00:06-00:13, /tmp/r13/check2): status PASS, <b>speedup 2.1394</b> (1301.9 ms/step),
+gate 2 NOT_BITWISE 0 exact failures, gate 3 within 3 sigma, timing peak 126.0 GiB.
+Note: the first attempt failed because the rewritten switches.json was missing its
+outer closing brace (JSON parse error) - fixed; always validate the file.
+Committed 9a1322e.</pre></details><details><summary><em class="">5.3 h</em><span>Round 13 (00:15-00:30): framework overhead attempts</span></summary><pre>Profile of the 2.139 config: 1274 ms kernels (GEMM 866, NCCL 88, elementwise 90,
+optimizer 65, flash 62), 28 ms idle -&gt; 98% GPU busy.
+- DeepSpeed multiplies every reduced gradient by <code>gradient_predivide_factor</code>, which
+  reduce-scatter forces to 1.0: a full 14 GB multiply by 1.0 (294 kernels, 15.4 ms).
+  Patched the guard (<code>LLAVA_SKIP_NOOP_GRAD_MUL</code>), exact and correct (first loss
+  identical), but wall time only moved 1297.9 -&gt; 1293.9 ms (the kernels overlap
+  NCCL), i.e. inside noise; reverted to keep the tree at the validated state.
+- Fused AdamW (<code>optim=&quot;adamw_torch_fused&quot;</code>) is rejected by torch: DeepSpeed hands
+  the optimizer the bf16/partitioned params before its BF16_Optimizer re-points the
+  groups at the fp32 partitions. A hand-written fused Adam on the fp32 partitions is
+  possible (BF16_Optimizer.step calls the client optimizer after the remap) but would
+  have to reproduce DeepSpeed&#x27;s optimizer state API exactly for gate 2; ~30 ms gain
+  for a real risk, not taken.
+- Microbenchmarks of the exact GEMM shapes confirm the GEMM path is at the box&#x27;s
+  practical limit (fwd/dgrad 720-780 TF/s; the wgrads run in the TN layout at
+  ~858 TF/s, whereas an NN-layout matmul of the same shapes only reaches ~110 TF/s).</pre></details><details><summary><em class="">5.3 h</em><span>Round 14 (00:30-00:45): fused AdamW on the fp32 master partitions</span></summary><pre>DeepSpeed&#x27;s BF16_Optimizer re-points the client optimizer at one flat fp32 partition
+per parameter group, then calls its step(), so a custom optimizer can replace
+torch&#x27;s ~5-pass foreach AdamW with one pass. Implemented
+<code>llava/train/fused_adam.py</code>: a Triton kernel that reads p/g/m/v and writes p/m/v in
+one pass, with torch&#x27;s AdamW formula (decoupled weight decay first, beta1/beta2 bias
+correction, eps inside the denominator); the optimizer keeps the standard
+<code>exp_avg</code>/<code>exp_avg_sq</code>/<code>step</code> state (fp32) and the standard <code>betas</code>/<code>eps</code>/
+<code>weight_decay</code> param-group keys, so DeepSpeed&#x27;s <code>safe_get_full_optimizer_state</code>
+and the judge&#x27;s hyperparameter/state checks see the usual interface.
+Hooked in via <code>LLaVATrainer.get_optimizer_cls_and_kwargs</code> (<code>LLAVA_FUSED_ADAM=1</code>).
+- <code>time /tmp/r15/time</code>: <b>1251.9 ms/step, speedup 2.2248</b> (+4% over 2.139); first
+  five logged losses bit-identical to the foreach baseline, later ones differ by
+  ~0.3% (update rounding, N1). Timing peak unchanged at 126.0 GiB.
+- Full check running (/tmp/r15/check).
+
+### Full check PASS with fused AdamW (00:28-00:34, /tmp/r15/check)
+status PASS, <b>speedup 2.2235</b> (1253 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 within 3 sigma, timing peak 126.0 GiB. Committed.
+- With the fused Adam the profile changes: ADAM 22 ms (was 57), but the gradient
+  reduce-scatter now appears as 207 ms (68 GB/s) instead of 53 ms because it overlaps
+  with saturating compute; the step still got faster (kernels 1378 ms &gt; step 1252 ms,
+  i.e. NCCL is hidden). <code>overlap_comm: false</code> re-tested with the new balance: 1266.6
+  vs 1251.9 ms, still slower; reverted.</pre></details><details><summary><em class="">5.7 h</em><span>Round 15 (00:45-01:00): remaining overheads measured, none adopted</span></summary><pre>Profile with the fused Adam: kernels 1378 ms in a 1252 ms step (NCCL reduce-scatter
+207 ms is fully overlapped), busy union 1219 ms of a 1370 ms profiled span. The two
+remaining candidate levers were measured and are hidden behind other work:
+- smaller reduce bucket (<code>reduce_bucket_size=1e8</code>, shortens the last bucket&#x27;s
+  exposed tail): 1248.7 vs 1251.9 ms -&gt; noise, reverted.
+- Skipping DeepSpeed&#x27;s exact no-op gradient multiply (16 ms of kernels): 1252.1 vs
+  1251.9 ms -&gt; fully overlapped now, reverted.
+- <code>overlap_comm: false</code> re-tested with the new balance: 1266.6 ms, worse.
+The remaining non-GEMM time is DeepSpeed&#x27;s grad-bucket copies / fp32&lt;-&gt;bf16 copies
+/ fp64 grad-norm, all inside BF16_Optimizer.step and the ZeRO-3 reduction; they are
+hidden behind the compute stream apart from the reduce-scatter tail.</pre></details><details><summary><em class="">6.0 h</em><span>Round 16 (01:00-01:10): token-balanced sampling (measured, reverted)</span></summary><pre>With packing the step time is set by the rank holding the most tokens, so the
+sampler&#x27;s word-count key was replaced by the real token length (allowed: the key may
+be replaced by token length, the megabatch membership still comes from randperm, so
+the probe&#x27;s per-step multiset is unchanged).  Verified from the loader reference:
+max/mean token imbalance per step 3.3% -&gt; 0.3% (e.g. step 2: 4591/5219 -&gt; 4904/4906,
+step 7: 3198/3789 -&gt; 3490/3497).  But image steps carry 16 x 576 constant visual
+tokens, so the balance only affects ~30% of the sequence: expected gain ~0.3%, and
+the measured step time was 1262.7 vs 1251.9 ms (noise, wrong direction).  Reverted
+(also avoids paying a repartition for a sub-noise gain).</pre></details><details><summary><em class="">6.1 h</em><span>Round 17 (01:05-01:20): no-fill packed embeddings</span></summary><pre>Under packing the padded rows of the multimodal embedding batch are never read (the
+pack gathers the cu_seqlens slices), so their zero-fill and the per-sample
+cat(embed, zeros)+stack are waste. <code>LLAVA_PACK_NO_FILL</code> allocates the padded batch
+once with <code>torch.empty</code> and copies only the real rows (right padding, guarded on
+LLAVA_PACK). Numerically exact (the pad values are never consumed; first loss
+identical). 11 ms of FillFunctor kernels disappear from the profile; wall time
+1249.5 vs 1251.9 ms (2.2292 vs 2.2248) - small because those kernels partly
+overlapped. Full check running (/tmp/r18/check).
+
+### Full check PASS with no-fill packing (01:13-01:20, /tmp/r18/check)
+status PASS, speedup 2.2245 (1252.1 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 0.107 / 0.249 sigma, peak 126.0 GiB. Committed.</pre></details><details><summary><em class="">6.3 h</em><span>Round 18 (01:20-01:35): remaining overheads localised, none adopted</span></summary><pre>Localised the last idle: the 59 ms gap is the gradient reduce-scatter catching up
+after the compute stream ends (it runs at 68 GB/s under SM contention during the
+backward). Tested <code>NCCL_PROTO=Simple</code>: 1254.2 vs 1249.5 ms, neutral/worse.
+The remaining critical-path overhead is DeepSpeed&#x27;s per-step fp32&lt;-&gt;bf16 bookkeeping:
+<code>_update_hp_grads</code> (add_ of the bf16 grad into the fp32 buffer, 42 GB of traffic;
+<code>copy_</code> + skipping <code>clear_hp_grads</code> would be exact and save ~9 ms) and
+<code>update_lp_params</code> (fp32 partition -&gt; bf16 partition, then the 35 ms param
+all-gather; fusing the copy into the fused-Adam kernel would save ~15 ms). Both are
+sub-1% DeepSpeed-internal patches that risk the master-weight / gradient invariants
+behind a validated 2.22, so they were not taken. Switch set restored to the
+validated one (32335fb).</pre></details><details><summary><em class="">6.4 h</em><span>Round 19 (01:35-01:45): fp32 master-gradient bookkeeping (measured, reverted)</span></summary><pre><code>BF16_Optimizer.update_hp_grads</code> accumulates the bf16 gradient into the fp32 master
+gradient with <code>add_</code> although <code>clear_hp_grads</code> zeroes that buffer every step (so the
+add is a copy that also re-reads the zeros), then zeroes the same buffer again.
+Patched to <code>copy_</code> (bit-identical: 0 + x == x) and dropped the re-zeroing, keeping
+the has_gradients bookkeeping. Requires accumulation == 1 (fixed by the task).
+Measured: 1251.6 ms (2.2254) vs 1249.5 (2.2292) - neutral, so reverted; the removed
+traffic was already overlapped. Same for the earlier no-op-multiply and reduce-bucket
+experiments: the step is compute-bound on the GEMM stream, not on this bookkeeping.</pre></details><details><summary><em class="">6.6 h</em><span>Round 20 (01:45-02:00): final end-to-end confirmation</span></summary><pre>Fourth full check of the submitted tree/switch set (/tmp/r21/check): status PASS,
+<b>speedup 2.2253</b> (1251.6 ms/step), gate 2 NOT_BITWISE 0 exact failures, gate 3
+0.060 / 0.249 sigma, timing peak 126.0 GiB.
+All four full checks of this code path: 2.2235, 2.2257, 2.2245, 2.2253 -&gt; the
+submission is stable at ~2.225x with no variance concerns.</pre></details><details><summary><em class="">6.6 h</em><span>Round 21 (02:00-02:10): why the GEMM is 15% below the isolated rate</span></summary><pre>Microbenchmark of the exact fwd shape (T=13269, 4096-&gt;11008):
+- one hot weight reused:            753 TF/s
+- 32 distinct weights cycled (2.9 GB, like the model&#x27;s 32 layers): 688 TF/s
+- interleaved with an RMSNorm-style elementwise: 426 TF/s (does extra work too)
+So the model&#x27;s ~650-690 TF/s is cold-weight streaming from HBM, not a scheduling or
+workspace deficiency (memory pressure was already ruled out: 752 -&gt; 749 TF/s with
+120 GiB allocated). The weights must be read once per GEMM; there is no layout or
+prefetch lever available from PyTorch/cuBLAS here. This closes the GEMM question:
+864 ms/step of GEMM is the floor for this op sequence on this box.</pre></details><details><summary><em class="">6.6 h</em><span>Round 22 (02:10-02:20): compliance audit of the submitted tree</span></summary><pre>Checked the whole delta against the rules rather than the clock:
+- No reads of <code>LLAVA_BENCH_*</code>, of the bench/researchboost paths, or of any judge
+  artefact anywhere in the tree (<code>grep</code> over all .py).
+- <code>switches.json</code> uses only <code>LLAVA_*</code> switches (11) plus <code>PYTORCH_CUDA_ALLOC_CONF</code>;
+  none of the judge-managed variables (TMPDIR/TORCHINDUCTOR_CACHE_DIR/TRITON_CACHE_DIR/
+  CUDA_CACHE_PATH/CUDA_VISIBLE_DEVICES/PYTHONPATH/NVIDIA_TF32_OVERRIDE/
+  CUBLAS_WORKSPACE_CONFIG/HF_HOME/MASTER_PORT/MASTER_ADDR/...) is touched.
+- No math-mode flag is changed anywhere (no TF32/reduced-precision overrides), so the
+  measured tier is N1 (&quot;different but equivalent kernels&quot;), which is within
+  <code>bench.json: agent_max_tier = &quot;N2&quot;</code>; the check reports PASS / verdict equivalent.
+- Data path untouched (<code>modality_lengths</code> sampler unmodified) so the probe reports the
+  candidate&#x27;s partition into micro-batches is the reference&#x27;s.
+- Delta vs c121f04: 10 commits, 5 files (llava_llama.py, llava_arch.py, fused_adam.py,
+  llava_trainer.py, scripts/zero3.json); zero3.json differs only in the ZeRO-3
+  persistence parameters (persistent params, max live/reuse distance, no prefetch).
+- Gate 2 exact failures: [] (none); gate 3 within 0.06-0.35 sigma on four runs.</pre></details><details><summary><em class="">6.6 h</em><span>Round 23 (02:20-02:30): timing stability</span></summary><pre>Fifth independent <code>time</code> run of the submitted tree: 1252.5 ms/step, speedup 2.2238,
+window spread 0.86%, peak 126.0 GiB.
+Collected measurements of the submitted code path: <code>time</code> 2.2208 / 2.2238 / 2.2248 /
+2.2254 / 2.2292; full checks 2.2235 / 2.2245 / 2.2253 / 2.2257. Mean ~2.225x with a
+total spread of 0.4% - the score is stable and the four full checks all PASS.</pre></details><details><summary><em class="">6.8 h</em><span>Round 24 (02:30-02:45): fused master-weight sync (attempted, reverted)</span></summary><pre>Last item on the compute stream: <code>BF16_Optimizer.update_lp_params</code> copies each rank&#x27;s
+fp32 partition into its bf16 slice (a standalone ~21 GB pass) before the bf16
+all-gather. Implemented a version where the fused Adam kernel writes that bf16 slice
+in the same pass (extra store, <code>HAS_OUT</code> constexpr) and update_lp_params keeps only
+the all-gather, with the fp32-&gt;bf16 mapping installed in a patched BF16_Optimizer.step.
+Two <code>time</code> runs both died with a DataLoader worker SIGSEGV at the first fetch (the
+module-level <code>deepspeed.comm</code> import runs before the workers fork); the validated
+config re-ran immediately at 2.2251 (1251.8 ms), so the patch was the cause.
+Reverted: the expected gain was ~15 ms (1.2%) and a fork-time crash is not worth
+debugging against a validated 2.225x.
+
+### Follow-up on the round-24 crash (why it is not environmental)
+Host memory is not the cause: 2014 GiB total, 1938 GiB available, no swap, no OOM in
+dmesg/kern.log. With the patch absent the same config has now run 10+ times without a
+worker crash, so the early <code>deepspeed.comm</code> import (or the patched optimizer step)
+disturbs the forked dataloader workers. Not retried: the gain was ~1.2% and the
+failure mode is a crash, which is unacceptable against a validated 2.225x.</pre></details><details><summary><em class="">6.8 h</em><span>Round 25 (02:45-03:00): NCCL channel count (measured, reverted)</span></summary><pre>Hypothesis: the ~60 ms exposed reduce-scatter backlog exists because NCCL sustains
+only 68 GB/s while the GEMMs saturate the SMs. Tested NCCL_MAX_NCHANNELS=32 +
+NCCL_MIN_NCHANNELS=16 (allowed env, not judge-managed): 1249.7 ms (2.2288) vs
+1251.8 (2.2251), window spread 0.6% -&gt; inside noise, so the extra channels do not
+recover the backlog either. Reverted to the validated switch set.</pre></details><details><summary><em class="">6.9 h</em><span>Round 26 (03:00-03:20): fused linear cross-entropy (measured)</span></summary><pre>Replaced the materialised lm_head logits + <code>cross_entropy</code> with Liger&#x27;s
+<code>LigerFusedLinearCrossEntropyFunction</code> (chunked: loss and both gradients in one
+kernel, no 0.85 GiB logits tensor). Speed: 1252.7 ms (2.2234) vs 1251.8 (2.2251),
+neutral. Peak memory: 126.04 -&gt; 124.43 GiB (-1.6 GiB), which is worth having because
+the 60-step trajectory peak (133.8 GiB) is the tightest constraint in the submission.
+Numerics: N1 - first loss 1.3830 vs 1.3828, later steps ~0.1-0.2% apart (chunked
+vocabulary summation order). Full check running (/tmp/r25/check) to confirm gate 3.
+### Full check PASS with FLCE (02:03-02:09, /tmp/r25/check)
+status PASS, <b>speedup 2.2284</b> (1249.9 ms/step), gate 2 NOT_BITWISE 0 exact failures,
+gate 3 0.067 / 0.279 sigma, peak memory 124.43 GiB (-1.6 GiB). Committed.
+- Measured FLCE&#x27;s effect on the real 60-step trajectory (temporary atexit
+  instrumentation of torch.cuda.max_memory_allocated, removed again afterwards):
+  peak 133.81 -&gt; <b>132.37 GiB</b> allocated (reserved 137.2). The submission&#x27;s tightest
+  constraint now has ~5 GiB of margin instead of ~3.5 GiB.
+- Instrumentation removed; tree clean at 8a54d41 with the 12-switch set above.</pre></details><details><summary><em class="">7.2 h</em><span>Round 27 (03:20-03:35): profile of the FLCE version</span></summary><pre>GPU kernel time 1235 ms/step (was 1378 before FLCE): the fused loss path costs 0.5 ms
+in 7 kernels, so the materialised logits and the separate cross-entropy are gone.
+Breakdown: GEMM 866, ELEM 113, NCCL 95 (overlapped; the reduce-scatter tail is much
+smaller now that the optimizer/loss no longer serialise behind it), FLASH 70,
+TRITON 37, ADAM 22, grad-norm 13. The GPU is now ~99% busy across the step
+(1235 ms of kernels in a 1249.9 ms step), i.e. there is no idle left to reclaim;
+the remaining time is the 866 ms of GEMM plus the irreducible kernel mix.</pre></details><details><summary><em class="">7.2 h</em><span>Round 28 (03:35-03:45): BLAS dispatch lever unavailable</span></summary><pre>Checked whether the dominant 866 ms of GEMM could use cuBLASLt&#x27;s heuristics instead of
+cuBLAS: <code>torch.backends.cuda.preferred_blas_library</code> does not exist in the installed
+torch 2.1.2 (added in 2.2), and calling cuBLASLt directly from a custom autograd
+Function would change both the numerics and the whole linear path for an unproven
+gain. Lever closed. The weight layout (NT for the forward) is already cuBLAS&#x27;s
+preferred one; the wgrads already run in TN at ~858 TF/s.</pre></details><details><summary><em class="">7.4 h</em><span>Round 29 (03:45-04:00): final validation of the FLCE version</span></summary><pre>Second full check of 8a54d41 with the 12-switch set (/tmp/r27/check): status PASS,
+<b>speedup 2.2237</b> (1252.6 ms/step), gate 2 NOT_BITWISE 0 exact failures, gate 3
+0.010 / 0.276 sigma, tier N1, peak 124.43 GiB. Together with /tmp/r25/check (2.2284)
+the submitted version is validated at ~2.226x.</pre></details><details><summary><em class="">7.4 h</em><span>Round 30 (04:00-04:10): elementwise bucket audited, nothing removable</span></summary><pre>The 113 ms ELEM bucket breaks down as: 37.2 ms of <code>copy_</code>/<code>add_</code> (352 kernels, the
+ZeRO-3 grad-bucket copies and the fp32&lt;-&gt;bf16 master copies), 28.5 ms of bf16
+elementwise (472 kernels), 24.3 ms vectorised elementwise (383), 8.3 ms generic
+elementwise (246), 6.8 ms CatArrayBatchedCopy (79, the pack gathers). The bf16 ops
+move ~100 MB in 0.06 ms each = ~3.3 TB/s, i.e. they are already at achievable
+bandwidth; the rest are framework copies that earlier rounds proved are overlapped
+(removing them left the wall time unchanged). Nothing in this bucket is removable
+without touching DeepSpeed&#x27;s gradient path for less than the measurement noise.
+Combined with ~99% GPU occupancy, 866 ms of GEMM at the cold-weight limit, 70 ms of
+flash attention and zero recompute, the implementation is at the floor for this op
+sequence on this hardware.</pre></details><details><summary><em class="">7.5 h</em><span>Round 31 (04:10-04:35): CLIP vision attention -&gt; SDPA</span></summary><pre>The profile timeline showed the frozen vision tower spans ~80 ms with only 17.9 ms of
+kernels (126 kernels), because transformers 4.37&#x27;s CLIP has no SDPA path: each of the
+24 layers materialises a (12, 577, 577) score matrix per image, softmaxes it and
+multiplies again. Patched <code>CLIPAttention.forward</code> (LLAVA_CLIP_SDPA) to use
+F.scaled_dot_product_attention, which is valid because the tower&#x27;s attention is
+bidirectional and unmasked; falls back to the original when a mask or
+output_attentions is requested. N1 (frozen features differ ~1e-4 relative; first
+loss 1.3834 vs 1.3830).
+time: 1248.5 ms, <b>2.2308</b> (vs 1251.8 / 2.2251), peak unchanged at 124.43 GiB.
+Full check running (/tmp/r28/check).
+- Full check of the CLIP-SDPA variant: PASS but 2.2227 (1253.1 ms) while <code>time</code> gave
+  2.2308 (1248.5) - the two bracket the baseline, i.e. neutral. The vision tower&#x27;s
+  kernels are not on the critical path (its 80 ms span is CPU-bound and largely a
+  profiler artifact), so removing the eager-attention score matrices saves kernel
+  time but not wall time, and it perturbs the frozen tower&#x27;s outputs. Reverted;
+  switch set restored to the validated 12.</pre></details><details><summary><em class="">7.7 h</em><span>Round 32 (04:35-05:00): cached vision features (abandoned mid-implementation)</span></summary><pre>The rules explicitly allow precomputing anything independent of trainable parameters
+(&quot;cached image features&quot;), and the frozen vision tower costs ~18 ms of kernels plus
+some CPU-bound idle per step. Wired a cache through encode_images /
+prepare_inputs_labels_for_multimodal / the collator and started a precompute
+callback that would run the tower once over the dataset in the same micro-batch
+shape (so the cached values would be bit-identical). The patch set did not apply
+cleanly (heredoc error plus two anchors that had been reverted earlier), and with the
+remaining working budget I could not both finish it and validate it end to end, so
+the whole change was reverted to keep the tree in its validated state. This is the
+one identified optimisation with a &gt;1% expected gain (the prompt&#x27;s allowed feature
+cache); it needs a clean implementation pass plus a full check.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-llava-mm.html"><small>← 2.34×</small><strong>MiniMax M3.1 Flash</strong></a><a class="up" href="llava.html">↑ LLaVA</a><a class="next" href="t-llava-glm.html"><small>1.52× →</small><strong>GLM-5.3</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-llava-opus.html", "pts": [[0.53, 1.457, 1], [0.757, 1.723, 2], [1.111, 2.091, 3], [1.621, 2.296, 4], [2.115, 2.421, 6], [2.233, 2.452, 7], [2.36, 2.542, 8], [2.731, 2.576, 10], [2.909, 2.589, 11], [3.307, 2.615, 12], [3.307, 2.643, 13], [3.51, 2.655, 15], [3.659, 2.655, 16], [3.944, 2.68, 18], [3.979, 2.704, 19], [4.202, 2.726, 20], [4.368, 2.735, 21], [5.069, 2.735, 26], [5.337, 2.748, 27], [5.792, 2.748, 29], [6.083, 2.77, 31]], "end": 10.014, "final": 2.9153}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-llava-sonnet.html", "pts": [[0.928, 1.468, 2], [0.928, 1.704, 3], [1.148, 2.122, 4], [1.743, 2.244, 6], [2.05, 2.412, 8], [3.021, 2.498, 12], [4.63, 2.627, 14], [7.301, 2.742, 19]], "end": 9.999, "final": 2.8022}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-llava-haiku.html", "pts": [[0.355, 1.451, 2], [0.478, 1.99, 3], [0.712, 2.005, 4], [0.843, 2.187, 5], [1.611, 2.21, 9], [2.237, 2.21, 11], [2.38, 2.21, 12], [3.296, 2.21, 13], [3.884, 2.21, 14], [4.858, 2.248, 21], [5.646, 2.323, 22], [6.608, 2.34, 26], [6.892, 2.361, 27], [7.555, 2.368, 30], [8.519, 2.403, 34], [9.205, 2.456, 36], [9.987, 2.466, 37]], "end": 10.002, "final": 2.4629}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-llava-astra.html", "pts": [[0.164, 1.035, 1], [0.309, 1.035, 2], [2.235, 1.06, 7], [2.235, 1.063, 12], [2.235, 1.065, 15], [2.235, 1.067, 17], [2.235, 1.067, 19], [3.491, 1.176, 20], [3.805, 1.176, 21], [4.146, 1.192, 22], [4.485, 1.199, 23], [4.836, 1.206, 24], [5.159, 1.215, 25], [5.487, 1.224, 26], [5.813, 1.231, 27], [6.143, 1.243, 28], [6.413, 1.253, 29], [6.832, 1.255, 30], [6.832, 1.255, 31], [7.295, 1.263, 32], [7.61, 1.273, 33], [7.61, 1.273, 35], [7.994, 1.273, 36], [7.994, 1.273, 37], [8.536, 1.278, 38], [8.816, 1.287, 39], [8.889, 1.287, 40], [9.272, 1.29, 42], [9.545, 1.294, 43], [9.623, 1.294, 44], [9.703, 1.294, 45]], "end": 10.0, "final": 1.4063}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-llava-glm.html", "pts": [[0.38, 1.032, 2], [0.473, 1.05, 3], [0.839, 1.099, 4], [0.917, 1.099, 5], [1.308, 1.131, 7], [1.987, 1.139, 9], [2.367, 1.261, 10], [5.294, 1.447, 18], [5.779, 1.457, 19], [6.096, 1.466, 20], [6.413, 1.466, 21], [6.615, 1.486, 22], [7.016, 1.486, 23], [7.201, 1.491, 24], [7.563, 1.496, 25], [7.931, 1.496, 26], [8.048, 1.496, 27], [8.252, 1.502, 28], [8.574, 1.502, 30], [8.754, 1.528, 31], [8.997, 1.528, 32], [9.4, 1.528, 34], [9.434, 1.528, 35], [9.48, 1.528, 36], [9.633, 1.528, 37], [9.685, 1.528, 38], [9.929, 1.528, 39]], "end": 10.0, "final": 1.5188}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-llava-kimi.html", "pts": [[0.123, 1.036, 1], [0.57, 1.058, 3], [1.124, 1.091, 4], [1.414, 1.108, 5], [1.695, 1.221, 6], [1.914, 1.296, 7], [2.478, 1.306, 8], [3.232, 1.329, 9], [3.28, 1.329, 10], [3.874, 1.333, 11], [3.95, 1.333, 12], [4.335, 1.343, 13], [4.57, 1.343, 14], [4.871, 1.343, 15], [5.071, 1.343, 16], [5.53, 1.355, 17], [5.827, 1.364, 18], [5.919, 1.364, 19], [6.344, 1.379, 20], [6.566, 1.379, 21], [6.752, 1.379, 22], [7.004, 1.379, 23], [7.24, 1.379, 24], [7.354, 1.379, 25], [7.465, 1.379, 26], [7.65, 1.379, 27], [7.85, 1.379, 28], [8.34, 1.379, 29], [8.654, 1.379, 30], [8.885, 1.379, 31], [9.047, 1.379, 32], [9.461, 1.385, 33], [9.741, 1.385, 34], [9.872, 1.385, 35]], "end": 10.0, "final": 1.3797}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-llava-ds.html", "pts": [[0.202, 1.038, 1], [0.379, 1.24, 2], [0.751, 1.318, 3], [1.256, 1.804, 4], [1.611, 1.897, 5], [1.799, 1.925, 6], [2.261, 2.008, 7], [3.611, 2.008, 9], [4.355, 2.099, 11], [4.806, 2.146, 12], [5.315, 2.225, 14], [6.253, 2.225, 17], [6.561, 2.225, 20], [6.631, 2.225, 23], [6.78, 2.225, 24], [7.084, 2.228, 26], [7.378, 2.228, 29]], "end": 7.702, "final": 2.2194}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-llava-mm.html", "pts": [[0.918, 1.143, 2], [0.918, 1.422, 3], [1.358, 1.438, 4], [1.764, 1.438, 5], [2.471, 1.703, 9], [3.484, 1.704, 11], [3.661, 1.819, 12], [3.759, 1.895, 13], [4.067, 1.972, 15], [4.167, 1.98, 16], [4.421, 2.005, 17], [4.538, 2.04, 18], [4.718, 2.065, 19], [4.835, 2.075, 20], [4.96, 2.102, 21], [5.22, 2.102, 22], [5.22, 2.102, 23], [5.37, 2.115, 24], [5.37, 2.181, 25], [5.468, 2.215, 27], [5.664, 2.215, 28], [6.415, 2.234, 30], [6.415, 2.267, 31], [6.526, 2.288, 32], [6.832, 2.3, 33], [6.832, 2.32, 34]], "end": 10.0, "final": 2.3388}], "focus": "ds", "xmax": 10.5, "aria": "DeepSeek V4.1 Flash-1017 on LLaVA: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

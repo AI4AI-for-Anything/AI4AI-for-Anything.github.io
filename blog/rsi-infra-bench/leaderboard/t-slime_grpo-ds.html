@@ -1,0 +1,207 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepSeek V4.1 Flash-1017 · Slime GRPO · RSI-Infra Bench</title><meta name="description" content="DeepSeek V4.1 Flash-1017 on Slime GRPO: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="on">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_grpo.html">Slime GRPO</a><span>/</span><b>DeepSeek V4.1 Flash-1017</b></nav><h1>DeepSeek V4.1 Flash-1017 <em>1.88×</em></h1><p class="lede">Harness: DeepSeek's own harness · switches: <code>SLIME_OPT_SKIP_ZERO_KL_REF=1</code> <code>SLIME_OPT_NO_RECOMPUTE=1</code> <code>SLIME_OPT_KEEP_TRAIN_RESIDENT=1</code> <code>SLIME_OPT_LOGPROBS_CHUNK=4096</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.88×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.94×</dd></div><div class=""><dt>Rounds</dt><dd>10</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$1.41</dd></div><div class=""><dt>Input tokens · 99.8% cached</dt><dd>153 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.3 M</dd></div><div class=""><dt>Requests</dt><dd>407</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-slime_grpo-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.40×</small></a><a class="chip" data-k="opus" href="t-slime_grpo-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.35×</small></a><a class="chip" data-k="mm" href="t-slime_grpo-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.91×</small></a><a class="chip self" data-k="ds" href="t-slime_grpo-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.88×</small></a><a class="chip" data-k="haiku" href="t-slime_grpo-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.85×</small></a><a class="chip" data-k="glm" href="t-slime_grpo-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.79×</small></a><a class="chip" data-k="kimi" href="t-slime_grpo-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.35×</small></a><a class="chip" data-k="astra" href="t-slime_grpo-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>101.8 / 97.0 / 95.6</dd><dt>Rollout side</dt><dd>2.10×</dd><dt>Train side</dt><dd>1.60×</dd><dt>Rollout host-side fixes</dt><dd>✓ redundant nested top-k removed + orjson (rollout 111 → 82 s), host-side top-p check (→ 52 s)</dd><dt>Skip zero-coefficient reference forward</dt><dd>✓</dd><dt>Train-side main levers</dt><dd>partial: no recompute, training model resident, logprob chunk 1024 → 4096</dd></dl></section><section class="sec"><div class="section-label"><span>§ 03</span>Step by step</div><div class="tbl-wrap"><table class="plain kn steps"><thead><tr><th class="n">Round</th><th>Change</th><th>Measured</th><th class="n">Step</th><th class="n">Side, cumulative</th><th>Status</th></tr></thead><tbody><tr><th colspan="6" class="side">Rollout side</th></tr><tr title="rollout side speedup 1.344 (windows candidate 82.27, 82.24, 82.08 s vs frozen 110.57, 112.877, 110.458)"><td class="n">1</td><td>redundant nested top-logprobs removed + orjson</td><td>rollout-side speedup: — → 1.34</td><td class="n"><b>×1.34</b></td><td class="n">1.34×</td><td>kept</td></tr><tr class="off" title="decode 94.8 tok/s vs 107.0 tok/s for Triton -&gt; 11% SLOWER. Rejected, switch left at 0."><td class="n">2</td><td>FlashInfer GDN decode</td><td>decode throughput tok/s: 107 → 94.8</td><td class="n">×0.89</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="rollout windows 88.40 / 90.25 / 87.68 s -&gt; side speedup 1.2507, i.e. ~7% slower than the Triton decode"><td class="n">3</td><td>CuTe DSL GDN decode</td><td>rollout-side speedup: 1.34 → 1.25</td><td class="n">×0.93</td><td class="n">—</td><td>reverted</td></tr><tr title="rollout windows 52.692 / 51.819 / 52.398 s vs frozen ... -&gt; side speedup 2.0984; decode 107 -&gt; ~150 tok/s"><td class="n">4</td><td>sampler top-p flag on host, per-step sync removed</td><td>rollout-side speedup: 1.34 → 2.1</td><td class="n"><b>×1.56</b></td><td class="n">2.10×</td><td>kept</td></tr><tr class="off" title="It fails at checkpoint load ... dist_checkpointing errors on the fused native names. Rejected"><td class="n">4</td><td>Megatron-native TP/CP-sharded GDN implementation</td><td>none (weight checkpoint load failed): — → —</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="reverted (575ed34). A rollout failed with a malformed top-k response"><td class="n">8</td><td>batched per-request top-k D2H copies</td><td>none (corrupted responses, rolled back): — → —</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr><th colspan="6" class="side">Train side</th></tr><tr title="runs a full extra reference-model forward (~12.2 s/step) whose only consumers ... both have coefficient 0. Skip it"><td class="n">1</td><td>skip reference model forward when KL coefficient is 0</td><td>ref_log_probs time s: 12.2 → 0</td><td class="n">—</td><td class="n">—</td><td>kept</td></tr><tr title="train perf after A+B: actor_train 38.9 s (was 47.3), ref_log_probs gone, step_time 48.3 s (was 67.5)"><td class="n">1</td><td>activation recompute off (enough training memory)</td><td>actor_train s (train side 1.3725 after A+B): 47.3 → 38.9</td><td class="n">—</td><td class="n">1.37×</td><td>kept</td></tr><tr title="train windows 40.97 / 41.03 / 41.07 s ... -&gt; 1.592; keep-resident (E): train windows 47.7 -&gt; 41.0 s"><td class="n">2</td><td>actor resident in GPU memory, skip per-step NCCL group teardown/rebuild</td><td>train window s: 47.7 → 41</td><td class="n"><b>×1.16</b></td><td class="n">1.59×</td><td>kept</td></tr><tr class="off" title="train windows 37.48 / 38.07 / 36.84 s -&gt; side speedup 1.7423 ... train gate is INCORRECT: cos 0.9308 (min 0.9554)"><td class="n">3</td><td>pack 2 samples per microbatch</td><td>train-side speedup: 1.59 → 1.74</td><td class="n">×1.09</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="UB overlap cannot be used with variable-length microbatches (first the group-backend assert, then the buffer shapes)"><td class="n">5</td><td>TE TP comm overlap (userbuffer)</td><td>none (init / UB buffer shape assertion failed): — → —</td><td class="n">—</td><td class="n">—</td><td>reverted</td></tr><tr title="train windows 40.867 / 40.952 / 40.509 s -&gt; side speedup 1.6145 (base 1.5619). Adopted in switches.json."><td class="n">8</td><td>log-softmax chunked by 4096 tokens</td><td>train-side speedup: 1.56 → 1.61</td><td class="n">×1.03</td><td class="n">1.61×</td><td>kept</td></tr><tr class="off" title="windows 41.141 / 41.362 / 42.173 s -&gt; side speedup 1.5508, i.e. ~3% SLOWER than the fp32 path. Rejected"><td class="n">9</td><td>gradient all-reduce in bf16</td><td>train-side speedup: 1.61 → 1.55</td><td class="n">×0.96</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="Fused GDN gate: side speedup 1.6038 ... vs 1.6145 for the chunk-only baseline -- within noise, no gain"><td class="n">9</td><td>fla fused GDN gate</td><td>train-side speedup: 1.61 → 1.6</td><td class="n">×0.99</td><td class="n">—</td><td>reverted</td></tr><tr class="off" title="train windows 40.679 / 41.105 / 40.305 s -&gt; side 1.617, i.e. the same as the 1.6145 baseline. No gain"><td class="n">10</td><td>NCCL_PROTO=Simple protocol tuning</td><td>train-side speedup: 1.61 → 1.62</td><td class="n">×1.00</td><td class="n">—</td><td>reverted</td></tr></tbody></table></div></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>18 sections</small></summary><div class="rounds"><details><summary><em class="">0.1 h</em><span>Round 1 — profile the unchanged reference, then remove redundant train work + rollout payload</span></summary><pre>Start ~22:22. Profiles (reference tree, unchanged) launched detached:
+<code>/tmp/r1/run_profiles.sh</code> -&gt; /tmp/r1/profiles.log (train profile then rollout profile).
+
+Change A (train side, switch SLIME_OPT_SKIP_ZERO_KL_REF, default off):
+the recipe passes <code>--use-kl-loss --kl-loss-coef 0.00</code>, which makes <code>with_ref=True</code> and runs a full
+extra reference-model forward (~12.2 s/step) whose only consumers (KL advantage penalty, KL loss
+term) both have coefficient 0. Skip it, and skip the KL loss term in loss.py; advantages already
+fall back to zero KL for kl_coef==0. Parameters are unaffected (the ref pass is forward-only).
+Change B (train side, switch SLIME_OPT_NO_RECOMPUTE, default off):
+<code>--recompute-granularity full --recompute-method uniform --recompute-num-layers 1</code> recomputes all
+32 layers during backward; free GPU memory during training is ~105 GB so drop it. Recomputation
+re-runs the same forward, so the arithmetic is unchanged (peak activation memory rises).
+Change C (rollout side): sglang tokenizer_manager puts the nested <code>output_top_logprobs</code>
+(8192 x 128 tuples per sample, ~2x the compact payload) into every non-streaming response in
+addition to the base64 <code>output_topk_*</code> arrays that slime actually consumes. Drop the nested field
+for non-streaming compact responses (streaming/text-logprob clients unchanged). No data change.
+Change D (rollout side): parse the response with orjson instead of stdlib json.</pre></details><details><summary><em class="">0.1 h</em><span>Round 1 results (time, 2026-11-12 22:52-23:14, out /tmp/r1/time)</span></summary><pre>- rollout side speedup 1.344 (windows candidate 82.27, 82.24, 82.08 s vs frozen 110.57, 112.877, 110.458)
+- train side speedup 1.3725 (windows candidate 47.96, 47.51, 47.65 s vs frozen 66.812, 66.467, 65.4)
+- projected step speedup 1.3423 (bar: max(1.02, 1+2*spread) = 1.079)
+- train perf after A+B: actor_train 38.9 s (was 47.3), ref_log_probs gone, step_time 48.3 s (was 67.5)
+- rollout after C+D: 4 rollouts 87.7 / 80.2 / 80.7 / 78.9 s (was 118.3 / 108.5 / 111.9 / 108.3)
+- quick check started 23:16 -&gt; /tmp/r1/quick (log /tmp/r1/quick.log)
+
+Reference profile: the judge&#x27;s train profile (torch.profiler on all ranks) was killed after its
+export hung for ~10 min; the 359 MB/rank gz traces were truncated and unusable. The rollout
+profile was killed with it to start timing. Lesson: train traces are enormous; do not block a round
+on them.</pre></details><details><summary><em class="">0.1 h</em><span>Round 1 verdict</span></summary><pre><code>check --quick</code> (both sides, switches A+B): <b>PASS, tier N1</b> (out /tmp/r1/quick, 23:14-23:45).
+- rollout exact ok; token forcing mean|d| 0.007744 (ref 0.007686), max_abs 0.749 (ref 1.785),
+  mismatch 0.008024 (ref 0.008119) -&gt; PASS
+- train record exact ok; bitwise differs in 6386 tensors (the reference itself differs in 6388);
+  statistical gate PASS: update_norm 0.121607 (ref 0.121669, tol 6.6e-4), loss -0.0023683 (tol 2.5e-5),
+  grad_norm 0.048408 (tol 0.034), cos 0.99255 (min 0.9554), mismatch exactly 0.0081647 -&gt; PASS</pre></details><details><summary><em class="">1.9 h</em><span>Round 2 — colocated memory/offload (train+rollout interface)</span></summary><pre>Smoke test of the judge&#x27;s own launcher in MODE=full (NUM_ROLLOUT=2, /tmp/smoke_full.sh,
+log /tmp/smoke.log): tests the colocated full loop, which <code>check</code>/<code>time</code> never run.
+- Found and fixed two bugs in the resident path: the FlashInfer override was applied before
+  the server-args dict existed; the resident wake-up must rebuild the NCCL groups that the
+  weight update tears down.
+- FlashInfer GDN decode (SLIME_OPT_FLASHINFER_GDN_DECODE=1) measured in the colocated loop:
+  decode 94.8 tok/s vs 107.0 tok/s for Triton -&gt; 11% SLOWER. Rejected, switch left at 0.
+- keep-resident (SLIME_OPT_KEEP_TRAIN_RESIDENT=1): sleep 4.4-4.8 s -&gt; 0.42-0.83 s,
+  wake 1.2-1.4 s -&gt; 0.49-0.54 s; but update_weights grew 2.0 -&gt; 2.9-3.9 s (group churn while
+  the actor is resident). Added a follow-up that skips the per-step NCCL group teardown and
+  rebuild in resident mode; re-running the full-loop smoke test with 3 steps.</pre></details><details><summary><em class="">1.9 h</em><span>Round 2 results</span></summary><pre>Full-loop smoke test (judge&#x27;s launch.sh, MODE=full, 3 RL steps, keep-resident on, FlashInfer off):
+exit 0, so the colocated loop fits in memory. Per-step perf (s):
+  step 1 (cold): step 146.5 | step 2: step 122.7 (train 37.3, sleep 0.69, wake 0.50, update_weights 0.94) |
+  step 3: step 129.2
+vs the reference full loop ~182 s/step. Sleep 4.4-4.8 -&gt; 0.4-0.8 s, wake 1.2 -&gt; 0.5 s,
+update_weights 2.0 -&gt; 0.9-1.5 s after skipping the group teardown/rebuild.
+
+<code>check</code> (non-quick) on these switches is broken by a judge-side bug: <code>judge_rollout</code> reuses the
+gate-1 timing run and then writes <code>&lt;out&gt;/rollout/score.log</code> without creating <code>&lt;out&gt;/rollout</code>
+(FileNotFoundError at bench.py:858). It does not affect <code>check --final</code> (which uses the full
+loop). Worked around by using <code>check --quick</code> (gates 0,2,3,4) plus <code>time</code> (gate 1).
+The timing runs of that attempt did complete; their judge clocks give
+rollout windows 82.04 / 90.27 / 86.90 s (ref 110.57 / 112.877 / 110.458) -&gt; 1.250, and
+train windows 40.97 / 41.03 / 41.07 s (ref 66.812 / 66.467 / 65.4) -&gt; 1.592;
+projected step speedup 1.347. In the no-dump rollout <code>time</code> run the windows were
+82.27 / 82.24 / 82.08 s (spread 0.2%), so the 90 s window here is the judge&#x27;s 748 MB dump
+interfering; the final evaluation does not dump.</pre></details><details><summary><em class="">3.6 h</em><span>Round 3 — train-side dynamic-batching cap and log-probs chunk</span></summary><pre>- <code>time --side train</code> with SLIME_OPT_MAX_TOKENS_PER_GPU=8448 (2 samples per microbatch,
+  32 microbatches instead of 64) and SLIME_OPT_LOGPROBS_CHUNK=4096:
+  train windows 37.48 / 38.07 / 36.84 s -&gt; side speedup <b>1.7423</b> (was 1.592 with 41 s windows)
+  (out /tmp/r3/batch, log /tmp/r3/batch.log). Adopted.
+- Also tested CuTe DSL GDN decode: rollout windows 88.40 / 90.25 / 87.68 s -&gt; side speedup
+  1.2507, i.e. ~7% slower than the Triton decode (82.2-82.3 s). Rejected, switch stays off
+  (out /tmp/r3/cutedsl).
+- Re-validating all gates with <code>check --quick</code> on the five switches: /tmp/r4/quick.</pre></details><details><summary><em class="">3.6 h</em><span>Round 3 verdict — FAILED, reverted</span></summary><pre><code>check --quick</code> with MAX_TOKENS_PER_GPU=8448 + LOGPROBS_CHUNK=4096 (/tmp/r4/quick, 01:59-02:29):
+rollout PASS, but the train gate is INCORRECT:
+  update_norm d = -1.04e-3 (tolerance 6.6e-4), update-direction cos 0.9308 (min 0.9554).
+Packing two samples into one microbatch changes the per-sample weighting of the loss reducer
+(sum_of_sample_mean normalizes per microbatch), i.e. it is not just a reduction order.
+Reverted to the three-switch configuration validated at /tmp/r3/quick (PASS N1, both sides).
+The log-probs chunk switch alone was not separated/retested (would need another 13 min + 34 min
+for a gain of at most a fraction of a second).</pre></details><details><summary><em class="">5.8 h</em><span>Round 4 — rollout profile: per-step host sync in the sampler (biggest win so far)</span></summary><pre><code>profile --side rollout</code> on the current tree (out /tmp/r6/profile, 12 min) gave a 42 MB trace per
+TP rank for 200 decode steps. Analysis (not a timing tool: kernel/CPU accounting of that trace):
+- GPU busy (main stream, sum of kernel durations) 4.59 ms per decode step; the wall span between
+  graph replays was 8.22 ms -&gt; ~44% of every decode step was NOT kernel time.
+- <code>aten::item</code>/<code>_local_scalar_dense</code>: 645 calls, 820 ms CPU, of which <b>200 calls at ~4.1 ms</b>
+  (one per decode step), each followed by <code>cudaStreamSynchronize</code>. The enclosing Python frame was
+  <code>sglang/srt/layers/sampler.py:forward</code>, right after <code>aten::log</code> + <code>aten::any</code>.
+- Source: `if sampling_info.return_top_p_log_probs is not None and
+  bool(sampling_info.return_top_p_log_probs.any().item())<code>. That </code>.item()` syncs the whole decode
+  step on every token even when no request asked for top-p logprobs (score centering uses top-k).
+- Fix: <code>SamplingBatchInfo</code> already builds the per-request flag list on the host; mirror its <code>any()</code>
+  into a bool field (<code>need_return_top_p_log_probs</code>, OR-ed in merge) and read that in the sampler.
+  The device tensor stays for its other consumers. Branch taken is unchanged (N0).
+
+Effect (<code>time --side rollout</code>, out /tmp/r6/t1): decode throughput 107 -&gt; ~150 tok/s; rollout windows
+52.8 / 53.2 / 58.6 s (the 58.6 s was an outlier; the next run measured 52.7 / 51.8 / 52.4 s),
+side speedup <b>1.8857</b> on that run and 2.099 by the clocks of the next one.
+<code>check --quick</code> on the fix (out /tmp/r6/quick): <b>PASS N1</b>, both sides; token forcing mean|d|
+0.0077233 (unchanged to 7 digits vs before the fix), mismatch ratio 1.0026, train statistical gate
+PASS (update_norm d -8.9e-5, cos 0.9947), so the fast path computes exactly the same rollout.
+
+Also tried this round: <code>SLIME_OPT_GDN_IMPLEMENTATION=megatron</code> (Megatron&#x27;s TP/CP-sharded GDN
+implementation). It fails at checkpoint load — the frozen <code>torch_dist</code> checkpoint was converted with
+the replicated HF layout (separate in_proj_qkv/z/b/a, conv1d) and dist_checkpointing errors on the
+fused native names. Rejected (the checkpoint is read-only).</pre></details><details><summary><em class="">5.8 h</em><span>Round 4 official timing (judge `time`, both sides, out /tmp/r6/t2, 04:04-04:17)</span></summary><pre>- rollout windows 52.692 / 51.819 / 52.398 s vs frozen 110.57 / 112.877 / 110.458 -&gt; side speedup <b>2.0984</b>
+- train windows 41.670 / 42.555 / 41.338 s vs frozen 66.812 / 66.467 / 65.4 -&gt; side speedup <b>1.5619</b>
+- projected step speedup <b>1.82</b>; expected full loop (rollout 52 + train cycle ~37 + sync ~1)
+  ~90 s/step vs the reference&#x27;s 182.2 -&gt; ~2.0x.</pre></details><details><summary><em class="">5.8 h</em><span>Round 4 full-loop verification and state</span></summary><pre>Judge&#x27;s launcher in MODE=full, 2 RL steps (log /tmp/smoke3.log): exit 0.
+  step 1 (cold) 116.8 s; step 2 <b>93.9 s</b> = rollout 49.3 + train 38.7 (actor_train 38.5,
+  sleep 0.69, wake 0.49) + update_weights 1.19. Engine decode 170-175 tok/s (was 107).
+  vs the reference full loop 182.2 s -&gt; <b>~1.94x</b>.
+Measured bf16 GEMM peak on this GPU (8192^3 cuBLAS): 789 TFLOP/s; the training step runs at
+~213 TFLOP/s of useful 6N FLOPs (27% of peak), so the train side may still have headroom;
+profiling it now (<code>profile --side train</code>, /tmp/r7/profile).</pre></details><details><summary><em class="">6.9 h</em><span>Round 5 — train profile, communication and GDN attempts</span></summary><pre><code>profile --side train</code> on the current tree (out /tmp/r7/profile, 04:30-04:57, 694 MB trace/rank,
+kernel report written by bench/kernel_util.py). GPU busy 38.4 s of the profiled 54.3 s step.
+Kernel time by class (of 39.6 s):
+  - NCCL collectives <b>33%</b>: AllGather 7.52 s (12481 calls, median 157 us, p90 1.68 ms),
+    ReduceScatter 3.11 s, AllReduce f32 1.56 s, SendRecv 0.91 s; all flagged under-filled
+    (24 blocks, SM coverage 0.18) and *skewed* (mean &gt;&gt; median: waiting for a peer).
+  - cuBLAS/nvjet GEMMs ~33% (13.0 s), the largest at 132 blocks / full SM coverage.
+  - elementwise/copy/fill 14% (~5.5 s, mostly small under-filled kernels from the GDN plugin&#x27;s
+    eager gating math and the fp32 casts), fla GDN kernels 10% (~4.0 s), FlashAttention bwd 1.1%.
+Actions:
+  - SLIME_OPT_TP_COMM_OVERLAP=1 (TransformerEngine userbuffer overlap of the SP all-gather /
+    reduce-scatter): <b>fails at init</b> -- TE&#x27;s CommOverlapHelper asserts the intra-domain group&#x27;s
+    backend type, which slime&#x27;s reloadable process-group wrapper does not satisfy
+    (<code>comm_gemm_overlap.cpp:42 Assertion failed: intra_domain_group...getBackendType() == backend</code>).
+    Rejected (would need the reloadable-group wrapper disabled, which interacts with the CPU
+    offload/optimizer path).
+  - Tried a dense CUDA-graph batch-size bucket list: not pursued (the decode is mostly
+    weight-bandwidth bound, so padding 36 -&gt; 40 wastes little).
+Measured bf16 GEMM peak: 789 TFLOP/s; the train step does ~213 TFLOP/s of 6N work (27% of peak),
+and a third of its busy time is un-overlapped collectives, which is the next real opportunity
+(blocked by the TE/group-wrapper interaction above).
+
+State after round 5 (submission): switches = SKIP_ZERO_KL_REF, NO_RECOMPUTE, KEEP_TRAIN_RESIDENT;
+rollout side 2.0984, train side 1.5619 (<code>time</code> 04:04-04:17, /tmp/r6/t2), projected 1.82,
+full-loop smoke 93.9 s/step vs 182.2 s reference (~1.94x).
+The two switches added after the last full gate run (GDN implementation, TP comm overlap) are
+default-off and unset, so the validated behaviour is unchanged.</pre></details><details><summary><em class="">7.0 h</em><span>Round 6 — rollout re-profile after the sync fix</span></summary><pre><code>profile --side rollout</code> again (out /tmp/r8/profile): GPU busy (union of kernels) 4.77 ms per
+decode step (was 5.2 ms), 441 <code>aten::item</code> calls with <b>0 above 2 ms</b> (was 200 at ~4.1 ms), and
+<code>cudaStreamSynchronize</code> 0.4 ms in the whole 200-step trace (was 814 ms). The decode step is now
+6.35 ms wall (52 s / 8192 tokens): ~4.8 ms GPU kernel time (55% of it memory-bound cuBLAS GEMMs
+reading the weights, 10% the fused GDN decode kernel, 10% TP allreduce) plus ~1.6 ms of per-step
+scheduler/sampler host work. Remaining rollout upside would need the GDN weights to be TP-sharded
+(the replicated HF wrapper reads the full 1.6 B-parameter GDN on both ranks per step) -- the
+in-tree Megatron GDN does that but cannot load the frozen checkpoint; or a rewrite of sglang&#x27;s
+per-step Python. Both are beyond this round&#x27;s budget.</pre></details><details><summary><em class="">7.8 h</em><span>Round 7 — TP communication overlap investigation (rejected: incompatible with dynamic batching)</span></summary><pre>The train profile showed 33% of kernel time in sequence-parallel NCCL collectives, so the next
+target was Megatron/TransformerEngine userbuffer (UB) overlap of the all-gather / reduce-scatter.
+- Attempt 1 (<code>SLIME_OPT_TP_COMM_OVERLAP=1</code> alone): TE&#x27;s <code>CommOverlapHelper</code> asserts the
+  intra-domain group&#x27;s backend type == the comm backend. slime wraps every torch.distributed group
+  in <code>ReloadableProcessGroup</code> (a plain ProcessGroup with the real one inside), so the backend
+  reads as undefined. Failed at actor init.
+- Added <code>SLIME_OPT_NO_RELOADABLE_GROUPS=1</code>: skips only <code>monkey_patch_torch_dist()</code> (keeping
+  <code>offload_train=True</code> so the torch_memory_saver setup the actor needs stays intact; the
+  destroy/rebuild calls are already skipped by the resident path). Now TE initialises its
+  userbuffers and the run gets into training, but fails at the first overlapped GEMM:
+  `comm_gemm_overlap.cpp:455 copy_into_buffer: Assertion failed: _ubufs[_tp_id].numel() ==
+  input_size`. The UB buffers are sized once from
+  <code>(seq_length * micro_batch_size) // cp_size</code>, while this recipe uses dynamic batching with a
+  per-microbatch token count (M = 4096-4224 after CP2 slicing/padding). TE requires the copied
+  input to match the buffer *exactly*, so UB overlap cannot be used with variable-length
+  microbatches without reshaping every microbatch to one fixed M (which would change the
+  batching/data order). Rejected; both switches stay off.
+
+Also examined and rejected for this round: fla&#x27;s fused gate (<code>use_gate_in_kernel</code>) in the GDN
+plugin would remove ~3-4 eager elementwise kernels per layer (gradients for A_log/dt_bias are
+supported in the fla backward), worth well under 1% of the step; and fla&#x27;s native GVA
+(<code>HV &gt; H</code>) only removes the q/k repeat copy (~0.03 s/step) because the qk products scale with
+HV either way.</pre></details><details><summary><em class="">8.0 h</em><span>Round 8 — small, safe leftovers</span></summary><pre>- <code>SLIME_OPT_LOGPROBS_CHUNK=4096</code> (log-softmax token chunking; the reduction is per row over the
+  vocab, so this is bitwise identical arithmetic): <code>time --side train</code> windows
+  40.867 / 40.952 / 40.509 s -&gt; side speedup <b>1.6145</b> (base 1.5619). Adopted in switches.json.
+- sglang <code>copy_to_cpu</code>: the top-k logprob rows were copied device-&gt;host one small tensor per
+  request (~64 non-blocking copies plus Python launches per decode step; the rollout trace showed
+  2.1 ms CPU per step in that annotation). Stack the equally shaped rows, copy once, return
+  per-request CPU views. Committed (7b5cce0); timing below.</pre></details><details><summary><em class="">8.0 h</em><span>Round 8 results and revert</span></summary><pre>- <code>SLIME_OPT_LOGPROBS_CHUNK=4096</code>: train windows 40.867 / 40.952 / 40.509 s -&gt; side speedup 1.6145
+  (adopted; bitwise-identical arithmetic, it only changes how many tokens the log-softmax
+  processes per chunk).
+- Batched per-request top-k D2H copy (commit 7b5cce0): <b>reverted</b> (575ed34). A rollout failed
+  with a malformed top-k response (&quot;string indices must be integers&quot; after the client&#x27;s top-k
+  validation rejected the payload). The batched <code>torch.stack(...).to(&quot;cpu&quot;)</code> did not reproduce
+  <code>async_d2h</code>&#x27;s pinned host buffer and <code>record_stream</code> lifetime handling, so the copied rows were
+  not safe under the overlap scheduler. The per-request copies stay.
+- Final switch file now: SKIP_ZERO_KL_REF, NO_RECOMPUTE, KEEP_TRAIN_RESIDENT, LOGPROBS_CHUNK=4096.
+- Final gate run on that exact tree + switches: <code>check --quick</code> -&gt; /tmp/r8/quick2.</pre></details><details><summary><em class="">9.0 h</em><span>Round 9 — two more train-side kernel/communication levers</span></summary><pre>- <code>SLIME_OPT_BF16_GRAD_REDUCE=1</code> (drop <code>--accumulate-allreduce-grads-in-fp32</code> so the row-parallel
+  weight gradients all-reduce in bf16; the train profile had 1.56 s/step in the fp32 all-reduce):
+  <code>time --side train</code> windows 41.141 / 41.362 / 42.173 s -&gt; side speedup <b>1.5508</b>, i.e. ~3%
+  SLOWER than the fp32 path (bf16 also makes the gradient accumulation buffer bf16). Rejected,
+  switch stays off.
+- <code>SLIME_OPT_GDN_FUSED_GATE=1</code>: pass the raw a/b projections plus A_log/dt_bias into fla&#x27;s
+  <code>chunk_gated_delta_rule(use_gate_in_kernel=True, use_beta_sigmoid_in_kernel=True)</code>, so
+  <code>-exp(A_log)*softplus(a+dt_bias)</code>, <code>sigmoid(b)</code> and the chunk cumsum run inside one kernel
+  instead of ~6 eager elementwise kernels per GDN layer. fla&#x27;s backward returns dA_log/ddt_bias
+  (verified in fla/ops/gated_delta_rule/gate.py), and the fused gate formula matches the eager one
+  exactly. Timing in flight.</pre></details><details><summary><em class="">9.0 h</em><span>Round 9 results</span></summary><pre>- bf16 gradient reduction: side speedup 1.5508 (41.141 / 41.362 / 42.173 s) -&gt; ~3% SLOWER than the
+  fp32 path. Rejected, switch off.
+- Fused GDN gate: side speedup 1.6038 (40.886 / 41.443 / 40.456 s) vs 1.6145 for the chunk-only
+  baseline -- within noise, no gain; the eager gate kernels overlap with the GPU work. Rejected,
+  switch off. (Both switches remain in the tree, default off.)
+- Final configuration unchanged and still the validated one:
+  SKIP_ZERO_KL_REF, NO_RECOMPUTE, KEEP_TRAIN_RESIDENT, LOGPROBS_CHUNK=4096.
+
+### Consolidated final timing (<code>time</code>, both sides, final switches; out /tmp/r8/final, 07:36-07:55)
+- rollout windows 52.675 / 50.977 / 59.806 s -&gt; side 1.8469 (third window hit the recurring
+  last-rollout host jitter; the same code measured 52.692 / 51.819 / 52.398 = 2.0984 at 04:04)
+- train windows 41.763 / 40.783 / 40.755 s -&gt; side 1.5998
+- projected 1.7135 (with the jittered rollout window); best measured sides: rollout 2.0984,
+  train 1.6145 -&gt; projected ~1.84.
+- Expected full loop: rollout ~51 + train cycle ~37 + weight sync ~1 = ~89 s vs the reference
+  182.2 s -&gt; ~2.0x.</pre></details><details><summary><em class="">9.8 h</em><span>Round 10 — NCCL protocol / channel tuning for the un-overlapped collectives</span></summary><pre>The train profile put 33% of kernel time in sequence-parallel NCCL. Since TE&#x27;s userbuffer overlap
+cannot be used with dynamic microbatch shapes, try pure NCCL configuration (env overrides in the
+switch file; NCCL_ALGO itself is reserved and untouched):
+- <code>NCCL_PROTO=Simple</code> (the profile&#x27;s collectives ran the RING_LL low-latency protocol even for
+  34 MB messages): train windows 40.679 / 41.105 / 40.305 s -&gt; side 1.617, i.e. the same as the
+  1.6145 baseline. No gain (the profiled skew is partly a profiler artifact).
+- <code>NCCL_MIN_NCHANNELS=32</code> + <code>NCCL_PROTO=Simple</code>: running.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_grpo-mm.html"><small>← 1.91×</small><strong>MiniMax M3.1 Flash</strong></a><a class="up" href="slime_grpo.html">↑ Slime GRPO</a><a class="next" href="t-slime_grpo-haiku.html"><small>1.85× →</small><strong>Haiku 5.5</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_grpo-opus.html", "pts": [[1.304, 1.795, 1], [1.832, 1.956, 2], [7.022, 2.07, 3], [8.238, 2.299, 5], [8.628, 2.299, 6], [9.207, 2.485, 7]], "end": 10.0, "final": 2.3472}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_grpo-sonnet.html", "pts": [[4.359, 2.047, 4], [5.571, 2.29, 7], [6.589, 2.446, 9]], "end": 10.011, "final": 2.4003}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_grpo-haiku.html", "pts": [[0.996, 1.185, 2], [1.29, 1.432, 5], [1.526, 1.69, 6], [3.288, 1.79, 10], [7.333, 1.896, 18], [9.812, 1.896, 23]], "end": 10.058, "final": 1.8505}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_grpo-astra.html", "pts": [[1.576, 1.059, 8], [7.156, 1.084, 13], [9.948, 1.134, 19]], "end": 10.0, "final": 1.1501}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_grpo-glm.html", "pts": [[0.378, 1.17, 1], [1.339, 1.513, 2], [3.224, 1.539, 4], [4.296, 1.602, 7], [5.228, 1.602, 8], [7.207, 1.602, 10], [8.524, 1.602, 12], [8.529, 1.717, 13], [9.769, 1.717, 14]], "end": 10.0, "final": 1.7909}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_grpo-kimi.html", "pts": [[1.617, 1.165, 1], [2.018, 1.177, 2], [2.726, 1.177, 3], [2.756, 1.177, 4], [5.53, 1.243, 6], [7.719, 1.251, 7]], "end": 10.0, "final": 1.3505}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_grpo-ds.html", "pts": [[0.88, 1.342, 1], [1.88, 1.485, 2], [6.134, 1.94, 4], [8.7, 1.94, 8], [9.579, 1.94, 9]], "end": 10.0, "final": 1.8751}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_grpo-mm.html", "pts": [[0.688, 1.166, 1], [1.642, 1.409, 3], [5.606, 1.9, 10], [5.988, 1.9, 11], [9.586, 1.9, 16]], "end": 10.0, "final": 1.9085}], "focus": "ds", "xmax": 10.5, "aria": "DeepSeek V4.1 Flash-1017 on Slime GRPO: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

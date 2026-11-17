@@ -1,0 +1,678 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MiniMax M3.1 Flash · R3 · RSI-Infra Bench</title><meta name="description" content="MiniMax M3.1 Flash on R3: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="on">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="r3.html">R3</a><span>/</span><b>MiniMax M3.1 Flash</b></nav><h1>MiniMax M3.1 Flash <em>1.62×</em></h1><p class="lede">Harness: Codex · switches: <code>BAGEL_FAST_ATTN=1</code> <code>BAGEL_FAST_DECODE=1</code> <code>BAGEL_FAST_MERGE=1</code> <code>BAGEL_FAST_TIMESTEP=1</code> <code>BAGEL_CUDA_GRAPH_DECODE=1</code> <code>BAGEL_FAST_CFG=1</code> <code>BAGEL_FAST_OVERLAP=1</code> <code>BAGEL_FAST_OVERLAP_POLICY=1</code> <code>BAGEL_FAST_ROPE=1</code> <code>BAGEL_FAST_PACK=1</code> <code>BAGEL_FAST_MOE=1</code> <code>BAGEL_FAST_NORM=1</code> <code>BAGEL_FAST_MOE_NORM=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.62×</dd></div><div class=""><dt>Tier</dt><dd>N0</dd></div><div class=""><dt>Self-best</dt><dd>1.61×</dd></div><div class=""><dt>Rounds</dt><dd>15</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$4.84</dd></div><div class=""><dt>Input tokens · 97.2% cached</dt><dd>203 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.7 M</dd></div><div class=""><dt>Requests</dt><dd>1,585</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-r3-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.41×</small></a><a class="chip" data-k="sonnet" href="t-r3-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.96×</small></a><a class="chip" data-k="haiku" href="t-r3-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.64×</small></a><a class="chip self" data-k="mm" href="t-r3-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.62×</small></a><a class="chip" data-k="astra" href="t-r3-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.47×</small></a><a class="chip" data-k="glm" href="t-r3-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.45×</small></a><a class="chip" data-k="kimi" href="t-r3-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.41×</small></a><a class="chip" data-k="ds" href="t-r3-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.19×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Text-decode CUDA graph</dt><dd>✓ <code>BAGEL_CUDA_GRAPH_DECODE</code>, single-run timing 1.10× → 1.37× (first backward OOM; switched to manual capture, released at end of rollout)</dd><dt>Reward wait hidden behind forward</dt><dd>✓ <code>BAGEL_FAST_OVERLAP</code> + <code>_POLICY</code>, full check 1.44×</dd><dt>Rollout-side bitwise fused kernels</dt><dd>✓ Triton RoPE, RMSNorm (1.50× → 1.57×), generation branch computed on all rows then text rows overwritten (→ 1.61×, all single-run timing)</dd><dt>Train-side bitwise kernels / freeing memory</dt><dd>✗ (peak 130.9 GiB)</dd><dt>Other main levers</dt><dd>timestep, KV merge, packing desync; desync of per-layer length reads in denoising measured slower, turned off</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>22 sections</small></summary><div class="rounds"><details><summary><em class="">0.6 h</em><span>Round 1 — profile the unchanged reference (2026-11-07 03:44 → 04:05)</span></summary><pre>Command: <code>bench.py profile --tree /submission/r3 --config /submission/switches.json --out /tmp/prof-ref --from 11 --iters 2</code>
+(out: <code>/tmp/prof-ref/profile.json</code>, trace <code>/tmp/prof-ref/timing_profile.trace.json</code>, 3.6 GB).
+
+### Stage split (from the run&#x27;s own log, <code>/tmp/prof-ref/timing_profile.log</code>)
+
+| step kind | wall | rollout | training |
+|---|---|---|---|
+| gen (even) | ~14 s | ~11.5 s | ~2.5 s |
+| edit (odd) | ~30 s | ~21 s | ~9 s |
+
+A window is one gen + one edit step -&gt; (14+30)/2 = 22 s, matching the frozen reference (22.5-23.1 s).
+So <b>the rollout is 80 % of the step</b>; the training part is 10-30 %.
+
+### Hotspots
+
+1. <b>The text CoT decode loop dominates the rollout.</b> <code>tqdm</code> &quot;Thinking...&quot; runs at **22.3 tok/s
+   = 45 ms per decoded token** (196 tokens in the gen round, 384 in the edit round). A 7 B MoT
+   decoding 4 tokens needs ~4-5 ms of GPU time (weights only), so the loop is ~10x off the
+   memory-bound floor.
+2. <b>Cause: host synchronisations.</b> <code>aten::item</code> = <b>244 157 calls</b> and
+   <code>Memcpy DtoH</code> = 262 991 in the two profiled steps. Per decoded token:
+   * <code>_static_kv_cache_attention</code> (modeling/bagel/qwen2_navit.py:380,390): 3 device syncs **per
+     layer** -&gt; 28 layers x 3 = 84 syncs/token
+     (<code>(effective_seqlens + query_lens).max().item()</code>, <code>(query_lens == query_lens[0]).all()</code>,
+     <code>query_lens[0].item()</code>);
+   * <code>Bagel.generate_text_batch</code> (modeling/bagel/bagel.py:1375-1385): 12 <code>.item()</code> per token.
+   Every sync drains the GPU queue, so the CPU can never run ahead: the GPU idles while the CPU
+   relaunches, and the CPU idles while the GPU runs.
+3. <b>Profile table</b> (<code>/tmp/prof-ref/timing_profile.profile.txt</code>): Self CPU 42.2 s vs Self CUDA 27.5 s
+   for 2 steps -&gt; <b>CPU/launch bound</b>, with 4.75 s of <code>Command Buffer Full</code>.
+   Kernel time: GEMMs 10.3 s (41 %), flash-attn 1.2 s, elementwise/index/copy ~5 s.
+4. Diffusion (<code>_forward_flow</code>, 16 gen / 21 edit steps) calls the *readonly* static-KV attention,
+   which has <b>7 more <code>.item()</code> per layer per forward</b> (588 syncs per denoising step).
+5. The training part (<code>aten::mm</code> 72 479 calls, <code>record_param_comms</code> 1.55 s NCCL) is ~20 % of the step.
+
+### Plan
+
+Round 2: make the <b>decode path</b> sync-free (host query metadata computed once per forward +
+one host transfer per decoded token). Round 3: the diffusion (readonly attention) syncs.
+Both are N0: no arithmetic, no RNG, no shape change.</pre></details><details><summary><em class="">0.9 h</em><span>Round 2 — sync-free text decode (2026-11-07 04:05 → 04:35)</span></summary><pre>Hotspot class: <b>host synchronisations in the rollout</b> (profile: 244 157 <code>aten::item</code> in 2 steps;
+84 device syncs per decoded token inside the attention + 12 <code>.item()</code> per token in the sampling loop).
+
+### Changes (both behind their own switch, off by default)
+
+* <code>modeling/bagel/qwen2_navit.py</code> — <code>BAGEL_FAST_ATTN=1</code>
+  * <code>_static_kv_cache_attention</code>: the static-KV-cache overflow check and the packed-query
+    metadata (<code>seqlen_q</code>, &quot;are all query lengths equal&quot;) no longer read the device **per decoder
+    layer<b>; they are read </b>once per forward** in <code>Qwen2Model.forward_inference</code>
+    (<code>_check_static_kv_capacity</code>, <code>_host_query_meta</code>) and passed down as <code>host_query_meta</code>.
+    84 syncs/token -&gt; 1.
+* <code>modeling/bagel/bagel.py</code> — <code>BAGEL_FAST_DECODE=1</code>
+  * <code>Bagel.generate_text_batch</code>: the sampling bookkeeping is done on the host from **one
+    device-&gt;host transfer per decoded token** (<code>active_curr_tokens.tolist()</code> and
+    <code>next_tokens_probs.tolist()</code>) instead of 12 <code>.item()</code> calls; the &quot;is this sequence finished&quot;
+    test uses <code>active_curr_tokens != end_token_id</code> (identical to <code>curr_tokens[obi] == end_token_id</code>
+    because the active indices are unique) and the next token is written back with one index_put.
+    The sampling itself (<code>_sample_next_token</code>), the RNG and every value are untouched.
+
+Equivalence of the new bookkeeping was checked against the original <code>.item()</code> version with
+2000 randomised cases (<code>/tmp/test_decode_equiv.py</code>): identical generated tokens, identical
+probabilities, identical <code>curr_tokens</code>, identical active mask.
+
+### Results
+
+* <code>check --quick</code> (gate 0 + gate 2, bitwise): <b>PASS</b> — <code>/tmp/check-quick-1/check.json</code>
+  (14 optimizer steps, 3200 tensors, 235 reward requests, all bitwise identical to
+  <code>bench/records/ref.json</code>).
+* <code>time</code>: running, output <code>/tmp/time-1</code>.</pre></details><details><summary><em class="">0.9 h</em><span>Round 2 result — `time` (2026-11-07 04:38 → 04:51)</span></summary><pre><code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-1</code>
+
+| window | reference (frozen) | candidate | ratio |
+|---|---|---|---|
+| 10-11 | 22.4628 | 21.7238 | 1.034 |
+| 12-13 | 23.0278 | 22.0794 | 1.043 |
+| 14-15 | 23.1123 | 22.3903 | 1.032 |
+
+<code>speedup_vs_frozen_reference = 1.0364</code> (mean-based), <code>s_per_step</code> 22.06 vs 22.87.
+Peak memory 130.72 GiB (unchanged).
+
+<b>Why so little?</b>  The Round-1 profile was *profiled*: the profiler inflates the host
+cost of every op, and the host synchronisations it exposed were therefore much more
+expensive under the profiler than in the real run.  In the real (unprofiled) reference
+the decode already ran at <b>37 tok/s</b>, not 22 tok/s: the sync removal bought only
+~1 s per rollout.</pre></details><details><summary><em class="">1.5 h</em><span>Round 3 — instrumented phase breakdown (2026-11-07 05:01 → 05:14)</span></summary><pre>Profiling the unchanged reference was misleading, so the tree was <b>copied</b> to
+<code>/tmp/r3-diag</code> and instrumented with <code>torch.cuda.synchronize()</code>-bracketed phase timers
+(<code>train/_diag.py</code> -&gt; <code>diag.py</code> in the scratch copy only; the submitted tree was not
+touched).  The instrumented run has the same speed as the plain one
+(<code>speedup_vs_frozen_reference</code> 1.0394 vs 1.0364), so the breakdown is trustworthy.
+
+Per step (rank 0), seconds:
+
+| phase | gen step (even) | edit step (odd) |
+|---|---|---|
+| rollout total | 10.26 | 20.63 |
+| - diffusion (<code>dit_forward</code>) | 4.86 (15 timesteps) | 9.45 (20 timesteps) |
+| - text decode | 4.59 | 9.17 |
+| - image/text context (ViT+VAE) | 0.1 | 0.96 |
+| reward wait | 1.66 | 2.00 |
+| training forward+backward | 2.39 | 7.67 |
+| optimizer | 0.14 | 0.15 |
+
+Per window (one gen + one edit step) the 43 s are therefore:
+**diffusion 14.35 s (33 %) | text decode 13.76 s (32 %) | training 10.06 s (23 %) |
+reward 3.66 s (8 %) | context 0.96 s | optimizer 0.29 s.**</pre></details><details><summary><em class="">1.5 h</em><span>Hotspots (Round 3)</span></summary><pre>1. <b>The diffusion is 33 % of the step.</b>  One <code>_forward_flow</code> = 33 (gen) / 44 (edit)
+   forward passes of the 14.6 B model; <b>147 ms per forward</b> (gen) and 215 ms (edit),
+   of which only ~40 ms is GPU work.  The attention of the diffusion path merged the
+   whole KV prefix <b>per decoder layer and per forward</b>, and every boolean-mask index
+   in that merge runs <code>nonzero</code>, which synchronises the host with the GPU:
+   <b>8 synchronisations per layer per forward</b> (plus 6 <code>.item()</code> for the sizes) =
+   ~400 synchronisations per forward.  The profile counted <b>19 314 <code>aten::nonzero</code></b>
+   and 244 157 <code>aten::item</code> in two steps.
+2. <b>The text decode is 32 %</b> and is much closer to the memory-bandwidth floor
+   (14 GB of weights per token at ~23.7 ms/token); the decode&#x27;s own host cost is
+   ~3 ms/token (measured: removing 84 syncs/token moved it from 27 to 24 ms/token,
+   i.e. ~36 us per synchronisation).
+3. The whole run is <b>host-bound</b>: the four training processes sit at 100 % of one
+   core each while the GPU is at 44 % SM utilisation.  So every removed host
+   operation and every removed synchronisation is worth roughly its host time.
+4. <code>aten::mul</code> 226 514 calls, <code>aten::copy_</code> 192 258, <code>aten::_index_put_impl_</code> 52 005,
+   <code>aten::nonzero</code> 19 314 per two steps -&gt; ~375 000 dispatcher calls per step at
+   ~59 us each.</pre></details><details><summary><em class="">1.5 h</em><span>Change (Round 3)</span></summary><pre>* <code>modeling/bagel/qwen2_navit.py</code> — <code>BAGEL_FAST_ATTN=1</code>
+  * <code>StaticKVCache</code> keeps a <b>host mirror</b> of <code>seq_lens</code> (<code>set_seq_lens</code>,
+    <code>advance_seq_lens(..., indices_host=...)</code>).
+  * <code>Qwen2Model.forward_inference</code> reads the query metadata and the integer sizes the
+    attention needs <b>once per forward</b> and hands them to every layer
+    (<code>HostQueryMeta</code>, <code>_host_static_kv_meta</code>): 6 <code>.item()</code> per layer -&gt; 0.
+* <code>modeling/bagel/qwen2_navit.py</code> — <code>BAGEL_FAST_MERGE=1</code>
+  * <code>_merge_static_kv_prefix_and_query</code> and the non-uniform write-back address the
+    cached rows and the new rows by <b>index arithmetic</b> (<code>repeat_interleave</code> with an
+    explicit <code>output_size</code>) instead of boolean masks: 8 <code>nonzero</code> synchronisations per
+    layer per forward -&gt; 0.
+* <code>modeling/bagel/bagel.py</code>, <code>train/rollout_controller.py</code>: the cache lengths are set
+  through <code>set_seq_lens</code>, and the decode advances the mirror with the host-side
+  active indices.
+
+Both rewrites were checked against the original code on randomised cases
+(<code>/tmp/test_kv_meta.py</code>, <code>/tmp/test_merge_equiv.py</code>): identical values.</pre></details><details><summary><em class="">1.5 h</em><span>Round 3 result — `time` + `check --quick` (2026-11-07 05:15 → 05:45)</span></summary><pre>* <code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-2</code>
+  -&gt; <code>speedup_vs_frozen_reference = 1.0739</code>, <code>s_per_step</code> 21.29 (frozen reference 22.87).
+  Per window: 10-11 = 20.79 s, 12-13 = 21.57 s, 14-15 = 21.63 s (frozen 22.46 / 23.03 / 23.11).
+* <code>check --quick</code> (gate 0 + gate 2, bitwise): <b>PASS</b> — <code>/tmp/check-quick-2/check.json</code>
+  (14 optimizer steps, 3200 tensors, 235 reward requests, all bitwise identical to
+  <code>bench/records/ref.json</code>).</pre></details><details><summary><em class="">2.4 h</em><span>Round 4 — profile the *current* tree (2026-11-07 05:43 → 06:02)</span></summary><pre>Command: <code>bench.py profile --tree /submission/r3 --config /submission/switches.json --out /tmp/prof-cur --from 11 --iters 2</code>
+(out: <code>/tmp/prof-cur/timing_profile.profile.txt</code>, trace <code>/tmp/prof-cur/timing_profile.trace.json</code>, 3.2 GB).
+The trace covers exactly one step (step 12 = a *gen* step: decode -&gt; diffusion -&gt; reward -&gt; training).
+
+### Profile table (2 steps of the reference run before, 1 step here; numbers are the profiler&#x27;s)
+
+<code>Self CPU time total: 37.0 s   Self CUDA time total: 27.1 s</code>  -&gt; the run is <b>host bound</b>
+(&quot;Command Buffer Full&quot; = 5.59 s of the CPU waiting for the GPU queue).
+
+| op | self CUDA | calls | note |
+|---|---|---|---|
+| <code>aten::mm</code> | 11.50 s (42 %) | 72 479 | the GEMMs (decode 113 k + diffusion 43 k + training) |
+| <code>aten::mul</code> | 2.78 s (10 %) | 228 894 | elementwise |
+| <code>aten::_index_put_impl_</code> | 1.71 s | 52 445 | 34.8 us each: the MoT &quot;gen&quot;-mode index_puts |
+| <code>aten::copy_</code> | 1.35 s | 196 946 | dtype conversions |
+| FlashAttnVarlenFunc | 0.94 s | 2 482 | |
+| <code>aten::cat</code> | 0.39 s | 31 323 | |
+| <b><code>aten::_local_scalar_dense</code></b> | 0.41 s | <b>184 201</b> | <b>184 k device-&gt;host synchronisations!</b> |
+
+<code>cudaLaunchKernel</code>: 1 199 048 launches (8.6 s of host time); <code>cudaStreamSynchronize</code>: 186 337.
+
+### The remaining synchronisations
+
+The trace shows <b>184 201 <code>aten::item</code> calls, each with its own <code>Memcpy DtoH</code></b>, i.e. a
+Python loop reading single scalars from the device.  The sweep over the trace shows:
+
+* they are *top level* events (no enclosing torch op) and there is <b>no <code>aten::select</code></b>
+  before them, so they are <code>x.item()</code> on an already 0-dim tensor (not <code>x[i].item()</code>);
+* they come in bursts of ~8 200/s during the <b>diffusion</b> phase (11.5-24 s of the trace),
+  at ~25/s during the decode and not at all during the training phase.
+
+A micro-benchmark (profiled <code>tolist()</code> vs <code>t[i].item()</code>) rules out <code>tolist()</code> (it does one
+D2H and no <code>aten::item</code>) and shows that a Python loop of <code>x.item()</code> produces exactly this
+signature (<code>aten::item</code> + <code>aten::_local_scalar_dense</code> + one <code>Memcpy DtoH</code> each).
+
+=&gt; Round 5: find the loop with an instrumented probe (<code>/tmp/r3-probe2</code>, a copy of the tree
+with <code>torch.Tensor.item/__float__/__int__/__bool__</code> counted by caller) and remove it.</pre></details><details><summary><em class="">3.0 h</em><span>Round 5 — the per-token timestep vector (2026-11-07 06:17 → 06:41)</span></summary><pre>### Profile finding (where the 184 k device syncs came from)
+
+The profile of the current tree (<code>/tmp/prof-cur</code>) showed <code>aten::_local_scalar_dense</code>
+<b>184 201 calls</b> in two steps, each with its own <code>Memcpy DtoH</code> — i.e. ~92 k host
+synchronisations per RL step (3.9 s of CPU time, 10 % of the 37 s of CPU).
+
+An instrumented probe (a scratch copy of the tree, <code>/tmp/r3-probe2</code>, with
+<code>torch.Tensor.item/__float__/__int__/__bool__</code> counted *by caller*) found the source:
+
+```
+942 086  float()   &lt;- modeling/bagel/bagel.py:729/822/926
+   8 719  item()    &lt;- torch/optim/optimizer.py:97  (AdamW&#x27;s <code>step</code>, unavoidable)
+      ~1  everything else
+```
+
+<code>modeling/bagel/bagel.py</code> builds the per-token timestep of every denoising step with
+
+```python
+timestep = torch.tensor([t] * x_t.shape[0], device=x_t.device)
+```
+
+where <code>t</code> is a <b>0-dim CUDA tensor</b>.  <code>torch.tensor</code> on a list of tensors converts
+every element to a Python float, so this is <b>one device synchronisation per token</b>
+(1026 tokens per image per denoising step, 15–20 denoising steps per round, two
+rounds per step =&gt; ~150 k synchronisations per RL step, plus ~0.5 M in the step-0
+evaluation, which uses the non-SDE <code>generate_image</code>).
+
+### Change (behind <code>BAGEL_FAST_TIMESTEP=1</code>)
+
+<code>modeling/bagel/bagel.py</code>: new helper <code>_timestep_vector(t, n)</code>; the three denoising
+loops (<code>generate_image</code>, <code>generate_image_sde</code>, <code>generate_image_mix</code>) call it.  With the
+switch on it returns <code>t.expand(n).contiguous()</code> — the same float32 values (a
+float32 -&gt; double -&gt; float32 round trip is exact), the same dtype and the same
+contiguous layout, with <b>no host transfer</b>.  Without the switch the original
+expression is used, so the switch is a no-op for the reference.
+
+Checked on the GPU: values, dtype, shape and the resulting timestep embedding
+(<code>TimestepEmbedder</code>) are bitwise identical for n = 1, 2, 3, 1024, 4098, and
+<code>unique()</code> still sees a single value (the <code>assert</code> in <code>_forward_flow</code>).
+
+### Result
+
+* <code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-3</code>
+  -&gt; <b><code>speedup_vs_frozen_reference = 1.1048</code></b>, <code>s_per_step</code> 20.70 (frozen reference 22.87).
+  Per window: 10-11 = 20.17 s/step, 12-13 = 20.97, 14-15 = 20.95
+  (frozen 22.46 / 23.03 / 23.11).
+* Committed as <code>ca849c7</code> (tier N0).
+
+### What the step times look like (from the run&#x27;s own log)
+
+<code>step time</code> per optimiser step (gen = even, edit = odd):
+
+| step | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| s | 66.2* | 54.1 | 14.1 | 30.4 | 14.1 | 29.7 | 12.3 | 26.6 | 12.2 | 28.1 | 12.5 | 27.8 | 13.2 | 28.7 | 13.0 |
+
+(*includes the step-0 evaluation.)
+
+<b>The edit round is 2.2x the gen round</b> and dominates the average: the edit denoises
+with 21 timesteps and <b>three</b> CFG forwards per step (base + cfg_text + cfg_img,
+because <code>cfg_img_scale=1.5</code>), the gen round with 16 timesteps and <b>two</b> forwards
+(<code>cfg_img_scale=1</code>).
+
+---</pre></details><details><summary><em class="">3.9 h</em><span>Round 6 — CUDA graph for the rollout text decode</span></summary><pre>### Profile finding
+
+The profile of the round-5 tree (<code>/tmp/prof-cur</code>, torch.profiler over the optimiser
+steps 11-12) shows the run is <b>host bound</b>:
+
+```
+Self CPU time total: 37.007s
+Self CUDA time total: 27.074s
+```
+
+i.e. the host spends 37 s of CPU on work whose GPU part only takes 27 s.  The
+phase timers of the scratch tree <code>/tmp/r3-diag2</code> put the <b>text decode at 34 %</b> of
+the step (25-29 ms per decoded token) while the GPU work of one decoding step is
+~3 ms (14 GB of weights read at 4.8 TB/s) — the rest is per-token host work:
+~700 kernel launches plus the matching dispatcher/Python overhead.
+
+### Change (behind <code>BAGEL_CUDA_GRAPH_DECODE=1</code>)
+
+<code>modeling/bagel/bagel.py</code>: the rollout text decode of <code>generate_text_batch</code> is
+replayed from a <b>CUDA graph</b>:
+
+* one graph per shape (<code>num_active</code>, the set of still-active cache rows); only the
+  token ids and the position ids change from step to step, and both are written
+  into static input buffers before the replay;
+* the KV-cache lengths are read from the device *inside* the graph
+  (<code>flash_attn_with_kvcache</code> takes <code>cache_seqlens</code> as a device tensor), so the
+  replay attends over exactly the same keys as the eager step;
+* the graph is captured by hand (<code>CUDAGraph.capture_begin/capture_end</code>) instead of
+  with the <code>torch.cuda.graph</code> context manager, because that manager empties the
+  caching allocator before every capture, which changed the block layout the
+  (memory hungry) training phase sees — with it the run died with an OOM in the
+  training backward;
+* every graph gets its own memory pool and the graphs are deleted at the end of
+  the rollout, so the pool is back in the allocator before the training phase;
+* <code>modeling/bagel/qwen2_navit.py</code>: <code>Qwen2ForCausalLM.forward_inference</code> and
+  <code>Qwen2Model.forward_inference</code> take the host mirror of <code>selected_cache_indices</code>
+  (<code>selected_cache_indices_host</code>) so that the capture does not have to read the
+  indices back from the device.
+
+Anything unexpected during the capture (an unsupported op, a synchronisation, ...)
+falls back to the eager path, which computes exactly the same values.
+
+### Validation
+
+On a scratch tree with a small randomly initialised BAGEL (<code>/tmp/test_graph_rng.py</code>,
+4 layers, 4 sequences):
+
+* the generated token ids and the returned probabilities are <b>bitwise identical</b>
+  to the eager path (same sha256);
+* the CUDA generator&#x27;s offset advances by exactly the same amount (68) with and
+  without the graph — the decode forward itself consumes no RNG, only
+  <code>torch.multinomial</code> does, and that stays outside the graph;
+* the captured step is 3.7x faster than the eager step on that small model.
+
+### Result
+
+(first <code>time</code> run with the graph: <code>/tmp/time-5</code> — <b>ERROR</b>, out of memory in the
+training backward; the decode itself was already 3x faster, 42 -&gt; 115 tokens/s.
+After switching to the manual capture and releasing the graphs at the end of the
+rollout: see below.)
+
+After the manual capture and the explicit release of the graphs:
+
+* <code>time --tree /submission/r3 --config /tmp/switches-debug.json --out /tmp/time-6</code>
+  -&gt; <b><code>speedup_vs_frozen_reference = 1.372</code></b>, <code>s_per_step</code> 16.67
+  (frozen reference 22.87; previous best 1.108 / 20.64).
+  Step times (gen = even, edit = odd): 13.0 / 24.4 / 11.4 / ... / 10.2 / 22.0 /
+  10.4 / 23.1 / 10.5 s — the edit round went from 28-30 s to 22-25 s.
+  Peak memory 131.6 GiB allocated (the reference peaks at 130.7), so the graph
+  does not cost memory.
+* `check --quick --tree /submission/r3 --config /submission/switches.json
+  --out /tmp/check-quick-3` -&gt; <b>PASS</b>, tier <b>N0</b>: 14 optimizer steps, 3200
+  parameter/state tensors and 235 reward requests identical to the frozen
+  reference record.
+* Committed as <code>146d0bf</code>.</pre></details><details><summary><em class="">5.5 h</em><span>Round 7 — the denoising attention&#x27;s per-layer device reads (2026-11-07 08:29 → 08:57)</span></summary><pre>### Profile finding
+
+<code>bench.py profile</code> of the current tree (<code>/tmp/prof-2</code>, steps 11-12) plus an analysis of the
+2.2 GB chrome trace (a streaming parser over the events):
+
+* Self CPU 30.98 s vs Self CUDA 26.99 s for the two profiled steps -&gt; the GPU is busy ~72 % of
+  the wall time; the rest is the reward wait, the host-side gaps and the collectives.
+* <code>aten::item</code> 40 213 calls (1.63 s CPU, 432 ms of GPU idle inside them) and
+  <code>aten::is_nonzero</code> 153 calls (899 ms) -&gt; the diffusion attention reads
+  <code>max(query_lens)</code> / <code>max(key_values_lens)</code> from the device **once per decoder layer and per
+  forward**: 28 layers x 2 x (16 or 21) denoising steps x 3 forwards ~ 2700 synchronisations
+  per rollout.
+* The largest pure-Python gaps in the trace (no GPU activity): 1.64 s + 0.39 s before the
+  <code>all_gather</code> of the rollout buffer -&gt; the <b>reward service</b>, and 1.44 s before the first
+  <code>aten::index</code> of the training phase.
+
+### Change (behind <code>BAGEL_FAST_DIFF=1</code>, committed as <code>0cfac39</code>)
+
+<code>modeling/bagel/qwen2_navit.py</code> + <code>modeling/bagel/bagel.py</code>: the packed lengths of a denoising
+forward are read <b>once per rollout</b> (<code>_host_packed_meta</code>) and handed down through
+<code>_forward_flow</code> -&gt; <code>Qwen2ForCausalLM</code> -&gt; <code>Qwen2Model</code> -&gt; <code>Qwen2MoTDecoderLayer</code> -&gt;
+<code>PackedAttentionMoT</code>; the merged-buffer size and the two flash-attention maxima are then exact
+host integers.  The <code>assert timestep.unique().shape[0] == 1</code> (a device read) is skipped, because
+the denoising loops build the vector from a single scalar.
+The attention was verified <b>bitwise identical</b> with and without the metadata for 1, 2 and 5
+sequences, with and without a cached prefix, for both cache classes (<code>/tmp/test_diff_meta.py</code>).
+
+### Result — no gain
+
+<code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-7</code>
+-&gt; <b><code>speedup_vs_frozen_reference = 1.3414</code></b>, <code>s_per_step</code> 17.05
+(the previous best, <code>/tmp/time-6</code>, was <b>1.372</b> / 16.67).
+All three windows got slightly *worse* (16.37 / 17.49 / 17.25 vs 16.12 / 16.74 / 17.13), which is
+inside the reference spread (4.7 %) but not an improvement.  The extra <code>.tolist()</code> of the packed
+lengths at the start of every rollout drains the GPU queue once per rollout, which apparently
+costs about as much as the ~2700 removed synchronisations save.
+
+<b>Decision:</b> the switch stays in the tree but is <b>off</b> in <code>/submission/switches.json</code>, so the
+submitted tree keeps the behaviour of <code>/tmp/time-6</code> (1.372).</pre></details><details><summary><em class="">5.5 h</em><span>Round 8 — where the step time actually goes (2026-11-07 08:57 → 09:12)</span></summary><pre>### Findings (a diagnostic tree with fine-grained phase timers, <code>/tmp/r3-diag4</code>)
+
+| phase | gen step | edit step |
+|---|---|---|
+| rollout | 5.9-6.3 s | 12.5-13.2 s |
+| reward wait (<code>.result()</code>) | 1.2-2.8 s | 1.3-3.1 s |
+| advantage computation | 0.00 s | 0.00-2.58 s |
+| rollout-buffer <code>all_gather</code> | 0.02-1.94 s | 0.00 s |
+| pack (the packing) | 0.16 s | 0.43-0.45 s |
+| policy forward | 0.68 s | 2.93 s |
+| policy backward | 1.18 s | 4.20 s |
+| optimizer | 0.16-0.18 s | 0.13-0.14 s |
+
+The <code>advantage</code> and <code>all_gather</code> phases are where the <b>ranks wait for each other</b>: they vary
+between 0.00 s and 2.58 s from rank to rank, and the spread follows the spread of the reward wait.
+So the step time is <code>rollout + reward service + training</code>, and the *reward service* is on the
+critical path of the slowest rank -- the training of a step cannot start before its rewards are
+there.
+
+### Change — overlap the reward service with the batch preparation
+
+The reward requests are submitted at the end of the rollout, so the service is busy for ~2.6 s
+while the CPU waits for the responses.  The work that does <b>not</b> need the rewards is moved in
+front of that wait:
+
+* <code>train/rollout_controller.py</code>: <code>pack_batch</code>/<code>pack_iterator</code> can now *defer* the advantages --
+  the batch is packed with placeholders and the slots are remembered
+  (<code>fill_deferred_advantages</code> fills them with the very same values once the rewards are there).
+* <code>train/online_rl.py</code>: the packing and the <b>reference-model forward</b> (which only depends on the
+  packed batch, not on the advantages) now run *before* the reward wait; the training loop uses
+  the batch and the reference log-probs that were prepared there.
+
+The random draws keep their order (the reference model&#x27;s <code>randn_like</code> is still the first draw
+after the rollout, the policy model&#x27;s the second), the collectives keep their order on both
+process groups, and the advantages that end up in the batch are the same numbers as before.</pre></details><details><summary><em class="">6.1 h</em><span>Round 9 — overlap the reward service with the batch preparation (2026-11-07 09:20 → 10:05)</span></summary><pre></pre></details><details><summary><em class="">5.5 h</em><span>Where the time goes (from the profile of round 8, `/tmp/prof-2`)</span></summary><pre>The GPU is idle ~23 % of the wall time (8.0 s of gaps in the 34.4 s trace):
+
+| gap | count | total |
+|---|---|---|
+| &lt; 1 ms (kernel launch bubbles) | 561 688 | 2.25 s |
+| 2-5 ms | 381 | 1.00 s |
+| 50-200 ms | 11 | 1.25 s (the reward waits) |
+| &gt; 200 ms | 3 | 2.31 s (the reward waits + the packing) |
+
+The <b>reward service is on the critical path</b>: its latency (2.5-3 s for the images of an edit
+step) is waited for *after* the rollout, and the GPU has nothing to do meanwhile.  The work that
+does not need the rewards (packing the rollout, the reference model&#x27;s forward pass) was moved in
+front of that wait.
+
+### Change
+
+* <code>train/rollout_controller.py</code>: <code>pack_batch</code>/<code>pack_iterator</code> can *defer* the advantages -- the
+  batch is packed with placeholders and the slots are remembered (<code>fill_deferred_advantages</code> puts
+  the very same values into the packed tensors once the rewards have arrived).
+* <code>train/online_rl.py</code>: the packing and the <b>reference model&#x27;s forward pass</b> (which only depends
+  on the packed batch, not on the advantages) now run *before* the reward wait.
+* The random draws keep their order (the reference model&#x27;s <code>randn_like</code> is still the first draw
+  after the rollout, the policy model&#x27;s the second), the collectives keep their order on both
+  process groups, and the advantages that end up in the batch are the same numbers as before.
+
+### Memory
+
+The peak memory of the run is 131.7 GiB of a 139.8 GiB card, so the previous attempt (which only
+reordered the code) died with a CUDA OOM in the backward pass (it needed 740 MiB and had
+730 MiB).  Two changes make room:
+
+* the <b>logits are released</b> as soon as they are used (<code>ref_loss_dict[&quot;logits&quot;]</code>,
+  <code>output_dict[&quot;logits&quot;]</code>): they are a large tensor (1400 tokens x 152 064 vocab) and the
+  backward pass does not need them (the softmax keeps its own output).  Peak: 131.72 -&gt; 130.78 GiB.
+* the advantages are filled into the packed tensors in place.
+
+### Result
+
+* <code>check --quick --tree /tmp/r3-ovl --config /tmp/sw-ovl.json --out /tmp/check-quick-ovl2</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b> (14 optimizer steps, 3200 tensors, 235 reward requests identical to the
+  frozen reference; peak memory 130.78 GiB).</pre></details><details><summary><em class="">6.1 h</em><span>Result (round 9)</span></summary><pre>* <code>time --tree /tmp/r3-ovl --config /tmp/sw-ovl.json --out /tmp/time-9</code>
+  -&gt; <b>speedup_vs_frozen_reference 1.4182</b> (16.12 s/step; per window
+  [15.573, 16.264, 16.537] vs the frozen reference [22.463, 23.028, 23.112]).
+  The previous best (the committed CUDA-graph decode tree) was 1.372 (16.67 s/step).
+* <code>check --quick --tree /tmp/r3-ovl --config /tmp/sw-ovl.json --out /tmp/check-quick-ovl2</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b> (14 optimizer steps, 3200 tensors, 235 reward requests
+  identical to the frozen reference; peak memory 130.78 GiB).
+  This snapshot did <b>not</b> contain the CFG-interval change of <code>modeling/bagel/bagel.py</code>
+  (the tree digest of the check is <code>edbff586...</code>, the one of the timed tree is
+  <code>7b2a4c77...</code>), so the combination was re-validated afterwards.
+
+### Committed
+
+* <code>69a65bb</code> N0 -- the CFG interval is tested once per diffusion call
+  (<code>BAGEL_FAST_CFG=1</code>).
+* <code>ef5615e</code> N0 -- the reward service overlaps the batch preparation
+  (<code>BAGEL_FAST_OVERLAP=1</code>).</pre></details><details><summary><em class="">6.5 h</em><span>Round 10 -- move the *policy&#x27;s* forward pass in front of the reward wait (2026-11-07 10:05 -&gt; 10:35)</span></summary><pre>### Where the time goes
+
+The phase boundaries are visible in the tree&#x27;s own log of the timed run
+(<code>/tmp/time-9/timing_tree.log</code>): the line <code>Ref per token logps shape</code> is printed
+after the reference model&#x27;s forward pass (which now runs before the reward wait)
+and the line <code>Text advantages</code> after the wait for the reward service:
+
+```
+step | prepack-&gt;ref fwd | reward wait | advantages-&gt;image loss
+  10 |       0.0        |     2.0     |        0.0
+  11 |       1.0        |     2.0     |        1.0
+  12 |       0.0        |     2.0     |        1.0
+  13 |       2.0        |     1.0     |        2.0
+  14 |       1.0        |     2.0     |        0.0
+  15 |       2.0        |     1.0     |        2.0
+```
+
+The reward wait is <b>1-4 s per step (1.7 s on average)</b> and the GPU is idle
+during it.  Only the reference model&#x27;s forward pass (~1 s) is hidden behind it so
+far.  The *policy&#x27;s* forward pass does not depend on the rewards either -- only
+the losses do -- so it can be hidden as well.
+
+### Change
+
+<code>train/online_rl.py</code> (<code>BAGEL_FAST_OVERLAP_POLICY=1</code>, requires
+<code>BAGEL_FAST_OVERLAP=1</code>): the policy&#x27;s forward pass runs right after the
+reference model&#x27;s forward pass, i.e. before the wait for the reward service.
+The advantages are filled into the packed batch when the rewards arrive and the
+losses are computed from the forward&#x27;s output afterwards, so the values, the
+random draws (the forward has none) and the order of the collectives are the
+same as before.
+
+### Status
+
+* <code>check --tree /submission/r3 --config /submission/switches.json --out /tmp/check-4</code>
+  (running).</pre></details><details><summary><em class="">6.5 h</em><span>Result (round 10)</span></summary><pre>* <code>check --tree /submission/r3 --config /submission/switches.json --out /tmp/check-4</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b>, <b>speedup 1.4373</b>.
+  (14 optimizer steps, 3200 tensors and 235 reward requests identical to the
+  frozen reference; per window [15.544, 15.984, 16.077] s/step against the
+  reference [22.463, 23.028, 23.112] -&gt; 1.4451 / 1.4407 / <b>1.4376</b>.)
+* committed as <code>4f97b7e</code>.
+
+The reward wait did not disappear, it grew: the reward service shares the GPUs
+with the training process, so the GPU work that is moved in front of the wait
+makes the service slower (the wait went from 1.7 s to 2.4 s per step while
+~1 s of forward pass was hidden behind it).  The net effect is still positive
+(16.26 -&gt; 15.98 s/step on the second window).</pre></details><details><summary><em class="">6.8 h</em><span>Round 11 -- a fused rotary position embedding for the denoising forward (2026-11-07 10:30 -&gt; 11:00)</span></summary><pre>### Where the time goes
+
+The operator table of the profile (<code>/tmp/prof-2/timing_profile.profile.txt</code>, two
+steps) shows the diffusion&#x27;s memory-bound work next to its GEMMs:
+
+| operator | CUDA time (2 steps) | share |
+|---|---|---|
+| <code>aten::mm</code> (the GEMMs, <code>nvjet_*</code>) | 10.99 s | 36.5 % |
+| <code>aten::mul</code> | 2.52 s | 8.8 % |
+| <code>record_param_comms</code> (FSDP) | 1.81 s | 6.7 % |
+| <code>aten::_index_put_impl_</code> | 1.83 s | 6.4 % |
+| <code>aten::copy_</code> | 1.15 s | 4.1 % |
+| <code>flash_fwd_kernel</code> | 0.91 s | 3.4 % |
+
+The <code>mul</code>s are mostly the rotary position embedding: in the generation branch
+of <code>forward_inference</code> the query and key states are float32 and the cos/sin
+tables are bfloat16, so the reference runs <b>eight</b> elementwise kernels over
+the [tokens, heads, head_dim] tensors (<code>rotate_half</code> is a negation plus a
+concatenation, i.e. a full copy, the two products are two more full-size
+temporaries and the sum is a fifth one).  That is ~2.7 GB of memory traffic per
+decoder layer and per denoising step, and the denoising loop runs 15 (or 20)
+steps with up to three forwards each.
+
+### Change
+
+<code>modeling/bagel/qwen2_navit.py</code> (<code>BAGEL_FAST_ROPE=1</code>): a Triton kernel that
+computes the rotary embedding of the generation branch in one pass -- it reads
+the float32 query/key states and the bfloat16 cos/sin tables and writes the
+bfloat16 result.  The arithmetic is float32 and the result is rounded to
+bfloat16 once, exactly like the eager path; the sum is emitted as an explicit
+<code>add.rn.f32</code> so that the compiler cannot contract the two products into an fma
+(which would round only once and give different values).  Every other case
+(the <code>und</code> branch of the text decode, the training forward) keeps the eager
+path, so the backward pass is untouched.
+
+### Validation of the kernel (standalone, on the GPU)
+
+* against the eager path on 67 M random elements (float32 queries, bfloat16
+  cos/sin): <b>bitwise identical</b>, and also for tiny (1e-30), huge (1e30),
+  denormal, zero, ±1 and inf/NaN inputs.</pre></details><details><summary><em class="">7.2 h</em><span>Round 12 -- the packing of the timesteps (2026-11-07 11:00 -&gt; 11:20)</span></summary><pre>### Where the time goes
+
+The trace of the two profiled steps (<code>/tmp/prof-2/timing_profile.trace.json</code>)
+shows <b>40841 <code>aten::item</code> calls</b> (1.5 s of CPU time) and 153
+<code>aten::is_nonzero</code> calls (0.9 s).  36708 of the items are in four bursts of a
+few thousand items each -- exactly <code>4 latents x 4096 tokens</code>: the packing of
+the rollout puts the 0-dim *device* tensors of the timestep and of the dt into
+a python list, once per latent token, and building the tensor out of that list
+reads every element back from the device.  Every one of those reads is a
+device-&gt;host synchronisation in the middle of the step.
+
+### Change
+
+<code>train/rollout_controller.py</code> (<code>BAGEL_FAST_PACK=1</code>): read the value of the
+timestep and of the dt <b>once per latent</b> and repeat it.  The numbers are the
+same ones (a float32 -&gt; double -&gt; float32 round trip is exact).
+
+### Result
+
+* <code>time --tree /tmp/r3-combo --config /tmp/sw-combo.json --out /tmp/time-5</code>
+  -&gt; <b>speedup_vs_frozen_reference 1.4717</b> (windows [15.278, 15.687, 15.651]
+  s/step against the frozen reference [22.463, 23.028, 23.112]).
+* <code>check --quick --tree /submission/r3 --config /submission/switches.json --out /tmp/check-quick-5</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b> (14 optimizer steps, 3200 tensors and 235 reward
+  requests identical to the frozen reference).
+* committed as <code>5eef3c0</code> (the rotary kernel) and <code>ecbfe77</code> (the packing).</pre></details><details><summary><em class="">7.8 h</em><span>Round 13 -- the gen branch of the diffusion attention (2026-11-07 11:00 -&gt; 11:40)</span></summary><pre>### Where the time goes
+
+The profile of the two profiled steps (<code>/tmp/prof-3</code>) shows
+<code>aten::_index_put_impl_</code> at <b>1.89 s of self CUDA time (6.8 %)</b> over the two
+steps, of which <code>index_elementwise_kernel</code> alone is 1.44 s (41039 launches),
+plus <code>aten::index</code> (0.53 s, <code>vectorized_gather_kernel</code> 0.45 s).  Those are the
+gathers and the scatters of the <code>gen</code> branch of <code>PackedAttentionMoT</code>: for
+every decoder layer and every denoising step the vae rows are gathered out of
+the packed sequence, projected, normalised, scattered back and gathered again.
+
+### Change
+
+<code>modeling/bagel/qwen2_navit.py</code> (<code>BAGEL_FAST_MOE=1</code>): in the <code>gen</code> branch the
+projection (<code>q/k/v_proj_moe_gen</code>) and the normalisation (<code>q/k_norm_moe_gen</code>)
+are applied to <b>every</b> row of the packed sequence; the text rows are then
+overwritten with the values of the <code>und</code> branch (<code>q/k/v_proj</code>, <code>q/k_norm</code>).
+The reference instead gathers the vae rows, projects them and scatters them
+back.  A projection only depends on its own row and the normalisation is per
+head, so the values are the very same ones; the rows that are overwritten are
+the very same text rows.  The eager path is kept for the layouts the shortcut
+does not cover (it is guarded by a check on the row counts that reads no
+device memory).
+
+### Validation
+
+* Standalone (<code>/tmp/moetest/test_moe.py</code>): the projections, the q/k
+  normalisations and <code>o_proj</code> are <b>bitwise equal</b> for the layouts
+  N = 4104 (8 text + 4096 vae), N = 2052, N = 1026 and for 12 random
+  interleavings of the text and vae rows (<code>maxdiff = 0.0</code>).
+* <code>check --quick --tree /tmp/r3-moe --config /tmp/sw-moe.json --out /tmp/check-quick-moe</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b> (14 optimizer steps, 3200 tensors and 235 reward
+  requests identical to the frozen reference).
+
+### Result
+
+* <code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-moe</code>
+  -&gt; <b>speedup_vs_frozen_reference 1.4987</b> (15.258 s/step against the frozen
+  reference&#x27;s 22.868 s/step), up from 1.4717.</pre></details><details><summary><em class="">8.3 h</em><span>Round 14 -- the fused RMSNorm of the inference path (2026-11-07 11:30 -&gt; 12:05)</span></summary><pre>### Where the time goes
+
+The profile of the two profiled steps (<code>/tmp/prof-3</code>) shows that the
+normalisation is the largest remaining non-GEMM cost: <code>aten::mul</code> 2.03 s of
+self CUDA time (7.9 %), <code>aten::pow</code> 0.35 s, <code>aten::mean</code> 0.37 s, the
+reciprocal square root 0.10 s and a large part of the 1.07 s of <code>aten::copy_</code>
+come from the RMSNorm.  The eager <code>Qwen2RMSNorm</code> walks over the activation
+tensor six times (<code>to(float32)</code>, <code>pow(2)</code>, <code>mean(-1)</code>, <code>rsqrt</code>, the scaling
+multiply and the weight multiply).  There are about 12000 normalisations per
+step, almost all of them on the 4096 vae tokens of the diffusion rollout.
+
+### Change
+
+<code>modeling/qwen2/fast_rmsnorm.py</code> (new) and <code>modeling/qwen2/modeling_qwen2.py</code>
+(<code>BAGEL_FAST_NORM=1</code>): the normalisation of the inference path (the rollout
+and the frozen reference model, i.e. everything that runs without grad) is
+done by two Triton kernels: one that computes the sum of the squares of every
+row and one that applies the weight and the scaling.
+
+The kernel reproduces the reduction order of <code>aten::mean</code> exactly, which is
+the only way to keep the result bitwise identical:
+
+* <code>aten::mean</code> reduces the last dimension of a contiguous float32 tensor with
+  one warp per row (<code>blockDim.x == 32</code>) and combines the 32 lanes with the
+  <code>shfl_down</code> tree over the offsets 1, 2, 4, 8, 16,
+* for a row of 128 elements lane <code>t</code> owns the elements <code>t, t+32, t+64, t+96</code>,
+  for a row of 3584 elements the loads are vectorised and lane <code>t</code> owns the
+  elements <code>4*(t+32*m)+j</code>,
+* the squares are rounded to float32 *before* they are added and the adds are
+  emitted as <code>add.rn.f32</code> / <code>mul.rn.f32</code> inline assembly, so that the
+  compiler cannot contract them into an fma (which would round only once),
+* the 32 lane partials are combined with the same butterfly
+  (<code>reshape</code>/<code>split</code>), the mean&#x27;s factor (<code>rows / (rows * width)</code> in float32)
+  and the reciprocal square root are still computed by <code>aten</code>.
+
+The eager path is kept for everything that needs a backward pass and for the
+layouts the kernel does not cover.
+
+### Validation
+
+* standalone (<code>/tmp/normtest/test_fused.py</code>): <b>bitwise identical</b> to the
+  eager path for <code>[4096, 3584]</code>, <code>[4104, 3584]</code>, <code>[200, 3584]</code>, <code>[16, 3584]</code>,
+  <code>[4096, 28, 128]</code>, <code>[4104, 28, 128]</code>, <code>[200, 28, 128]</code> in bfloat16 and in
+  float32 (0 of 14.7 M elements differ).
+* <code>check --quick --tree /tmp/r3-norm --config /tmp/sw-norm.json --out /tmp/check-quick-norm</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b> (14 optimizer steps, 3200 tensors and 235 reward
+  requests identical to the frozen reference).
+* the norm itself is 3.1x faster than the eager path.
+
+### Result
+
+* <code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-norm</code>
+  -&gt; <b>speedup_vs_frozen_reference 1.5740</b> (14.528 s/step against the frozen
+  reference&#x27;s 22.868 s/step), up from 1.4987.</pre></details><details><summary><em class="">9.3 h</em><span>Round 15 -- the norms and the mlp of the gen branch over every row (2026-11-07 12:33 -&gt; 13:05)</span></summary><pre>### Where the time goes
+
+The profile of the two profiled steps (<code>/tmp/prof-4</code>) shows the scatters of
+the decoder layer among the largest non-gemm costs: <code>aten::_index_put_impl_</code>
+1.148 s of self CUDA time (38333 calls), <code>aten::index</code> 0.328 s,
+<code>aten::index_elementwise_kernel</code> 1.048 s (31631 calls) and
+<code>aten::fill_</code> 0.169 s (the <code>zeros_like</code> of the reference).
+
+### Change
+
+<code>modeling/bagel/qwen2_navit.py</code> (<code>BAGEL_FAST_MOE_NORM=1</code>): in the <code>gen</code>
+branch of <code>Qwen2MoTDecoderLayer.forward_inference</code> the reference gathers the
+vae rows out of the packed sequence, normalises them and scatters them back
+-- once for <code>input_layernorm</code>, once for <code>post_attention_layernorm</code> and the
+mlp.  A normalisation and an mlp only depend on their own row, so the gen
+branch now applies them to *every* row of the packed sequence and overwrites
+the text rows with the values of the und branch.
+
+The gather, the <code>zeros_like</code> and the two <code>index_put</code> per layer and per
+denoising step are gone.
+
+### Validation
+
+* the gemms were verified to be bitwise identical for the two row counts
+  (<code>M=16384</code> vs <code>M=16388</code> and <code>M=4096</code> vs <code>M=4104</code> for
+  <code>K,N in {(3584,3584),(3584,512),(512,3584),(3584,18944),(18944,3584)}</code>),
+* the fused norm was verified to be bitwise identical to the eager path for
+  the row counts of both variants (<code>[16384, 3584]</code> vs <code>[16388, 3584]</code>,
+  <code>[458752, 128]</code> vs <code>[458864, 128]</code>, ...),
+* <code>check --quick --tree /tmp/r3-moenorm --config /tmp/sw-moenorm.json --out /tmp/check-quick-moenorm</code>
+  -&gt; <b>PASS</b>, tier <b>N0</b>.
+
+### Result
+
+* <code>time --tree /submission/r3 --config /submission/switches.json --out /tmp/time-moenorm</code>
+  -&gt; <b>speedup_vs_frozen_reference 1.606</b> (14.239 s/step against the frozen
+  reference&#x27;s 22.868 s/step), up from 1.5740.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-r3-haiku.html"><small>← 1.64×</small><strong>Haiku 5.5</strong></a><a class="up" href="r3.html">↑ R3</a><a class="next" href="t-r3-astra.html"><small>1.47× →</small><strong>GPT-6 Astra<span class="nerf">suspected nerf</span></strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-r3-opus.html", "pts": [[0.688, 1.419, 1], [1.181, 1.935, 2], [1.913, 2.127, 3], [2.374, 2.138, 4], [3.43, 2.405, 5], [4.941, 2.432, 6], [8.251, 2.449, 7], [9.753, 2.471, 8]], "end": 10.002, "final": 2.4056}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-r3-sonnet.html", "pts": [[1.301, 1.378, 1], [2.447, 1.704, 2], [3.318, 1.709, 4], [3.777, 1.746, 5], [6.176, 1.845, 7], [7.682, 1.915, 8]], "end": 10.001, "final": 1.9602}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-r3-haiku.html", "pts": [[0.717, 1.022, 1], [1.191, 1.099, 2], [1.964, 1.418, 4], [3.055, 1.418, 6], [3.801, 1.454, 7], [5.774, 1.504, 10], [6.907, 1.612, 11], [6.907, 1.612, 12], [7.626, 1.624, 13], [8.186, 1.624, 14], [9.522, 1.624, 16]], "end": 10.004, "final": 1.6442}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-r3-astra.html", "pts": [[0.633, 1.118, 2], [1.815, 1.335, 4], [2.882, 1.397, 6], [3.694, 1.397, 8], [4.192, 1.397, 9], [4.764, 1.4, 10], [5.536, 1.401, 12], [6.373, 1.401, 14], [6.922, 1.401, 16], [7.631, 1.417, 18], [8.963, 1.506, 20], [9.975, 1.539, 22]], "end": 10.005, "final": 1.4707}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-r3-glm.html", "pts": [[1.012, 1.027, 1], [1.244, 1.081, 2], [1.466, 1.081, 3], [2.28, 1.101, 4], [3.729, 1.391, 7], [4.636, 1.391, 8], [5.303, 1.391, 9], [5.58, 1.456, 10], [6.865, 1.456, 11], [7.971, 1.456, 13], [9.004, 1.46, 16], [9.423, 1.46, 17]], "end": 10.002, "final": 1.4509}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-r3-kimi.html", "pts": [[0.948, 1.032, 2], [1.745, 1.073, 3], [3.661, 1.073, 6], [4.167, 1.084, 7], [5.149, 1.084, 8], [5.68, 1.084, 9], [6.245, 1.084, 10], [7.206, 1.319, 12], [8.392, 1.319, 13], [8.864, 1.319, 14], [9.36, 1.384, 15]], "end": 10.002, "final": 1.4078}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-r3-ds.html", "pts": [[0.704, 1.126, 2], [1.69, 1.126, 4], [2.636, 1.144, 5], [3.047, 1.144, 6], [4.411, 1.144, 8], [5.661, 1.174, 9], [6.588, 1.175, 11], [7.93, 1.277, 13]], "end": 10.0, "final": 1.1884}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-r3-mm.html", "pts": [[1.543, 1.036, 2], [2.423, 1.074, 3], [2.965, 1.105, 5], [4.406, 1.372, 6], [5.486, 1.372, 7], [6.467, 1.418, 9], [6.845, 1.437, 10], [7.201, 1.472, 12], [7.809, 1.499, 13], [8.274, 1.574, 14], [9.347, 1.606, 15]], "end": 10.002, "final": 1.6165}], "focus": "mm", "xmax": 10.5, "aria": "MiniMax M3.1 Flash on R3: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

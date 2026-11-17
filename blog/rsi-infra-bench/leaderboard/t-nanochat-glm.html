@@ -1,0 +1,573 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLM-5.3 · NanoChat · RSI-Infra Bench</title><meta name="description" content="GLM-5.3 on NanoChat: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="on">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="nanochat.html">NanoChat</a><span>/</span><b>GLM-5.3</b></nav><h1>GLM-5.3 <em>1.05×</em></h1><p class="lede">Harness: Claude Code · switches: <code>NANOCHAT_CONCAT_MB=2</code> <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code> <code>NANOCHAT_LOADER_PROC=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.05×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.05×</dd></div><div class=""><dt>Rounds</dt><dd>16</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$58.2</dd></div><div class=""><dt>Input tokens · 99.6% cached</dt><dd>202 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.0 M</dd></div><div class=""><dt>Requests</dt><dd>1,430</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-nanochat-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.21×</small></a><a class="chip" data-k="opus" href="t-nanochat-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.20×</small></a><a class="chip" data-k="astra" href="t-nanochat-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.13×</small></a><a class="chip" data-k="mm" href="t-nanochat-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.13×</small></a><a class="chip" data-k="haiku" href="t-nanochat-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.08×</small></a><a class="chip" data-k="ds" href="t-nanochat-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.06×</small></a><a class="chip self" data-k="glm" href="t-nanochat-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.05×</small></a><a class="chip" data-k="kimi" href="t-nanochat-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.03×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Micro-batch regrouping 4×16 → 2×32</dt><dd>✓ <code>NANOCHAT_CONCAT_MB=2</code>, alone only 1.009</dd><dt>Scope of hand-written kernels replacing Inductor glue</dt><dd>✗ tiled transpose op 0.978, tiled cross-entropy 1.001, both reverted</dd><dt>Per-shape cuBLASLt algorithm selection</dt><dd>✗</dd><dt>FP8 weights quantized once per step</dt><dd>tried, reverted (1.000, no gain)</dd><dt>Fast accum on backward GEMMs</dt><dd>tried, reverted (failed statistical gate, −11.95σ)</dd><dt>Other main levers</dt><dd><code>max-autotune-no-cudagraphs</code> (1.009 → 1.023), data fetch moved to a subprocess with device check fixed (min window 1.023 → 1.047)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>25 sections</small></summary><div class="rounds"><details><summary><em class="">1.1 h</em><span>Round 1 — FP8 weight-quantization cache (NANOCHAT_FP8_WCACHE)</span></summary><pre>- <b>Start/end:</b> 2026-11-06 ~15:10 – 16:45 UTC.
+- <b>Profile first</b> (judge <code>profile</code>, <code>/tmp/prof-ref-1</code>, reference tree): per update, the FP8
+  &quot;glue&quot; around the 6 converted linears is eager ops inside the opaque <code>_Float8Matmul</code>, and the
+  <b>weight</b> quantization is recomputed on every one of the 4 micro-batches in *both* directions:
+  forward quantize chains (amax→scale→mul→clamp→cast) plus backward recomputes writing row- and
+  col-major, ≈16–20 ms/update across the 24 layers, vs. weights only changing in <code>optimizer.step()</code>.
+  Also noted: grad_weight GEMMs (K=32768) run at 144 CTAs vs 132 SMs (wave quantization) — the
+  target of Round 2.
+- <b>Change:</b> <code>nanochat/fp8.py</code> — persistent per-<code>Float8Linear</code> buffers <code>_w_fp8</code> (row-major e4m3),
+  <code>_w_fp8_t</code> (col-major e4m3), <code>_w_qinv</code> (f32), filled by <code>refresh_fp8_weight_caches(model)</code> once
+  per update from the training loop (<code>scripts/base_train.py</code>, top of the step, before the
+  micro-batches; the weights are final there). The compiled path (<code>_Float8MatmulCached</code>) reads the
+  buffers instead of re-quantizing per call; eager calls (judge&#x27;s eval, sampling) keep the
+  reference path. The refresh reproduces Inductor&#x27;s quantize arithmetic bitwise (f64 reciprocal →
+  f32 scale, clamp, cast; verified against the generated kernel source). Switch
+  <code>NANOCHAT_FP8_WCACHE</code>, default off.
+- <b>Bugs found and fixed while validating:</b> the first version refreshed from a post-step hook in
+  <code>MuonAdamW.step()</code> that was never registered → stale caches from update 1 (first quick check
+  <code>/tmp/check-r1-quick</code>: loss frozen at 10.39, all 175 params differ from update 1). Fixed by
+  moving the refresh into the training loop top (<code>nanochat/optim.py</code> reverted to upstream).
+- <b>Result</b> (<code>check --quick</code>, <code>/tmp/check-r1-quick2</code>): status <b>NOT_BITWISE</b>, <code>exact_items_ok</code>
+  true, rows/updates/hyper-parameters all identical. 4 params differ at update 0 (c_proj weights
+  h.2/13/17/…), all 175 from update 1 (the 4 ULP-level perturbations compound). Per-update losses
+  match the reference record run to ≤2e-4 over 10 updates (10.397737 identical at step 0;
+  9.847431 vs 9.847258 at step 8) — healthy trajectory, far below seed noise σ≈0.023.
+- <b>Why not bitwise (investigated to root cause):</b> the reference&#x27;s AOTAutograd backward does not
+  save the fp8 input tensors for <code>attn.c_proj</code>/<code>mlp.c_proj</code>; it <b>recomputes</b> their input
+  quantization (amax over the FA3 output / relu output) inside backward kernels whose reduction
+  order differs from the forward&#x27;s amax → ~1 ULP scale differences → ~16 differing fp8 bytes per
+  tensor → grad_weight differs by ~1e-9 (measured: <code>/tmp/grad_cmp_result.log</code>, 48 c_proj weights,
+  0.6–1.5 % of elements, maxabs ≲1.5e-8; qkv/fc/lm_head grads bitwise identical). My version saves
+  the forward&#x27;s quantization (cheaper) and cannot reproduce Inductor&#x27;s fused recompute reduction
+  order. Inherent <b>N1</b> — same class as the judge&#x27;s accepted reduction-order control tree.
+- <b>Tier: N1</b> (exact items pass; statistical gate 3 to be confirmed by the full check).
+- <b><code>time</code>:</b> run in progress → <code>/tmp/time-r1</code> (result appended below).
+- <b><code>time</code> result:</b> <code>/tmp/time-r1</code> — <code>speedup_vs_frozen_reference</code> <b>1.0004</b> (s/update 1.0391; windows
+  1.0338/1.0419/1.0417 vs frozen ref 1.0358/1.0409/1.0419 → per-window ratios 1.0019/0.999/1.0002, smallest 0.999).
+  <b>No gain</b> — far below the 1.02 bar. The weight-quantize chains the cache removes were worth only ~1–2 ms/update
+  in practice (Inductor had fused much of that work into kernels that read the weights anyway; the remaining saved
+  time is offset by the refresh + extra saved-tensor traffic of the cached path). <b>Switch kept OFF</b> in
+  <code>/submission/switches.json</code> (an N1 change with no measured benefit is not worth the divergence); the code stays in
+  the tree behind <code>NANOCHAT_FP8_WCACHE</code> (default off) for possible later use.</pre></details><details><summary><em class="">1.3 h</em><span>Round 2 — micro-batch concatenation (NANOCHAT_CONCAT_MB)</span></summary><pre>- <b>Start:</b> 2026-11-06 ~16:50 UTC.
+- <b>Hotspot (from the Round-1 profile of the reference):</b> every fp8 GEMM runs 4× per update at
+  batch 16 (M=32768); grad_weight GEMMs (K=32768) launch 145×2×4 = 1160 backward GEMMs/update with
+  wave-quantization tails, plus ~1900 glue-kernel launches. Grouping the same rows into 2 chunks of
+  (32, 2048) halves the GEMM count and doubles each GEMM&#x27;s M (better tile occupancy, fewer tails).
+- <b>Change:</b> <code>scripts/base_train.py</code> — optional <code>NANOCHAT_CONCAT_MB</code> (default 1 = off): process
+  CONCAT_MB loader batches per forward/backward through a persistent staging buffer (the loader
+  reuses its own GPU buffer on every yield, so each prefetched batch is copied into its slice of
+  the staging buffer after the chunk&#x27;s backward — single stream, so ordering is safe). Rows and
+  their order are unchanged (gate 2 allows different micro-batch grouping); the loss is scaled by
+  <code>concat_mb / grad_accum_steps</code> = 1/2 (exact power of two) so every row contributes exactly the
+  same gradient as the reference. Numerics: the grad_weight GEMM now reduces over K=65536 in one
+  accumulation instead of four of 32768 → different rounding → <b>N1</b>.
+- <b>check --quick</b> (<code>/tmp/check-r2-quick</code>, config <code>NANOCHAT_CONCAT_MB=2</code>): status NOT_BITWISE,
+  <code>exact_items_ok</code> <b>true</b> (rows_per_rank 640 identical; rows_available 672 — one extra prefetched
+  batch, consumed rows unchanged), 52 params differ at update 0 (the 48 c_proj/mlp_proj weight grads
+  whose K-reduction regrouped + 4 more), 175 from update 1. Peak memory <b>94.04 GiB</b> (fits).
+  Train losses vs reference: drift 2e-4 at step 0 growing to 5.6e-3 at step 8 — ~0.25 of the
+  seed-σ at endpoint 1 (3σ bars: 0.068/0.039/0.024/0.041/0.074/0.099; seed σ grows with training,
+  so the amplification applies equally to the much smaller perturbation here).
+- <b><code>time</code>:</b> run in progress → <code>/tmp/time-r2</code>.
+- <b><code>time</code> result:</b> <code>/tmp/time-r2</code> — <code>speedup_vs_frozen_reference</code> <b>1.0088</b> (s/update 1.0304;
+  windows 1.0215/1.0335/1.0361 → ratios 1.0140/1.0072/1.0056, smallest 1.0056). Below the 1.02 bar
+  on its own, but the fastest updates drop to 1.013 s (reference floor ≈ 1.027) — the real kernel
+  gain is ~1.5–2 % and occasional spikes (up to 1.063 s, vs the reference&#x27;s own max 1.048) eat it.
+  Peak memory 94.04 GiB (reference 55.94). The spikes are the next thing to attack (allocator
+  stalls at 94 GiB are the main suspect: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True is the
+  cheap test).
+- <b>Decision:</b> code committed (switch default off); adopt <code>NANOCHAT_CONCAT_MB=2</code> only as part of a
+  stack that clears the bar (timing of concat + fast-accum backward in progress).</pre></details><details><summary><em class="">1.4 h</em><span>Round 3 — fast accumulation on the backward FP8 GEMMs (NANOCHAT_FP8_FAST_BWD)</span></summary><pre>- <b>Start:</b> 2026-11-06 ~16:55 UTC.
+- <b>Hotspot (from the Round-1 reference profile):</b> of ~454 ms/update of FP8 GEMM time, the
+  backward half (grad_input + grad_weight, K=32768, 1160 GEMMs/update) runs with
+  <code>use_fast_accum=False</code> while the forward already uses True (upstream&#x27;s own choice in
+  <code>nanochat/fp8.py</code>). Fast accumulation skips the periodic fp32 promotion of the MMA accumulator
+  inside the cuBLASLt kernel.
+- <b>Change:</b> <code>nanochat/fp8.py</code> — both backward <code>_scaled_mm</code> calls (and the cached variant) take
+  <code>use_fast_accum=FP8_FAST_BWD</code> from <code>NANOCHAT_FP8_FAST_BWD</code> (default off). Same FP8 dtypes
+  (e4m3/e5m2), same tensorwise scaling, same shapes — only the GEMM&#x27;s internal accumulation
+  changes: an arithmetic change the rules allow, judged by gates 2/3. Tier <b>N1</b> when enabled.
+- <b><code>time</code></b> (<code>/tmp/time-r3</code>, config concat=2 + fast_bwd=1): <code>speedup_vs_frozen_reference</code>
+  <b>1.0334</b> (s/update 1.0059; windows 0.9945/1.0107/1.0127 → ratios <b>1.0415/1.0299/1.0288</b>,
+  smallest <b>1.0288</b> — <b>above the 1.02 bar</b>). Marginal contribution of fast_bwd over
+  concat-only: ≈ +2.4 %. Steady-state floor now 0.987 s (reference floor 1.027). Peak memory
+  unchanged at 94.04 GiB.
+- <b>Decision:</b> submission switches set to `{&quot;NANOCHAT_CONCAT_MB&quot;: &quot;2&quot;,
+  &quot;NANOCHAT_FP8_FAST_BWD&quot;: &quot;1&quot;}<code>; full check launched → </code>/tmp/check-r3-full` (gate 1 timing,
+  gate 2 record — expect NOT_BITWISE/N1 — and gate 3&#x27;s 150-update trajectory, the decisive gate
+  for the fast_bwd accumulation change).
+- <b>Full check</b> (<code>/tmp/check-r3-full</code>, config concat=2 + fast_bwd=1): gate 1 timing <b>1.035</b>
+  (window ratios 1.0417/1.0359/1.0350), gate 2 exact items pass, NOT bitwise as expected — but
+  gate 3 <b>REJECTED (verdict <code>different</code>)</b>: endpoint biases −0.0745 (−3.29σ, bound 0.068),
+  −0.0173 (−1.33σ), −0.0233 (−2.90σ), <b>−0.1631 (−11.95σ)</b>, −0.1924 (−7.83σ), −0.1539 (−4.65σ).
+  A systematic, growing drift — the fast-accum backward accumulation is a real training-numerics
+  change, not noise (likely amplified by the K=65536 grad_weight GEMM under concat).
+  <b>fast_bwd is dropped from the submission</b> (switches.json back to {} while nothing clears the
+  bar); the code stays behind its switch, off.
+- <b>Consequence for strategy:</b> a sub-bar submission scores 0 exactly like the unchanged reference
+  (gate 1 no_benefit), so the only path is a stack that clears 1.02 AND passes gate 3. Next:
+  validate concat alone on gate 3 (<code>check --n1</code>, <code>/tmp/check-r2-n1</code>), then attack the concat
+  timing spikes (floor 1.013 s, spikes to 1.05–1.06; allocator config and/or loader parquet
+  stalls) with numerics-clean (N0) changes.</pre></details><details><summary><em class="">1.7 h</em><span>Round 4 — concat validated on gate 3; attack the timing spikes</span></summary><pre>- <b><code>check --n1</code> on concat-only</b> (<code>/tmp/check-r2-n1</code>): <b>PASS, verdict <code>equivalent</code></b> — endpoint
+  biases +0.0014/+0.0009/+0.0033/+0.0010/+0.0009/−0.0017, max 0.41σ (bound 3σ). The K=65536
+  regrouping noise washes out completely over 150 updates. <b>Concat is a validated N1 change.</b>
+- Remaining gap to the 1.02 bar: concat alone times 1.0088 (windows 1.0140/1.0072/1.0056); the
+  update series shows a floor of 1.013–1.020 s with spikes to 1.05–1.06 s, and the windows grow
+  +1.4 % over the run (reference +0.6 %) — a progressive slowdown. Suspects: caching-allocator
+  fragmentation at 94 GiB peak (cudaMalloc/cudaFree stalls) or parquet row-group read stalls in
+  the loader. Profiling the concat tree over updates 10–15 (<code>/tmp/prof-concat</code>) to discriminate.
+- Candidate fix A (zero code, N0): <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> via
+  switches.json (not in reserved_env; allocator behavior only, no kernel or value change).</pre></details><details><summary><em class="">1.7 h</em><span>Round 4 (continued) — CUDA graphs dead end; prefetching loader</span></summary><pre>- <b>CUDA graphs attempt</b> (<code>NANOCHAT_CUDA_GRAPHS=1</code> → <code>torch.compile(mode=&quot;reduce-overhead&quot;)</code>,
+  same kernels, N0): the timing run <b>SIGSEGVs</b> on both ranks (<code>/tmp/time-r4-cg</code>, status ERROR).
+  FA3/cuBLAS workspaces under graph capture are not stable in this setup. Reverted; the lever is
+  dead (also note gate 1 invalidates runs where CUDA graphs are &quot;requested but skipped&quot;, so this
+  lever was all-or-nothing from the start).
+- <b>Prefetching loader</b> (<code>NANOCHAT_LOADER_SLOTS</code>, <code>nanochat/dataloader.py</code>, default 0 = upstream):
+  the profile showed the gaps are the loader&#x27;s own work (rustbpe encode + best-fit packing,
+  ~19 ms/batch, untraced by the profiler) landing at chunk boundaries. New opt-in variant
+  <code>_prefetched_bos_bestfit</code>: a worker thread produces the <b>byte-identical</b> batches (packing
+  logic copied verbatim) into a pool of N slot buffers; <code>next()</code> pops a finished batch and clones
+  it out of the slot. Slot reuse is made explicitly safe: the consumer records a CUDA event after
+  its clone and hands the slot back; the worker blocks on that event before refilling the slot
+  (so both the slot&#x27;s pinned staging buffer and device buffer are provably idle when reused).
+  The free-slot handoff bounds the worker to N batches ahead — tokenization and parquet
+  row-group bursts disappear from the critical path. Verified byte-identical against the
+  synchronous loader over 12 batches (first version had a slot-reuse race caught by the test at
+  batch 6 — fixed by the event-after-clone handoff; also noted rustbpe&#x27;s encode is not safe to
+  run concurrently from two threads, which only ever happens if two loaders run at once — the
+  recipe runs one).
+- <b><code>check --quick</code></b> on concat=2 + loader_slots=4: running → <code>/tmp/check-r4-quick</code>.</pre></details><details><summary><em class="">2.9 h</em><span>Round 5 — config levers: expandable_segments and cpp_wrapper (both dead)</span></summary><pre>- <b>Profile forensics</b> (from <code>/tmp/prof-concat</code>, torch.profiler over updates 12+; the trace
+  covers 6 updates — cluster the 18-per-update AllGather kernels to segment it): per update the
+  GPU spends 1.013 s in kernels: nvjet FP8 GEMMs 462.7 ms, Inductor &quot;clone/transpose&quot; kernels
+  176.7 ms, other Inductor glue (FP8 casts, norms) 154.8 ms, FA3 113.6 ms, amax reductions
+  41.8 ms, cross-entropy 20 ms, NCCL 23.5 ms. GEMMs (462.7 ms for ~573 TFLOP/update ≈ 1.2
+  PFLOPS effective) and FA3 are near roofline; the Triton glue runs at only ~1.5–1.6 TB/s.
+- <b><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></b> (N0, allocator-only):
+  <code>/tmp/time-r4-es</code> → <b>1.0069</b> (windows 1.0216/1.0372/1.0383, smallest ratio 1.0035) —
+  slightly worse than concat-only (1.0088). Dead.
+- <b><code>NANOCHAT_CPP_WRAPPER=1</code></b> (Inductor C++ launcher, N0): <code>/tmp/time-r5-cw</code> → <b>1.0053</b>
+  (windows 1.0207/1.0389/1.0423, smallest ratio 0.9996). Window 1 marginally better, windows
+  2–3 worse (within the ~0.5 % run-to-run noise those windows show). Dead.
+- Run-to-run noise on windows 2–3 across 4 behaviorally identical concat runs: 0.52 %/0.60 % —
+  larger than the reference&#x27;s frozen spread (0.17 %). Screening 1–2 % changes on those windows
+  is unreliable; need ≥2.5 % real gains.</pre></details><details><summary><em class="">2.9 h</em><span>Round 6 — tiled-transpose op for the backward FP8 layout copies: REGRESSION, off</span></summary><pre>- The idea: <code>_scaled_mm</code> needs row-major × column-major, so each Float8Linear backward makes
+  <code>go_T = go_fp8.t().contiguous()</code> and <code>_to_col_major(in_fp8)</code>. A 64×64-tiled Triton transpose
+  does the same copy bitwise-exactly at ~3.3 TB/s vs ~1.6 TB/s for the Inductor clones (and
+  300 GB/s for aten&#x27;s <code>.t().contiguous()</code>). Also verified the reformulated GEMM 1
+  (<code>w_col.t() @ go_fp8.t()</code> — free views of copies the reference already makes) is **bitwise
+  identical** to the reference GEMM 1 on representative shapes.
+- Implementation (<code>nanochat/fp8.py</code>, switch <code>NANOCHAT_FP8_TTRANS</code>, default off): the kernel is
+  registered as a real aten op (<code>torch.library.Library(&quot;nanochat_fp8&quot;, &quot;DEF&quot;)</code> + CUDA/CPU/Meta
+  impls) so dynamo/Inductor treat it as an opaque extern call. First tried
+  <code>torch.library.custom_op</code> — NOT opaque: dynamo inlines the triton kernel and Inductor re-fused
+  it into strided epilogues.
+- <b>Result: <code>/tmp/time-r6-tt2</code> → 0.978 (regression), peak memory 94.04 → 106.76 GiB</b> (+12.7 GiB,
+  identical with both registration mechanisms). Category diff of the profile
+  (<code>/tmp/prof-r6-tt2</code> vs <code>/tmp/prof-concat</code>): clone kernels 176.7 → 2.8 ms (−174), my tiled
+  kernels +51.5 ms (running at the predicted ~3.2 TB/s), but <b>other Inductor glue +122.3 ms</b>
+  and the plain FP8 casts now materialize separately (+36/+29/+27 ms kernels). The opaque op
+  forces materializations Inductor previously fused into the clone kernels (cast + transposed
+  write in one pass) and re-plans fusion/layout across the whole backward, making unrelated
+  kernels (rmsnorm bwd, CE, amax variants) slower. **Fighting Inductor&#x27;s planner one link at a
+  time is a losing game; the reference&#x27;s fused clones were already near-optimal as a system.**
+- Kept the code (switch off) for the record. Committed f402245.</pre></details><details><summary><em class="">2.9 h</em><span>Round 6 conclusion → Round 7 direction</span></summary><pre>The remaining big non-roofline block is ~330 ms/update of Inductor Triton glue (clones 176.7 +
+casts/norms 154.8) at ~1.5 TB/s with <b>heuristic</b> kernel configs. The graph/fusion plan itself
+is good — what&#x27;s suboptimal is the per-kernel config choice (block sizes, num_warps,
+vectorization). <code>torch.compile(mode=&quot;max-autotune-no-cudagraphs&quot;)</code> tunes exactly that without
+touching the plan: pointwise kernels and max-reductions (amax) produce identical values under
+any config; only reduction-order rounding (norms, CE) can differ — N1-class, same tier as
+concat which passed gate 3 at 0.41σ. Pure config lever, no code change: <code>NANOCHAT_COMPILE_MODE</code>.</pre></details><details><summary><em class="">3.1 h</em><span>Round 7 — torch.compile max-autotune (NANOCHAT_COMPILE_MODE)</span></summary><pre>- <b>Change</b>: <code>scripts/base_train.py</code> passes <code>mode=os.environ[&quot;NANOCHAT_COMPILE_MODE&quot;]</code> to
+  <code>torch.compile</code> (default empty = reference behavior). Screening config
+  <code>/tmp/switches-r7.json</code> = <code>NANOCHAT_CONCAT_MB=2</code> +
+  <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code>: Inductor compile-time-autotunes its
+  generated Triton kernels instead of using heuristic configs. Same fusion plan, same kernels;
+  pointwise + amax configs cannot change values, reduction configs only change rounding order
+  (N1-class, like concat). CUDA graphs stay off (they SIGSEGV, Round 4).
+- Compile time is much longer (autotune benchmarks each kernel, including Triton GEMM candidates
+  for the bf16 GEMMs); the 34-update run pays it in warmup updates 0–9, which are untimed.
+- Result: <code>/tmp/time-r7-ma</code> — pending.</pre></details><details><summary><em class="">3.1 h</em><span>Round 7 result — max-autotune is the big lever</span></summary><pre>- <code>/tmp/time-r7-ma</code> (concat=2 + <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code>):
+  <b>speedup_vs_frozen_reference 1.0225</b> (concat-only was 1.0088), windows
+  1.0059/1.0207/1.0231 s/update → per-window ratios <b>1.0297/1.0198/1.0184</b>,
+  smallest 1.0184 — still just under the 1.02 bar (no_benefit), but a +1.4 %
+  real gain over concat-only with zero memory cost (94.04 GiB) and zero code
+  change. Update floor dropped from ~1.013–1.020 s to ~0.99–1.01 s; windows 2–3
+  still carry the progressive-slowdown spikes (max 1.0463).
+- Compile cost: startup_to_first_update 750 s (autotune benchmarks every kernel,
+  including Triton GEMM candidates). Untimed (warmup updates 0–9) and inside the
+  judge&#x27;s per-run timeouts (timing 2700 s, record/trajectory 3600 s). The
+  judge&#x27;s deterministic mode takes the first listed config without timing, so
+  gates 2/3 are unaffected by the mode.
+- Committed e914a9c. Switches.json stays <code>{}</code> (sub-bar scores 0, same as the
+  unchanged reference) until a stack clears 1.02 on the smallest window AND
+  passes the full check.
+- Next: stack levers that add margin on windows 2–3: <code>NANOCHAT_CONCAT_MB=4</code>
+  (one fwd/bwd per update; halves chunk-boundary launch gaps; memory risk
+  ~+25 GiB) and chunked cross-entropy (~10–15 ms + ~8.6 GiB, which also damps
+  the allocator-pressure spikes).</pre></details><details><summary><em class="">3.7 h</em><span>Round 8 — chunked cross-entropy: regression, off; spike analysis</span></summary><pre>- <b><code>NANOCHAT_CHUNKED_CE=8192</code></b> (new <code>nanochat/chunked_ce.py</code> + hook in <code>gpt.py</code>): the whole
+  <code>lm_head → float → softcap → F.cross_entropy</code> chain as one autograd Function walking the vocab
+  in blocks — block logits are bitwise slices of the reference GEMM (same <code>_to_fp8</code> scales, same
+  K reduction), running logsumexp in fp32, recompute-in-backward, then the unchanged two FP8
+  backward GEMMs. Equivalence test: <b>eager loss bitwise equal</b>, grads within 1 bf16 ulp
+  (median rel diff 0.0), compiled-vs-eager 9e-8. Handles ignore_index and vocab padding.
+- <b>Result: REGRESSION</b> — <code>/tmp/time-r8-ce</code>: 1.0012 (windows 1.0295/1.0437/1.0417, smallest
+  ratio 0.9973), peak memory UP to 98.04 GiB (from 94.04). The +33 % lm_head GEMM time
+  (recompute) plus the per-block fp32 pointwise chains outweigh the reference&#x27;s fused CE
+  pipeline. Switch off; committed e781fd3. Also <code>NANOCHAT_CONCAT_MB=4</code> OOMs (needs 8 GiB more
+  than free) — dead. <code>NANOCHAT_FP8_WCACHE=1</code> on top of the stack: 1.0225, smallest ratio 1.0186
+  (vs 1.0184 without) — no gain, off.
+- <b>Spike analysis</b> (reference <code>runs/bootstrap/baseline</code> series vs mine): the reference&#x27;s
+  per-update floor is ~1.027–1.032 s with spikes to ~1.048 (+1.5–2 % over floor); my autotuned
+  stack&#x27;s floor is ~0.99–1.00 s but spikes reach 1.046–1.064 (+4–6 %). My spikes are ~3× taller
+  than the reference&#x27;s. Hypothesis: autotune shortened GPU work enough that the CPU is now the
+  co-bottleneck, so the loader&#x27;s ~19 ms/batch packing bursts (hidden before) surface as GPU idle
+  — exactly what Round 4&#x27;s prefetching loader removes (it measured no gain pre-autotune, when
+  the CPU had slack). Testing <code>NANOCHAT_LOADER_SLOTS=4</code> on top of the stack.</pre></details><details><summary><em class="">3.7 h</em><span>Round 8 conclusion — loader_slots marginal; spike root cause found</span></summary><pre>- <b><code>NANOCHAT_LOADER_SLOTS=4</code></b> on top of concat=2 + autotune: <code>/tmp/time-r8-ls</code> —
+  <b>1.0237</b> (windows 1.0039/1.0203/1.0220, ratios <b>1.0318/1.0202/1.0195</b>, smallest
+  1.0195). Window 1 improved (1.0202 → 1.0039 s/update) but windows 2–3 kept their spikes
+  (u17–20: 1020/1028/1026/1039 ms, u27–28: 1038/1039, floor ~995–1000) — threaded prefetch
+  moves the loader off the chunk boundary but its GIL-held work still stalls the training
+  thread&#x27;s kernel launches.
+- <b>Root cause measurement</b> (CPU-only, frozen assets, <code>/tmp/loader_cost.py</code>): parquet row
+  groups are 1024 rows; <code>read_row_group</code> 10.1 ms, <code>to_pylist</code> 4.0 ms — cheap. The expensive
+  part is <b>rustbpe encode + the packing loop</b>: ~6.5 encode calls of 128 docs per update
+  (~60–80 ms/update of loader CPU), and at document-buffer refills the worker runs up to 8
+  back-to-back encodes with no packing in between — a near-continuous GIL-held burst exactly
+  at the rg transitions (u17/u20/u27/u28/u32 where the spikes live, both trees). The
+  training thread has ~0 slack (GPU ~1.0 s/update vs wall ~1.0 s), so any worker GIL time is
+  a direct stall; the reference is frozen with its own +1.5–2 % spikes, so removing mine is
+  pure ratio.
+- Conclusion: threads cannot fix this (shared GIL). Next: a forked child process that owns
+  read + encode + packing (own GIL); the parent only receives packed rows over a pipe.</pre></details><details><summary><em class="">4.1 h</em><span>Round 9 — process-based loader (NANOCHAT_LOADER_PROC, default off)</span></summary><pre>- <b>Change</b>: <code>nanochat/dataloader.py</code> adds <code>_proc_loader_child</code> (runs in a forked child:
+  <code>_document_batches</code> → rustbpe encode → the verbatim best-fit packing loop → sends each
+  packed batch as flat int64 <code>[inputs | targets]</code> bytes + state indices over a
+  <code>multiprocessing</code> pipe, then blocks for an ack = at most one batch in flight) and
+  <code>_proc_bos_bestfit</code> (parent side: same slot-pool consumer machinery as the threaded
+  variant, but the worker thread only does <code>conn.recv()</code> — GIL released while blocked —
+  <code>np.copyto</code> into the slot&#x27;s pinned staging buffer, the H2D enqueue and the ack; ~1–2 ms of
+  GIL per batch instead of ~15–20). Dispatch: <code>NANOCHAT_LOADER_PROC=1</code> inside
+  <code>tokenizing_distributed_data_loader_with_state_bos_bestfit</code> (same yields, same order, same
+  state dicts — the hook point is unchanged). Child safety: forked before any encode in the
+  parent, never touches CUDA, daemon=True, EOF on the pipe when the parent dies, explicit
+  terminate in the generator&#x27;s <code>finally</code>.
+- <b>Equivalence</b> (GPU test, <code>/tmp/proc_loader_test*.py</code>): batches 0–2 bitwise identical to
+  the synchronous loader through both <code>_proc_bos_bestfit</code> and the public dispatch
+  (inputs, targets and state dicts equal); no stray child processes after <code>close()</code>.
+- <b>Numerics tier: N0 for the loader itself</b> (bitwise-identical yields; gate-2 token-row
+  digest must match exactly). The stack it rides on (concat=2 + autotune) is N1 as before.
+- Result: <code>/tmp/time-r9-proc</code> (concat=2 + <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code>
+  + <code>NANOCHAT_LOADER_PROC=1</code>, <code>/tmp/switches-r9.json</code>) — pending.</pre></details><details><summary><em class="">4.1 h</em><span>Round 9 result — process loader clears the gate-1 bar</span></summary><pre>- <code>/tmp/time-r9-proc</code> (concat=2 + <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code> +
+  <code>NANOCHAT_LOADER_PROC=1</code>): <b>speedup_vs_frozen_reference 1.0266</b>, windows
+  <b>1.0035/1.0173/1.0172</b> s/update → per-window ratios <b>1.0322/1.0232/1.0243</b>,
+  smallest <b>1.0232 — above the 1.02 bar for the first time</b>. Peak 94.04 GiB
+  (unchanged). Windows 2–3 improved ~3 ms/update vs the threaded loader
+  (1.0203/1.0220 → 1.0173/1.0172).
+- Residual spikes persist at the same update indices (u20 1.0401, u26–28 up to
+  1.0343, floor ~0.994–1.005) even with the producer off-process — the GIL was
+  the main but not the only component. Candidates: allocator stalls
+  (<code>expandable_segments</code> untested on THIS stack), CPU descheduling, child CPU
+  bursts. The reference spikes at the same indices (frozen into its windows), so
+  any further spike removal is pure ratio (~+1 % on windows 2–3).
+- <b>switches.json set to this stack</b> and committed (2034051). Launching the full
+  check → <code>/tmp/check-r9-full</code>: gate 1 re-times the tree, gate 2 record (expect
+  NOT_BITWISE from concat+autotune, exact items must pass), gate 3 trajectory
+  (expect <code>equivalent</code> like concat-only&#x27;s 0.41σ).</pre></details><details><summary><em class="">4.1 h</em><span>Round 9 full check — gate 1 PASS (in-check re-measurement)</span></summary><pre>- <code>/tmp/check-r9-full</code> gate 1 (timing of the submitted stack, in-check): windows
+  <b>1.0054/1.0186/1.0189</b> s/update → ratios vs frozen reference
+  <b>1.0303/1.0219/1.0226</b> → smallest <b>1.0219 &gt; 1.02</b> ✓ (second independent
+  measurement; the <code>time</code> run gave 1.0232 — consistent, both above the bar).
+  Same spike pattern (u18–21 and u26–29 elevated, u28 peak 1039.7 ms).
+- <b>Power-cap theory tested and refuted as the spike driver</b>: nvidia-smi poll
+  (250 ms) joined against the judge&#x27;s per-update timestamps shows power pinned
+  at ~684–696 W (the board cap) on EVERY update — floor and spike alike — and
+  mean SM clocks 1525–1625 MHz with NO systematic dip in the spike updates
+  (u28 rank 0 even shows the highest mean clock, 1625 MHz, at its worst 1040 ms).
+  The big spikes (u20/u28) run at 96–100 % util → the GPU is doing MORE work or
+  waiting on something other than clocks; some mild spikes (u17/u19/u21 on rank 1)
+  show util dips to 85–93 % → host-side launch stalls there. Mixed causes; a
+  <code>profile</code> over u18–21 (vs floor u14–17) is the next diagnostic.
+- Record phase (gate 2) started 20:13:25; trajectory (gate 3) after — result
+  pending in <code>/tmp/check-r9-full/check.json</code>.</pre></details><details><summary><em class="">4.1 h</em><span>Round 9 full check result — **PASS, speedup 1.0219, tier N1** (20:53)</span></summary><pre>- <code>/tmp/check-r9-full/check.json</code>: <b>status PASS, speedup 1.0219, tier N1</b> — the first
+  full-check PASS of the trial.
+  - Gate 1: candidate windows 1.0054/1.0186/1.0189 s/update → ratios
+    <b>1.0302/1.0219/1.0226</b>, smallest <b>1.0219</b> &gt; bar 1.02 ✓. 34 steps, peak 94.04 GiB,
+    startup→first update 743 s, other_optimizer_steps 0.
+  - Gate 2: exact items all OK (10 updates, 175 parameters, 640 rows/rank, loader/model
+    provenance, hyper-parameters, dtypes) → NOT_BITWISE (first differing update 0,
+    53→175 parameters — expected from concat regroup + Inductor autotune), so gate 3
+    decides. Record wall 1121.7 s, deterministic flags all on, FA3 deterministic patched.
+  - Gate 3 (trajectory seed 1, 150 updates): verdict <b><code>equivalent</code></b> — every endpoint
+    <code>within</code>: |d| in σ units = 0.026 / 0.047 / <b>0.368</b> / 0.049 / 0.042 / −0.024
+    (windows 5–15 … 115–150); the 3σ bounds are 0.068/0.039/0.024/0.041/0.074/0.099 loss
+    units. Worst endpoint 30–50 at 0.37σ — comfortably equivalent, same magnitude as the
+    concat-only result (0.41σ).
+- Conclusion: the submitted stack (concat=2 + max-autotune-no-cudagraphs + process loader)
+  is validated end-to-end. Margin above the 1.02 bar is thin (1.9 %); the next rounds
+  target the fixed-index spikes (u17–20, u26–28, floor elsewhere) which cost windows 2–3
+  ~13–18 ms/update.</pre></details><details><summary><em class="">5.9 h</em><span>Round 10 — profile the spikes: root cause found and fixed (loader H2D copy blocks the training stream)</span></summary><pre>- <code>profile --from 14 --iters 8</code> → <code>/tmp/prof-r10</code> (updates 14–21, rank 0, trace
+  <code>timing_profile.trace.json</code>, 89 MB chrome trace).
+- <b>The spikes are GPU idle, not slower kernels.</b> Per update: GPU busy is flat
+  969–980 ms while wall goes 1005→1164 ms; idle grows 31.6 → 30.9 → 49.0 → 63.9 →
+  60.1 → 74.5 → 193.5 ms. Kernel-time diffs between the 3 slowest and 3 fastest
+  updates are noise (±2.5 ms). u20 alone has a 131 ms gap.
+- <b>Inside every big gap the host issued zero kernel launches and no aten ops</b> —
+  it was blocked, not working. The one 131 ms gap sits inside <code>Optimizer.step</code> and
+  ends exactly when step returns.
+- **The blocker: 16 × <code>cudaStreamSynchronize</code> of 140–187 ms on the training
+  stream** — exactly 2 per update, inside <code>aten::copy_</code> ops that each end with a
+  512 KB <code>Memcpy HtoD (Pageable -&gt; Device)</code> followed by the consumer&#x27;s clones.
+  That is the proc loader&#x27;s produce thread staging <code>gpu_buffers[slot].copy_(cpu_buffers[slot])</code>:
+  when the CUDA runtime does not treat the source as pinned it synchronizes the
+  copy&#x27;s stream before returning — and on the training stream that wait is the
+  entire enqueued backlog (~150 ms of forward/backward). The producer therefore
+  paced the consumer 1:1 (2 of its 4 copies/update block during the backwards,
+  2 return instantly at the drained boundaries — matching the 16 blocking copies),
+  the 4-slot queue ran dry at every micro-batch boundary, and the GPU idled
+  ~9 ms (floor) to 131 ms (spike updates) waiting for the next batch.
+- Isolated reproductions (no GPU contention for the lock, tiny scripts):
+  side-thread <code>copy_(pinned, non_blocking=True)</code> with a busy stream: <b>0.15 ms</b>;
+  same with a pageable source: <b>318.8 ms</b>. <code>Connection.recv</code> releases the GIL
+  (refuted as the cause); upstream base_train already disables GC after step 0
+  (refuted); power/clocks were refuted in Round 9.
+- <b>Fix (commit da86ca6, tier N0)</b>: staging runs on a dedicated <code>torch.cuda.Stream()</code>
+  (empty, so the runtime&#x27;s synchronize is a no-op) with <code>staged_events[slot]</code>
+  recorded on it; the consumer&#x27;s default stream waits that event before cloning.
+  Yields bitwise identical to the sync path (batches 0–3 + state dicts); fetch
+  latency under an 80 ms GPU backlog 4–23 ms → <b>0.06–0.32 ms</b>; no
+  <code>cudaStreamSynchronize</code> in a profiled fetch loop. Same mechanics available for
+  the (off-by-default) NANOCHAT_LOADER_SLOTS path if ever needed.
+- Expectation: windows 2–3 lose their ~13–18 ms/update of boundary idle; if the
+  floor idle (~20 ms/update) also shrinks, all three windows approach the
+  0.98–1.00 s/update floor → smallest ratio ~1.03+. <code>time</code> run in flight
+  (<code>/tmp/time-r10-cs</code>); result below.
+
+- **Result (<code>/tmp/time-r10-cs</code>, judge <code>time</code>, tree da86ca6): windows
+  1.0048 / 1.0180 / 1.0167 s/update → smallest window ratio 1.0225**
+  (<code>speedup_vs_frozen_reference</code> 1.026 over the window means, tokens/s 258734).
+  Against Round 9&#x27;s proc-loader run (1.0232 / 1.0219) and the full check&#x27;s
+  1.0302 / 1.0219 / 1.0226 this is **within noise: the copy-stream fix did not
+  remove the spikes**. Per-update durations from <code>timing_tree.r{0,1}.json</code>
+  still show the elevated blocks u16–21 (peak 1.0345) and u27–29 (up to 1.034)
+  over a 0.996–1.007 floor, on both ranks. So the 140–187 ms blocking copies the
+  profiler saw were real but were an artifact of *where* the producer&#x27;s copy
+  landed under CUPTI/profiler visibility, not the cause of the clean-run spikes —
+  the pageable-vs-pinned treatment of the staging source is context-dependent
+  (the same allocation is pinned in standalone runs).
+- <b>Kept anyway</b>: the fix is correct, N0 (bitwise-identical yields verified),
+  and strictly more robust — a pageable fallback can no longer pace the training
+  stream. Tree at da86ca6; submission switch file unchanged
+  (<code>NANOCHAT_CONCAT_MB=2</code>, <code>NANOCHAT_COMPILE_MODE=max-autotune-no-cudagraphs</code>,
+  <code>NANOCHAT_LOADER_PROC=1</code>).
+- CPU cgroup throttling refuted (<code>/sys/fs/cgroup/cpu/cpu.stat</code>: nr_throttled 6,
+  ~5.8 ms throttled total; 48 CPUs allowed); rank-identical step ends are forced
+  by the step-end all-gather, so they do not by themselves prove a shared cause.
+  bench.py does not poll the GPUs during a run (<code>wait_idle</code> runs only before).
+- <b>Open</b>: the spikes are GPU idle (busy time flat 969–980 ms across updates),
+  appear at the same update indices in every stack including the reference
+  (data-positioned), and are worth ~13–18 ms/update on windows 2–3
+  (smallest ratio 1.0225 → ~1.036 if they were removed). Next: a CPU-only host
+  poller (per-process CPU/faults/schedstat wait/context switches, vmstat
+  compaction, PSI) running alongside a judge <code>time</code> run, joined against
+  <code>step_end_s</code> (the entry stamps <code>time.time()</code>), to separate loader-child CPU
+  bursts, rank descheduling, page-fault/compaction storms and host pressure.</pre></details><details><summary><em class="">6.5 h</em><span>Round 11 — the spike mechanism found: `device == &quot;cuda&quot;` is never true in DDP</span></summary><pre>- <b>Diagnosis first (host poller alongside a judge <code>time</code> run)</b>: a CPU-only poller
+  (per-process CPU/faults/schedstat/context switches + vmstat + PSI, 5 Hz) ran next to
+  <code>/tmp/time-r11-poll</code> (speedup 1.0249, windows ~1.00/1.018/1.017 — the same spike
+  pattern). Join against <code>step_end_s</code>: **rank CPU is flat ~1080 ms/update on spike and
+  floor updates alike, schedstat runqueue wait ≈ 0, no majflt/compaction/PSI signal, no
+  correlation of any host counter with the spikes**. So the spikes are a *wait*, not
+  work — which pointed back at the Round 10 blocking copies.
+- <b>The bug</b>: <code>nanochat/common.py compute_init()</code> returns
+  <code>device = torch.device(&quot;cuda&quot;, ddp_local_rank)</code> — a torch.device, never the string
+  <code>&quot;cuda&quot;</code>. Every <code>device == &quot;cuda&quot;</code> in <code>dataloader.py</code> is therefore **False in every
+  judge run**: the <code>NANOCHAT_LOADER_PROC</code> / <code>NANOCHAT_LOADER_SLOTS</code> dispatches never
+  fired (Round 9&#x27;s &quot;proc gain&quot; was inline-vs-inline noise; Round 10&#x27;s side-stream fix
+  never ran), and the inline loader computed <code>use_cuda = device == &quot;cuda&quot;</code> → False →
+  <b>pageable staging buffer + <code>gpu_buffer.copy_(cpu_buffer, non_blocking=False)</code></b> —
+  exactly the 2-per-update synchronous 512 KB H2D copies on the training stream that
+  the Round 10 profile caught (cudaStreamSynchronize behind the enqueued backlog,
+  140–187 ms). Upstream/reference share the same latency; the spikes are its queue-phase
+  jitter. All prior observations are consistent with this one bug.
+- <b>Fix (commit 19ba8b8, tier N0)</b>: new <code>_is_cuda_device()</code> (True for <code>&quot;cuda&quot;</code>,
+  <code>&quot;cuda:1&quot;</code>, <code>torch.device(&quot;cuda&quot;, 0)</code>); both dispatches and <code>use_cuda</code> use it. The
+  inline path now stages through **two alternating pinned buffers, each guarded by a
+  CUDA event** (a pinned source is read asynchronously, so a buffer must not be
+  overwritten before its previous copy completes) and issues the H2D <code>non_blocking</code> —
+  no stream synchronization anywhere. With <code>NANOCHAT_LOADER_PROC=1</code> the proc loader now
+  actually engages: off-process encode, pinned slots, side-stream staging (Round 10
+  machinery, previously dead code under the judge).
+- <b>Verified standalone</b> (<code>/tmp/test_devfix.py</code>, <code>/tmp/test_fork.py</code>): dispatch engages
+  with <code>device=torch.device(&quot;cuda&quot;, 0)</code>; proc and inline paths yield 3 batches bitwise
+  identical with equal state dicts; inline staging buffers pinned (2 × 65536 int64);
+  proc path forks a child and delivers <code>(16, 2048)</code> on <code>cuda:0</code>.
+- <b>Expectation</b>: the two blocking pageable copies per update vanish from the training
+  stream; spike updates (u16–21, u27–29, +15–47 ms) should collapse toward the
+  ~0.99 s floor, and with encode off-process the floor idle should shrink too —
+  windows ~1.00 or below → smallest ratio ~1.03+. <code>time</code> run in flight
+  (<code>/tmp/time-r11-fix</code>); result below.
+- **Result (<code>/tmp/time-r11-fix</code>, judge <code>time</code>, tree 19ba8b8): windows
+  0.9893 / 0.9944 / 0.9942 s/update → per-window ratios 1.0470 / 1.0468 / 1.0480,
+  smallest 1.0468** (<code>speedup_vs_frozen_reference</code> 1.0472, tokens/s 264093,
+  peak memory unchanged 94.04 GiB). <b>The spikes are gone</b>: per-update durations
+  are smooth 0.975–1.000 s with no 1.02–1.05 outliers (previous runs: floor
+  0.996–1.007 with +15–47 ms spike blocks), and the floor itself dropped
+  ~10–20 ms/update — the off-process encode removed the boundary idle as well.
+  Biggest single gain of the trial: smallest window ratio 1.0225 → 1.0468.
+- Full <code>check</code> on 19ba8b8 launched next (the record gate exercises the forked
+  loader under the judge for the first time); result to follow.</pre></details><details><summary><em class="">6.5 h</em><span>Round 11 full check — PASS, speedup 1.0473, tier N1 (23:16)</span></summary><pre>- <code>/tmp/check-r11-full/check.json</code> on tree 19ba8b8 with the submitted switch file:
+  <b>status PASS, <code>performance.speedup</code> 1.0473, tier N1</b>.
+- Gate 1 (timing, one run vs frozen reference): windows <b>0.989 / 0.9934 / 0.9935</b>
+  s/update → ratios <b>1.0473 / 1.0478 / 1.0487</b>, smallest <b>1.0473</b> (bar 1.02,
+  reference spread 0.0017). Per-update durations smooth, no spike blocks.
+- Gate 2 (record, deterministic, 10 updates): exact items all OK — 175 parameters,
+  rows_per_rank 640, one loader, one optimizer, no foreign state dtypes; NOT_BITWISE
+  (first differing update 0, 53 parameters: lm_head.weight, resid_lambdas, …) — the
+  same concat+autotune kernel-choice signature as the r9 check, not loader-related.
+  The forked proc loader ran under the judge&#x27;s record mode for the first time without
+  any issue.
+- Gate 3 (trajectory, seed 1, 150 updates): verdict <b>equivalent</b> — endpoints
+  0.050σ / 0.063σ / 0.445σ / 0.107σ / 0.059σ / −0.011σ, worst 0.445σ of the 3σ bound
+  (r9: 0.37σ — same computation, as expected from a value-identical loader).
+- The submitted tree (19ba8b8) and switch file are exactly what passed. Cost 1.79 GPU·h.</pre></details><details><summary><em class="">8.0 h</em><span>Round 12 — profile the new floor; screen TORCHINDUCTOR_COORDINATE_DESCENT_TUNING</span></summary><pre>- <b>Profile</b> (<code>/tmp/prof-r12</code>, judge <code>profile --from 14 --iters 4</code>, tree 19ba8b8): the
+  run is now <b>GPU-bound</b> — busy 981–987 ms vs idle ~13 ms per update (profiler run;
+  clean-run walls 0.975–1.000 s). The host runs far ahead (&quot;Command Buffer Full&quot; is the
+  top CPU item, 2.69 s over 4 updates) and spends 215–223 ms inside <code>Optimizer.step</code>
+  waiting for the queue — harmless, the GPU is the bottleneck.
+- Phase split per update (GPU time): <b>backward 2×323 ms = 646 ms (the wall)</b>, forward
+  2×147 ms = 294 ms, <code>Optimizer.step</code> 48 ms (NCCL ~24.8: reduce_scatter ~12 +
+  all_gather ~13 + adamw reduce ~7.4 partially overlapped; compiled Muon/AdamW compute
+  ~35 ms, pipelined per shape group).
+- Biggest fused-Triton items inside fwd/bwd: fp8 amax+cast reductions ~19 ms/update,
+  fused rms_norm backward ~23 ms/update, log-softmax fwd+bwd ~17 ms/update, FA3 bwd
+  ~87 ms/update.
+- <b>Candidate this round</b>: <code>TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1</code> (pure switch,
+  not in reserved_env) — Inductor config/layout refinement for exactly those fused
+  Triton kernels; numerics class unchanged (kernel choice, like COMPILE_MODE).
+  Screening on a scratch config <code>/tmp/sw-cd.json</code>; <code>time</code> in flight
+  (<code>/tmp/time-r12-cd</code>); the submission stays at the certified 19ba8b8 + switches
+  until this pays.</pre></details><details><summary><em class="">8.0 h</em><span>Round 12 result — TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: no gain</span></summary><pre>- <code>/tmp/time-r12-cd</code> (scratch config <code>/tmp/sw-cd.json</code>, tree 19ba8b8): windows
+  0.9892/0.9932/0.9933 → smallest ratio <b>1.0471</b>, speedup 1.048 — vs the certified
+  tree&#x27;s own check-run windows 0.989/0.9934/0.9935 (smallest 1.0473). **Within noise,
+  no benefit** (compile +28 s). Switch not adopted; submission unchanged.</pre></details><details><summary><em class="">8.5 h</em><span>Round 13 — overlap the gradient all_reduces with the final backward</span></summary><pre>- Target from the Round 12 profile: <code>Optimizer.step</code> = 48 ms/update of serial GPU time
+  after the backward (reduce_scatter ~12 + all_gather ~13 + fused Muon/AdamW compute
+  ~35, partially overlapped across groups). The reduces cannot overlap the *next*
+  forward (the judge&#x27;s step hook synchronizes), but they can overlap the *remaining
+  backward* if launched per-parameter as each grad finishes.
+- Verified prerequisites standalone:
+  - per-tensor <code>all_reduce(AVG)</code> == stacked <code>reduce_scatter_tensor(AVG)</code> rank chunk,
+    <b>bitwise</b>, for 2 ranks (<code>/tmp/test_comm_equiv.py</code>);
+  - <code>register_post_accumulate_grad_hook</code> fires progressively during the compiled
+    backward, no graph break (<code>/tmp/test_hooks.py</code>).
+- **Change (commit 8941906, N0 vs the current tree, switch NANOCHAT_OVERLAP_REDUCE
+  default off)**: hooks launch <code>all_reduce(grad, AVG, async)</code> on a dedicated stream
+  during the update&#x27;s final backward (event-ordered after each param&#x27;s accumulation);
+  <code>step()</code> waits the futures, orders the compute stream after the comm stream, and
+  consumes the averaged grads exactly like the serial path (muon: same stack build
+  with <code>reduce_scatter</code> replaced by a rank slice; adamw: row views). base_train marks
+  the final accumulation via <code>optimizer.notify_backward()</code> (no-op when off).
+- <b>A first cut was wrong and caught by the standalone test</b>: copying the reduced
+  grads into stack slots from inside the hook raced the collective (an async NCCL
+  work&#x27;s kernel enqueue can trail a later host enqueue on the same stream — stale
+  slots on rank 1, params off by ~4e-3). Replaced by the step()-side stack build.
+- Equivalence: 2-rank, 3-update test, eager and torch.compile: **all parameters
+  bitwise identical** with the switch off vs on.
+- <code>time</code> in flight (<code>/tmp/time-r13-ovl</code>, scratch config <code>/tmp/sw-ovl.json</code>); result
+  below.
+- <b>Result (<code>/tmp/time-r13-ovl</code>): REFUTED — the overlap is slower.</b> Windows
+  0.9986/1.005/1.0066 → smallest ratio <b>1.0351</b> (certified tree: 0.989/0.9934/0.9935 →
+  1.0473), i.e. <b>−10 to −13 ms/update</b>. 145 per-parameter all_reduces (each with NCCL
+  launch/protocol overhead) plus ~2× the reduce_scatter&#x27;s bytes cost more than the
+  ~19 ms of serial comm they hide; the stacked reduce_scatter&#x27;s batching is worth more
+  than overlapping it. The switch stays off; commit 8941906 reverted so the submitted
+  tree is exactly the certified 19ba8b8 (the inert overlap code is dead weight for a
+  refuted lever).
+- Lesson logged: on 2 ranks with ~150 params, per-tensor collectives lose to stacked
+  batched ones; overlap only pays if the hidden op&#x27;s own cost does not grow.</pre></details><details><summary><em class="">9.1 h</em><span>Round 14 — stack the value_embeds&#x27; AdamW collectives (NANOCHAT_ADAMW_STACK)</span></summary><pre>- <b>Profile finding (from the r12 trace, <code>/tmp/nccl_calls.py</code>)</b>: 41 NCCL kernels per
+  update inside <code>Optimizer.step</code>, all <code>RING_LL</code>, ~24.7–26.6 ms GPU time. Inventory
+  (matched against the reference record&#x27;s 175 param shapes): 3 Muon reduce_scatters of
+  906 MB fp32 (2.27/2.44/2.42 ms) + 3 all_gathers (2.46–2.75 ms); lm_head 201 MB fp32
+  (0.86 + 0.6 ms); **13 bf16 reduce_scatters + 13 all_gathers of 100 MB each
+  (0.28–0.49 ms apiece, ~8.5 ms total) = wte + the 12 value_embeds** — every one of the
+  12 <code>value_embeds</code> is its own <code>nn.Embedding(32768, 1536)</code> bf16 parameter in one AdamW
+  group, so each does its own reduce_scatter + all_gather every update.
+- <b>NCCL protocol lever killed first (3 min)</b>: microbenchmark
+  (<code>/tmp/nccl_proto.py</code>, 2 ranks, the exact sizes) shows NCCL_PROTO auto ≈ Simple ≈
+  LL128 (906 MB rs 1.68/1.69/1.76 ms; the profiled in-training 2.27 ms is contention
+  with the concurrent Muon compute, not protocol); forcing LL is 2.8× worse. No switch
+  value there. (The _LL kernel names in the trace are misleading; auto does not pick LL
+  for these sizes.)
+- <b>Change</b>: new stacked path in <code>MuonAdamW._reduce_adamw/_compute_adamw</code>
+  (<code>NANOCHAT_ADAMW_STACK</code>, default off): when an AdamW group has &gt;1 same-shape params
+  of ≥1024 elements (only the 12 value_embeds match), write their grads into one padded
+  <code>(K, *shape)</code> buffer with <code>_foreach_copy_</code>, do ONE <code>reduce_scatter(AVG)</code> and ONE
+  <code>all_gather</code>, and copy back with <code>_foreach_copy_</code>. Rank r then owns whole parameters
+  <code>[r*chunk, (r+1)*chunk)</code> instead of a row slice of each — communication layout only:
+  the collective averages the same element pairs and the AdamW update is elementwise
+  with the same per-parameter state keys/dtypes and the same group hyper-parameters, so
+  every parameter is stepped to bitwise-identical values. Saves 24 NCCL launches and
+  ~8.5 ms → ~5 ms of collective time per update (1.3 GB moves at the big-collective
+  rate instead of 24 latency-exposed 100 MB collectives).
+- <b>Record-gate safety verified against the entry&#x27;s own capture code</b>
+  (<code>bench/nanochat_entry.py</code>): <code>hparams</code> comes from <code>param_groups</code> only (untouched);
+  <code>state_dtypes</code> collects the (key, dtype) SET across states (identical: exp_avg/
+  exp_avg_sq bf16 + fp32 entries unchanged); digests are the parameter SHAs (bitwise).
+- <b>Standalone bitwise verification</b> (<code>/tmp/test_adamw_stack.py</code>, 2 ranks, 3 updates,
+  grad accumulation, changing lr): all parameters bitwise identical switch off vs on —
+  for 12 params per group (recipe shape), and the padding paths 13 and 11; state dtype
+  sets equal; cross-rank parameters identical after every update.
+- <code>time</code> in flight (<code>/tmp/time-r14-astk</code>, scratch config <code>/tmp/sw-astk.json</code> = the
+  certified three switches + NANOCHAT_ADAMW_STACK=1); result below.
+- <b>Result (<code>/tmp/time-r14-astk</code>): NO GAIN.</b> Windows 0.9903/0.9953/0.9938 → smallest
+  ratio <b>1.0458</b> (certified tree: 0.989/0.9934/0.9935 → 1.0473; its own <code>time</code> run
+  0.9893/0.9944/0.9942 → 1.0468); speedup_vs_frozen_reference 1.0467; peak memory
+  94.04 → 94.61 GiB. Within noise, slightly negative. Change reverted (tree back to
+  the certified content); switch not adopted.
+- <b>Lesson (important for the remaining rounds)</b>: in the 3-phase pipelined optimizer
+  step, summing NCCL kernel durations overcounts — the 26 per-parameter ve/wte
+  collectives (~8.5 ms of kernel time in the profile) were almost entirely OVERLAPPED
+  with the Muon compute, so removing them moves the wall by ~0, while the stacked path
+  ADDS ~3 GB of staging copies (~1 ms) that cancel the small exposed remainder. Only
+  the critical path pays: the fused Muon compute (~35 ms, of which the Newton–Schulz
+  bf16 GEMMs are ~24 ms at ~480 TFLOPS effective), the first reduce_scatter and the
+  last all_gather tails, and the end-of-step copy-back. Next rounds attack those.</pre></details><details><summary><em class="">9.3 h</em><span>Round 15 — compile the fused optimizer steps with max-autotune (NANOCHAT_OPT_COMPILE_MODE)</span></summary><pre>- Target from the Round-14 lesson: the step&#x27;s critical path is the fused Muon compute
+  (~35 ms), dominated by the Newton–Schulz batched bf16 GEMMs (~24 ms, 45 nvjet calls
+  at ~480 TFLOPS effective — Inductor&#x27;s default mode takes extern-cuBLAS without
+  benchmarking). The two fused kernels are compiled with plain
+  <code>@torch.compile(dynamic=False, fullgraph=True)</code>.
+- <b>Change</b>: <code>NANOCHAT_OPT_COMPILE_MODE</code> (default unset) threaded into both fused-step
+  decorators as <code>mode=</code>. Screening <code>max-autotune-no-cudagraphs</code>, the same mode the
+  model already uses (a certified N1 change there): Inductor benchmarks Triton GEMM
+  templates vs cuBLAS per NS matmul shape and autotunes the pointwise/reduction
+  kernels. Kernel choice only — same graph, same math; numerics class N1 (verified in
+  a smoke test: both modes compile and run; values differ at kernel-rounding level,
+  muon |p| 722.1031 vs 722.1027).
+- Under the judge&#x27;s deterministic record, autotune is replaced by first-config
+  selection — the same situation as the certified model-side max-autotune.
+- <code>time</code> in flight (<code>/tmp/time-r15-optmode</code>, scratch config <code>/tmp/sw-optmode.json</code> =
+  the certified three switches + NANOCHAT_OPT_COMPILE_MODE=max-autotune-no-cudagraphs);
+  result below.</pre></details><details><summary><em class="">9.7 h</em><span>Round 16 — one-pass Muon staging (NANOCHAT_MUON_ONEPASS), screened on top of Round 15</span></summary><pre>- Target: the Muon path&#x27;s eager buffer shuffling on the step&#x27;s critical path —
+  <code>torch.stack(grads)</code> + <code>copy_</code> into the padded buffer before each reduce_scatter
+  (two passes over ~906 MB per group), and <code>torch.stack(owned)</code> + <code>copy_</code> into the
+  all_gather input before each gather (two passes over ~450 MB per group). ~5.4 GB of
+  removable copy traffic per update (the stacks sit serially before their
+  collectives, so unlike Round 14&#x27;s collectives this traffic is exposed).
+- <b>Change</b>: <code>NANOCHAT_MUON_ONEPASS</code> (default off) — <code>_foreach_copy_</code> the grads
+  straight into the padded stacked buffer (one pass), and pre-fill the all_gather
+  input with the owned parameters&#x27; current values so the fused kernel updates it in
+  place (one pass, no separate <code>stacked_owned</code>). Buffer placement only → bitwise
+  identical (tier N0 vs the current tree).
+- <b>Verified standalone</b> (<code>/tmp/test_muonepass.py</code>, 2 ranks, 3 updates, grad
+  accumulation, changing lr/momentum): all parameters bitwise identical for 6-param
+  groups (3+3 chunking) and 5-param groups (3+2 + padding), cross-rank identical;
+  single-rank path also bitwise identical (<code>/tmp/test_muonepass_ws1.py</code>). (A first
+  cut had a single-rank+switch-off bug — <code>stacked_params=updated_params</code> would have
+  been uninitialized — caught while reviewing the diff before testing and fixed.)
+- <code>time</code> in flight (<code>/tmp/time-r16-onepass</code>, scratch config <code>/tmp/sw-r16.json</code> = the
+  certified three + NANOCHAT_OPT_COMPILE_MODE + NANOCHAT_MUON_ONEPASS), compared
+  against Round 15 alone (windows 0.9887/0.9926/0.9921 → smallest 1.0476); result
+  below.
+- <b>Result (<code>/tmp/time-r16-onepass</code>): NO GAIN — reverted.</b> Combined stack windows
+  0.9884/0.9943/0.9950 → smallest ratio <b>1.0469</b>, vs Round 15 alone
+  0.9887/0.9926/0.9921 → 1.0476: windows 2–3 got ~1.7/2.9 ms WORSE, window 1 ~0.3 ms
+  better. The <code>_foreach_copy_</code> staging (multi_tensor_apply per tensor) is slower than
+  the single batched CatArray/copy_ kernels it replaced for these 96×9.4 MB groups,
+  eating the saved bandwidth. The R16 edit is reverted from the tree; switch not
+  adopted (bitwise N0 but performance-negative).
+- <b>Decision</b>: adopt Round 15 alone. Its gain is small (smallest ratio 1.0473 →
+  1.0476; windows −0.3/−0.8/−1.4 ms vs the certified check-run, consistent across all
+  three windows) but real, and it is already implemented, committed and time-verified.
+  Because it is an N1 change (optimizer kernel choice → new trajectory), adoption
+  requires gate-3 evidence: running the full <code>check</code> with the 4-switch SCRATCH config
+  (<code>/tmp/sw-optmode.json</code>) while <code>/submission/switches.json</code> stays at the certified
+  3-switch file — the submission only moves to the 4-switch file if that check PASSes.
+  On failure the certified stack remains submitted, unchanged.
+- Full check launched → <code>/tmp/check-r15-full</code> (tree 200f1e8, config
+  <code>/tmp/sw-optmode.json</code>); result below.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-nanochat-ds.html"><small>← 1.06×</small><strong>DeepSeek V4.1 Flash-1017</strong></a><a class="up" href="nanochat.html">↑ NanoChat</a><a class="next" href="t-nanochat-kimi.html"><small>1.03× →</small><strong>Kimi k3.1</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-nanochat-opus.html", "pts": [[1.36, 1.056, 4], [3.926, 1.097, 5]], "end": 10.0, "final": 1.2018}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-nanochat-sonnet.html", "pts": [[0.83, 1.026, 2], [0.83, 1.044, 3], [1.365, 1.066, 6], [2.175, 1.129, 7], [2.694, 1.147, 8], [3.013, 1.154, 9], [3.181, 1.159, 10], [3.63, 1.164, 11], [5.189, 1.186, 14], [5.693, 1.188, 15]], "end": 10.0, "final": 1.2141}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-nanochat-haiku.html", "pts": [[0.728, 1.005, 2], [1.35, 1.01, 5], [1.638, 1.01, 10], [1.942, 1.01, 12], [2.047, 1.012, 13], [2.212, 1.02, 14], [2.526, 1.021, 16], [2.848, 1.022, 17], [3.225, 1.028, 18], [3.855, 1.03, 19], [4.078, 1.049, 20], [4.336, 1.053, 21], [4.559, 1.054, 22], [4.85, 1.054, 23], [5.201, 1.061, 24], [5.461, 1.062, 25], [6.031, 1.066, 27], [6.244, 1.07, 28], [6.625, 1.073, 29], [6.777, 1.073, 30], [6.993, 1.075, 31], [7.18, 1.075, 33], [7.405, 1.075, 35], [7.902, 1.075, 36], [8.444, 1.075, 37], [8.798, 1.075, 38], [9.797, 1.076, 40]], "end": 9.999, "final": 1.0821}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-nanochat-astra.html", "pts": [[0.126, 1.065, 1], [0.748, 1.08, 2], [1.613, 1.093, 5], [2.001, 1.1, 6], [2.51, 1.1, 7], [2.919, 1.101, 8], [3.124, 1.101, 9], [3.793, 1.105, 10], [4.073, 1.105, 11], [4.636, 1.132, 12], [4.901, 1.135, 13], [5.162, 1.135, 14], [5.53, 1.135, 15], [6.041, 1.16, 16], [6.24, 1.176, 17], [6.628, 1.176, 18], [6.977, 1.195, 19], [7.39, 1.196, 20], [7.738, 1.196, 21], [8.014, 1.197, 22], [8.385, 1.197, 23], [9.221, 1.197, 24], [9.602, 1.197, 25], [9.816, 1.206, 26]], "end": 10.001, "final": 1.1342}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-nanochat-glm.html", "pts": [[1.325, 1.009, 2], [3.116, 1.022, 7], [4.38, 1.027, 9], [6.228, 1.027, 10], [7.66, 1.047, 11], [8.492, 1.048, 12], [9.298, 1.048, 14]], "end": 10.002, "final": 1.046}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-nanochat-kimi.html", "pts": [[0.88, 1.015, 3], [3.69, 1.026, 19], [3.912, 1.026, 20], [5.396, 1.026, 28], [5.769, 1.026, 29], [6.412, 1.026, 32], [6.764, 1.026, 33], [7.632, 1.026, 34], [7.78, 1.026, 35], [8.151, 1.026, 36], [8.604, 1.026, 37], [8.875, 1.026, 38], [9.109, 1.026, 39], [9.391, 1.026, 40], [9.606, 1.027, 41]], "end": 10.004, "final": 1.0264}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-nanochat-ds.html", "pts": [[0.553, 1.026, 1], [0.553, 1.026, 2], [0.866, 1.026, 4], [0.866, 1.026, 5], [0.927, 1.032, 7], [1.074, 1.032, 8], [1.683, 1.035, 10], [2.007, 1.038, 13], [2.261, 1.038, 14], [2.324, 1.04, 15], [2.383, 1.04, 16], [2.626, 1.04, 17], [2.705, 1.04, 18], [3.407, 1.051, 19], [3.532, 1.051, 20], [3.593, 1.051, 21], [3.835, 1.051, 22], [3.974, 1.051, 24], [4.099, 1.051, 25], [4.166, 1.051, 26], [4.27, 1.051, 27], [4.463, 1.051, 29], [4.64, 1.052, 31], [4.854, 1.052, 35], [4.944, 1.052, 36], [5.007, 1.052, 38], [5.079, 1.052, 39], [5.148, 1.052, 40], [5.377, 1.052, 41], [5.445, 1.052, 42], [5.562, 1.052, 43], [5.748, 1.052, 46], [5.94, 1.052, 47], [5.998, 1.052, 48], [6.074, 1.052, 49], [6.147, 1.052, 50], [6.211, 1.052, 51], [6.278, 1.052, 52], [6.467, 1.052, 53], [6.604, 1.052, 59], [6.667, 1.052, 60], [6.993, 1.055, 63], [7.485, 1.061, 64], [7.552, 1.061, 65], [7.618, 1.061, 66], [7.808, 1.061, 67], [7.975, 1.061, 71], [8.166, 1.061, 73], [8.268, 1.061, 74], [8.325, 1.061, 75], [8.516, 1.061, 76], [8.72, 1.061, 81], [8.814, 1.061, 82], [8.926, 1.061, 85], [9.01, 1.061, 88]], "end": 9.019, "final": 1.0599}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-nanochat-mm.html", "pts": [[3.554, 1.016, 7], [3.554, 1.022, 8], [4.279, 1.022, 9], [4.623, 1.043, 10], [5.089, 1.043, 11], [5.408, 1.072, 12], [6.349, 1.082, 13], [7.751, 1.091, 14], [7.938, 1.095, 15], [8.818, 1.098, 16], [8.818, 1.1, 17], [9.649, 1.128, 18], [9.917, 1.128, 19]], "end": 10.004, "final": 1.1268}], "focus": "glm", "xmax": 10.5, "aria": "GLM-5.3 on NanoChat: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

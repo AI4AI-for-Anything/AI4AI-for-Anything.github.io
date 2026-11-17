@@ -1,0 +1,309 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepSeek V4.1 Flash-1017 · R3 · RSI-Infra Bench</title><meta name="description" content="DeepSeek V4.1 Flash-1017 on R3: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="on">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="r3.html">R3</a><span>/</span><b>DeepSeek V4.1 Flash-1017</b></nav><h1>DeepSeek V4.1 Flash-1017 <em>1.19×</em></h1><p class="lede">Harness: DeepSeek's own harness · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.19×</dd></div><div class=""><dt>Tier</dt><dd>N0</dd></div><div class=""><dt>Self-best</dt><dd>1.28×</dd></div><div class=""><dt>Rounds</dt><dd>16</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$1.93</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>182 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.5 M</dd></div><div class=""><dt>Requests</dt><dd>441</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-r3-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.41×</small></a><a class="chip" data-k="sonnet" href="t-r3-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.96×</small></a><a class="chip" data-k="haiku" href="t-r3-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.64×</small></a><a class="chip" data-k="mm" href="t-r3-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.62×</small></a><a class="chip" data-k="astra" href="t-r3-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.47×</small></a><a class="chip" data-k="glm" href="t-r3-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.45×</small></a><a class="chip" data-k="kimi" href="t-r3-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.41×</small></a><a class="chip self" data-k="ds" href="t-r3-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.19×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Text-decode CUDA graph</dt><dd>tried, reverted: bitwise identical, 1.42× on the timing side, but backward OOM in the deterministic record run; only the one-graph-per-full-batch version passed once (1.28×), OOM again on rerun, finally turned off</dd><dt>Reward wait hidden behind forward</dt><dd>✓ full check 1.14× → 1.17×</dd><dt>Rollout-side bitwise fused kernels</dt><dd>tried, reverted: RoPE fusion 1.175× (no change), RMSNorm tail no gain and made the record run OOM</dd><dt>Train-side bitwise kernels / freeing memory</dt><dd>✗ (peak 130.7 GiB)</dd><dt>Other main levers</dt><dd>static KV length read once per forward, timestep <code>t.repeat(n)</code>, packed scalars read once</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>16 sections</small></summary><div class="rounds"><details><summary><em class="">0.4 h</em><span>Round 1 — profile the unchanged reference (18:18–19:05)</span></summary><pre>Command: <code>bench.py profile --tree /submission/r3 --from 10 --iters 2 --out /tmp/p1</code> (2 optimizer steps = gen step 10 +
+refine step 11, rank 0, torch.profiler). The bench&#x27;s own <code>key_averages()</code> table never finished (rank 0 spun in
+<code>key_averages</code> for &gt;6 min after the 3.6 GB trace was written); I killed the run and analysed the trace myself
+(<code>/submission/analyze_trace.py</code>, <code>analyze3.py</code>; raw numbers in <code>/submission/logs/analysis1.txt</code>).
+
+Findings (trace = 54.09 s for 2 steps, i.e. 27 s/step under the profiler; unprofiled reference is 23.4 s/step):
+
+* <b>GPU busy only 26.65 s of 54.09 s (49.3%)</b>; the 27.45 s idle is spread over ~1.7 M tiny gaps (top-25 gaps sum to
+  only 3.06 s). → the step is <b>host/launch bound</b>, not GPU bound.
+* 1.74 M GPU kernels in 2 steps (~870 k/step); <code>cudaLaunchKernel</code> 1.32 M calls = 8.33 s of CUDA API time (6.3 µs each),
+  <code>cudaStreamSynchronize</code> <b>263 649 calls = 9.13 s</b> (34.6 µs each), <code>cudaFree</code> 399 = 1.27 s, <code>cudaMalloc</code> 402 = 0.56 s.
+  Total CUDA API 21.2 s of 54.1 s; the remaining ~33 s is Python/ATen dispatch + allocator.
+* <code>aten::item</code> 244 496 calls (9.76 s self) + <code>aten::nonzero</code> 19 317 ≈ the 263 330 <code>Memcpy DtoH (Device-&gt;Pinned)</code>:
+  every one is a full stream drain. They come from (a) <code>_static_kv_cache_attention</code> /
+  <code>_merge_static_kv_prefix_and_query</code>: ~7 <code>.item()</code>+~6 mask-<code>nonzero</code> per layer per forward, and (b)
+  <code>rollout_controller.add_latent</code> storing *0-dim CUDA tensors* in <code>[timestep]*1024</code> / <code>[dt]*1024</code> lists that
+  <code>_convert_to_tensors</code> later turns into <code>torch.tensor(list)</code> → one D2H per element (bins 33/92: 16 k–20 k syncs in a
+  single burst).
+* Phase map (0.5 s bins, see analysis1.txt): step 10 = text-gen 0–8.5 s (<b>19% GPU busy</b>, 22 k kernels/0.5 s) +
+  denoise 8.5–15.5 s (65% busy) + reward wait 1.26 s + pack + train 16.5–19 s (~100% busy);
+  step 11 = ViT/VAE + text-gen 19–31 s (19% busy) + denoise 31.5–45 s (65%) + reward wait 1.22 s + pack (20 k syncs)
+  + train 47–54 s.
+* Text generation is 37.3 it/s in the *unprofiled* reference log (<code>Thinking...: 385/385 [00:10, 37.35it/s]</code>), i.e.
+  26.8 ms per token for a 196/385-token loop whose GPU work is only ~19% → ~15.6 s of the 45 s per 2 steps is
+  launch-bound autoregressive decoding (28 layers × ~60 ATen ops per token).
+* Reward service: ~1.25 s per step exposed (16 requests/step over 4 workers, ~1 s each), not overlapped.
+* Kernel time top list: nvjet GEMMs 8.0 s, elementwise/index/copy ~7 s, flash-attn 1.5 s, NCCL 1.35 s.
+
+Conclusion for round 2: attack the <b>scalar-read stream drains</b> (one <code>.item()</code>/mask-<code>nonzero</code> per layer per forward,
+and the per-element <code>torch.tensor(list_of_cuda_scalars)</code> in packing) — pure host-side work, invisible to numerics.
+Later rounds: CUDA-graph replay of the fixed-shape per-token / per-denoise-step forward (same kernels, bitwise) is the
+only lever left for the remaining ~19 s/step of launch+dispatch overhead.</pre></details><details><summary><em class="">0.7 h</em><span>Round 2 — remove scalar-read stream drains in rollout/packing (18:25–18:58)</span></summary><pre>Change (commit d0b3992, N0 by construction):
+* <code>_StaticLensHint</code> in <code>modeling/bagel/qwen2_navit.py</code>: the StaticKVCache sequence lengths are constant across the
+  layers of one forward, so they are read once per forward (one <code>.tolist()</code>) and the derived
+  <code>cu_seqlens</code>/<code>max_seqlen</code>/gather-index tensors are built on the host; the varlen key/value assembly uses
+  <code>index_select</code>/<code>index_copy_</code> with those precomputed indices instead of mask-based <code>index_put_</code> (same bytes to the
+  same positions). Removes ~7 <code>.item()</code> + ~6 mask-<code>nonzero</code> per layer per forward.
+* <code>generate_text_batch</code>: 3 <code>.tolist()</code> per token instead of ~4 <code>.item()</code> per sequence per token.
+* <code>rollout_controller.add_latent</code>: <code>dt</code>/<code>timestep</code> were 0-dim CUDA tensors expanded to <code>[t]*1024</code> and then fed to
+  <code>torch.tensor(list)</code> -&gt; 1024 D2H drains per latent; now read once per latent.
+
+Evidence: <code>bench.py time --tree /submission/r3 --out /tmp/t2</code> -&gt; status ok,
+<code>speedup_vs_frozen_reference = 1.1257</code>, windows 20.437 / 20.868 / 21.064 s per step vs frozen 23.237 / 23.479 /
+23.495 -&gt; per-window ratios 1.1371 / 1.1251 / 1.1154, min 1.1154 (&gt; bar 1.051). Peak allocated 130.72 GiB
+(reference 131). Step times now gen ~12.7-13.2 s, refine ~27.8-28.5 s (was ~14.5 / ~30.5).
+<code>check --quick</code> (bitwise, 14 steps) started at 18:59 -&gt; /tmp/c2.
+
+Round 2 verdict: <code>check --quick --tree /submission/r3</code> -&gt; <b>PASS</b> (bitwise identical to the frozen reference record,
+/tmp/c2). Kept.</pre></details><details><summary><em class="">1.0 h</em><span>Round 3 — the per-element `torch.tensor([t]*n)` in the denoise loop (19:05–19:16)</span></summary><pre>Profile follow-up: the denoise phase showed ~9 000 <code>aten::item</code>/s that I could not attribute to the attention. They
+are <code>modeling/bagel/bagel.py</code> lines 825/918/1022: <code>timestep = torch.tensor([t] * x_t.shape[0], device=...)</code> with <code>t</code> a
+0-dim CUDA tensor -&gt; one D2H drain per element, x_t.shape[0] = 4104 per denoising step = 66k (generate) / 86k
+(refine) drains per step, ~5 s of the 9.1 s of <code>cudaStreamSynchronize</code> in the profile. Fixed with <code>t.repeat(n)</code>
+(same float32 values, one kernel). Commit (N0).</pre></details><details><summary><em class="">1.7 h</em><span>Round 4 — CUDA-graph replay of the text-decoding token step (19:16–20:00)</span></summary><pre><code>_TokenStepGraph</code> (modeling/bagel/bagel.py): the per-token forward of <code>generate_text_batch</code> has fixed shapes (one
+token per active sequence), so it is captured once per (StaticKVCache, #active sequences) and replayed. Same
+kernels, same arguments, same order -&gt; same bits; only token ids, positions, the active cache rows and the cache
+lengths change, and those are copied into static buffers before the replay (<code>eff</code> is refreshed from the live
+<code>seq_lens</code>). Sampling/RNG stays outside the graph. <code>_StaticLensHint</code> is threaded through <code>forward_inference</code> so the
+captured region contains no device-&gt;host read.
+
+Measurements: text decoding <b>127 tok/s</b> (was 37.3): the 385-token think phase is 3.0 s instead of 10.3 s.
+<code>check --config {OPT_GRAPH_GEN=1, PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True}</code> -&gt; <b>PASS</b>, bitwise identical
+(3200 tensors, 235 reward requests), speedup 1.085 (only the full-batch graph was enabled, <code>n==batch_size</code>, which
+turned out to lose most of the win because refine-round sequences finish early -&gt; removed again). The run is at the
+memory limit (reference peak 130.6/139.8 GiB reserved, plus ~5 GiB of reward service on GPU 0), so the first
+graph attempt OOM&#x27;ed in <code>loss.backward</code> at step 7 from allocator fragmentation; <code>expandable_segments:True</code> fixes it
+and the 14-step record run then peaked at 131.26 GiB allocated with no OOM. <code>/tmp/c3</code> (a code bug, UnboundLocal)
+and <code>/tmp/t3</code> (OOM) are the failed attempts.</pre></details><details><summary><em class="">2.6 h</em><span>Round 5 — what the graph is worth, and two N1 traps (20:00–20:55)</span></summary><pre>* <code>time</code> with the graph for all sequence counts but <b>without</b> <code>expandable_segments</code> (/tmp/t3): step times gen
+  10.0–12.7 s / refine 23.1–24.0 s (vs 12.7 / 28.2 without the graph) — the refine step is the win, because its
+  385-token think phase goes 10.3 s -&gt; 3.0 s. That run <b>OOM&#x27;ed at step 7</b> in <code>loss.backward</code> (allocator
+  fragmentation; the reference peak is 130.6 of 139.8 GiB reserved and the reward service holds ~5 GiB on GPU 0).
+* <code>check</code> with graph + <code>expandable_segments</code> (/tmp/c4, graph only when #active == batch): <b>PASS</b>, bitwise
+  identical, speedup 1.085. So expandable_segments is safe with graph capture but costs ~10 % (it also makes the
+  later all-n run only 1.14).
+* <code>check</code> with the graph for all n + expandable (/tmp/c5): INCORRECT, speedup 1.144.
+* <code>check</code> with <b>no graph at all</b> (empty switch file, /tmp/c6): also INCORRECT, speedup 1.144 — same signature
+  (172/235 reward requests differ). So the graph was not the culprit.
+* Root cause found by comparing the per-step logs with the reference record: the first difference is
+  <code>Total norm: 0.9476192593574524</code> vs <code>0.9476318359375</code> at step 2 while that step&#x27;s losses are bitwise identical.
+  The cause is my <code>per_token_logps = raw_per_token_logps</code> reuse: the same *forward* expression, but one shared
+  <code>log_softmax</code> node sums the two outgoing gradients <b>inside</b> the node (<code>dy1+dy2</code> then <code>-p*sum</code>) instead of adding
+  two separate gradients, which rounds differently -&gt; N1. The early <code>output_dict.pop(&quot;logits&quot;)</code> before the backward
+  also perturbs the allocator layout. Both reverted (commit f3010e6). Lesson: any change to the autograd topology,
+  even a provably identical forward, is N1.</pre></details><details><summary><em class="">3.0 h</em><span>Round 6 — final state (20:55–21:20)</span></summary><pre>* Reverted the two N1 traps (commit f3010e6): <code>train/online_rl.py</code> is back to the reference expression for
+  <code>per_token_logps</code> and keeps the ref/policy logits alive.
+* <code>check --quick</code> on the final tree with the empty switch file (<b>/tmp/c8</b>): <b>PASS</b>, bitwise identical
+  (3200 tensors, 235 reward requests). Together with /tmp/c6&#x27;s timing run (windows 19.926 / 20.519 / 20.391 s per
+  step vs frozen 23.237 / 23.479 / 23.495 -&gt; per-window ratios 1.166 / 1.144 / 1.152, <b>speedup 1.1442</b>) this is the
+  submitted configuration. /tmp/c2 also PASSed an earlier, smaller subset.
+
+# FINAL SUMMARY
+
+<b>Submission</b>: <code>/submission/r3</code> @ commit f3010e6, <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {}}</code> (no switches).
+Evidence: <code>/tmp/c8</code> <code>check --quick</code> PASS (bitwise, tier N0) and <code>/tmp/c6</code> <code>check</code> speedup <b>1.1442</b> (gate 1 passed;
+that run&#x27;s bitwise failure came from changes that f3010e6 reverts, and the same tree without them is /tmp/c8 PASS).
+
+Gains by change (all N0, all in the tree):
+1. <code>_StaticLensHint</code> + <code>index_select</code>/<code>index_copy_</code> varlen assembly: one device-&gt;host read of the StaticKVCache
+   lengths per forward instead of ~7 <code>.item()</code> + ~6 mask-<code>nonzero</code> per layer. (commit d0b3992)
+2. 3 <code>.tolist()</code> per text-decoding token instead of ~4 <code>.item()</code> per sequence per token; <code>add_latent</code> reads the
+   0-dim <code>dt</code>/<code>timestep</code> CUDA tensors once per latent instead of once per latent token. (d0b3992)
+3. <code>timestep = t.repeat(n)</code> instead of <code>torch.tensor([t]*n)</code> (4104 stream drains per denoising step). (7fef84f)
+Combined measured: 23.40 -&gt; 20.28 s/step mean (frozen reference -&gt; /tmp/c6), speedup 1.1442, peak 130.7 GiB (same as
+the reference).
+
+Direction that works but is not in the submission: <b>CUDA-graph replay of the text-decoding token step</b>
+(commit 90bd1cd, switch <code>OPT_GRAPH_GEN</code>, default off). It is bitwise identical (/tmp/c4 PASS) and takes text decoding
+from 37.3 to 110-127 tok/s, but every attempt to use it for *all* sequence counts OOM&#x27;ed in <code>loss.backward</code>
+(/tmp/t3, /tmp/c7: &quot;Tried to allocate 740 MiB&quot;, 130.0-130.5 GiB allocated, 0.5-0.6 GiB free — the reference itself
+sits at 130.6 GiB allocated / 133.7 GiB reserved of 139.8 with the reward service on the same GPU). With
+<code>expandable_segments:True</code> it is memory-safe but the allocator option costs ~10 %, which cancels the gain
+(/tmp/c4 speedup 1.085, /tmp/c5 1.144). With more memory headroom this is the direction to take: the graph removes
+~1900 kernel launches per token (the step is ~50 % host-bound: 1.32 M <code>cudaLaunchKernel</code> + 264 k
+<code>cudaStreamSynchronize</code> per two steps).
+
+Other directions measured and rejected: <code>expandable_segments:True</code> (~10 % slower here); sharing one log_softmax node
+between the policy loss and the KL term (N1: changes backward rounding, <code>Total norm</code> 0.9476192 vs 0.9476318);
+dropping the full-vocabulary logits early (N1 by allocator-layout perturbation of the backward); per-denoising-step
+CUDA graph (<code>OPT_GRAPH_FLOW</code>, implemented but never enabled: its capture cost is 1-3 forwards against only ~3.6 s of
+host time per refine step).</pre></details><details><summary><em class="">3.5 h</em><span>Round 7 — the graph OOM is allocator fragmentation, not the graph&#x27;s own memory (21:20–21:50)</span></summary><pre>Three more attempts to run the CUDA-graph token step at all sequence counts <b>without</b> <code>expandable_segments</code>
+(/tmp/c9: + ~0.9 GiB freed by dropping the dead ref/policy logits; /tmp/c10: + capture without
+<code>torch.cuda.graph</code>&#x27;s <code>gc.collect()</code>/<code>torch.cuda.empty_cache()</code> churn, via a hand-rolled
+<code>_capture_graph()</code> side-stream capture) all OOM&#x27;ed in <code>loss.backward</code> on the same 740 MiB allocation with
+129.8–130.0 GiB allocated and <b>1.7–2.0 GiB &quot;reserved by PyTorch but unallocated&quot;</b> — i.e. the graph pools come
+back to the allocator as unusable fragments, while the same tree without the graph runs at 130.6 GiB. Both
+mitigations are kept in the tree (they are N0 and give ~0.9 GiB of headroom and cheaper captures: gen steps
+9.9–10.2 s / refine 21.4–22.7 s in /tmp/c10, i.e. windows ≈16 s ⇒ ≈1.46 if it ran).</pre></details><details><summary><em class="">4.4 h</em><span>Round 8 — the graph is bitwise correct, but it cannot be afforded on this memory budget (22:00–22:45)</span></summary><pre>* <code>check --config {OPT_GRAPH_GEN=1, expandable_segments:True}</code> (<b>/tmp/c11</b>): <b>PASS, bitwise identical</b> — so the
+  CUDA-graph token step is N0 for every sequence count (the earlier INCORRECT was entirely the log_softmax reuse).
+  Speedup only <b>1.0765</b> (windows 18.26 / 19.00 / 21.82): <code>expandable_segments:True</code> costs ~15 % here (refine steps
+  25.3–26.0 s vs 21.4–22.7 s without it), which cancels the graph&#x27;s gain.
+* Without <code>expandable_segments</code>, with the dead ref/policy logits dropped <b>and</b> <code>torch.cuda.empty_cache()</code> before
+  the backward (<b>/tmp/c12</b>): still OOM, but it got to step 13 with **windows ≈15.6 s per step (gen 9.6–10.6 s,
+  refine 21.7–22.2 s)** — i.e. ≈1.45–1.49 of the frozen reference. The OOM is a ~1 GiB allocator-fragmentation
+  shortfall: 129.8 GiB allocated, 1.7 GiB &quot;reserved but unallocated&quot; split into blocks that cannot serve the
+  backward&#x27;s 740 MiB activation allocation, 0.6 GiB free (the reference itself runs at 130.6 GiB allocated with the
+  judge&#x27;s reward service holding ~5 GiB on GPU 0).
+* <code>max_split_size_mb:640</code> to stop block splitting (<b>/tmp/c13</b>): worse — 6.2 GiB stranded, OOM at step 0.
+* Conclusion: on this 4-GPU budget the graph cannot run without <code>expandable_segments</code>, and with it the tree is
+  slower than the plain one (1.08 vs 1.14). All of it stays in the tree behind <code>OPT_GRAPH_GEN</code> (default off) with
+  the reasoning recorded above; the submitted configuration is the plain one.
+
+# FINAL STATE (updated)
+
+<code>/submission/r3</code> @ 2e87462 (all graph work behind <code>OPT_GRAPH_GEN</code>, default off; the N0 rollout/packing/denoise
+changes are unconditional), <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {}}</code>.
+Evidence for exactly this configuration: <b>/tmp/c8 <code>check --quick</code> PASS (bitwise, N0)</b> on this tree, and
+<b>/tmp/c6 <code>check</code> speedup 1.1442</b> (windows 19.93 / 20.52 / 20.39 s per step vs frozen 23.24 / 23.48 / 23.50).
+A final <code>check</code> on the submitted configuration (<b>/tmp/c14</b>) — gates 1 <b>and</b> 2 on exactly this tree + switch file:
+<b>PASS, bitwise identical (N0, 14 optimizer steps, 3200 tensors, 235 reward requests), speedup 1.1403</b>
+(windows 19.73 / 20.59 / 20.55 s per step vs frozen 23.24 / 23.48 / 23.50; gate-1 bar 1.051).
+
+Kept N0 gains: StaticKVCache lengths read once per forward (+ precomputed varlen indices instead of mask gathers);
+batched per-token host reads in text decoding; <code>timestep = t.repeat(n)</code> in the denoiser.
+Rejected with reasons: CUDA-graph token step (N0 and ~1.46, but needs <code>expandable_segments</code> for memory, which costs
+more than it saves here); shared log_softmax node (N1 through the backward); logits dropped early (N1 through
+allocator layout); <code>expandable_segments</code> alone (+memory safety, ~15 % slower); <code>max_split_size_mb</code> (strands GiB).</pre></details><details><summary><em class="">5.7 h</em><span>Round 9 — hide the reward-service latency under the training forwards (23:00–00:00)</span></summary><pre>Profile of the current best version (no graph): the rollout submits one GenEval request per sample at its end and
+then <b>blocks on the four futures before packing</b>; the service needs ~1.2 s per step (16 requests/step over 4
+workers) and the training process idles for all of it. The per-step bars from the profiled trace are the 1.22-1.26 s
+gaps right before the advantage all-reduce.
+
+Change (commit dbb9af2, N0): the reward collection + advantage computation move out of the pre-packing block and
+into the training loop, right after the reference and policy forwards. <code>pack_batch</code> then packs advantage *slots*
+(writes 0.0 and records <code>(offset, length, (sample, round))</code>, <code>_text_adv_slots</code> / <code>_image_adv_slots</code>) which
+<code>_resolve_deferred_advantages()</code> fills in place with the same floats once the futures resolve — identical values in
+identical positions, only written later. The forward does not depend on the advantages, so nothing else moves.
+
+Measured on a copy of the tree (<code>check --tree /tmp/r3exp</code>, <b>/tmp/c16</b>): <b>PASS, bitwise identical</b> (3200 tensors,
+235 reward requests), <b>speedup 1.174</b> (windows 19.42 / 19.56 / 20.01 s per step vs frozen 23.24 / 23.48 / 23.50)
+against 1.1403 (windows 19.73 / 20.59 / 20.55) for the tree before it: the refine step lost the 2 s the reward wait
+used to add. Promoted to <code>/submission/r3</code>.
+
+Also this session: tried to unblock the ~1.46 CUDA-graph version with one shared persistent graph pool
+(commit 5421108) — it still OOMs (1.77 GiB stranded, /tmp/c15), so the graph stays behind <code>OPT_GRAPH_GEN</code> (off).</pre></details><details><summary><em class="">6.1 h</em><span>Round 10 — re-profile the best version; the remaining idle is only the decoding loop (00:00–00:25)</span></summary><pre><code>bench.py profile --tree /submission/r3 --out /tmp/p2 --from 10 --iters 2</code> (raw numbers in
+<code>/submission/logs/analysis2.txt</code>), compared with the round-1 profile of the reference:
+
+| | reference (p1) | now (p2) |
+|---|---|---|
+| span of 2 profiled steps | 54.09 s | <b>42.25 s</b> |
+| GPU busy | 26.65 s (49.3 %) | 26.26 s (<b>62.2 %</b>) |
+| GPU idle | 27.45 s | <b>15.98 s</b> |
+| kernels | 1.74 M | 1.21 M |
+| <code>aten::item</code> (stream drains) | 244 496 | <b>4 016</b> |
+| DtoH copies | 263 330 | 6 404 |
+| largest idle gap | 1.26 s (reward wait) | 0.23 s |
+
+Phase utilisation now: <b>denoise 93–95 % GPU busy</b> (it was 65 % — the <code>t.repeat</code> fix and the hint work removed the
+whole host deficit there, so a per-denoising-step CUDA graph would gain nothing: the <code>OPT_GRAPH_FLOW</code> code stays
+disabled), training 100–115 %, and the two text-decoding stretches still at <b>21 % busy</b> — 79 % of the remaining
+16 s of idle per two steps is the 196/385-token autoregressive loop, which launches ~1900 kernels per token.
+That is exactly what the CUDA-graph token step fixes (1.46 measured) and what the 1 GiB memory shortfall blocks;
+the alternative left is hand-written bitwise-fused norm/RoPE kernels (~35 % of the ops in that loop), which is a
+multi-hour job with a bitwise-reduction contract, not a round.
+
+Submission unchanged and validated (tree digest 936a2568… == /tmp/c16&#x27;s tested tree): <b>PASS, bitwise, 1.174</b>.</pre></details><details><summary><em class="">6.6 h</em><span>Round 11 — fused RoPE kernel: bitwise, but the decoder is GEMM-dispatch bound, not elementwise bound (00:25–01:00)</span></summary><pre>The profile left the text-decoding loop as the only idle stretch (21 % GPU-busy, 79 % of the residual idle) and
+CUDA graphs are memory-blocked, so I took the custom-kernel rung: one Triton kernel per tensor replacing
+<code>apply_rotary_pos_emb</code>&#x27;s 12 ATen dispatches (neg, cat, 2 muls, add, casts) in the MoT inference path.
+
+* Numerics contract <b>bitwise</b>, established with a probe (<code>/tmp/probe_rope.py</code>, run under the GPU lock): the
+  reference is three separate bf16 elementwise kernels, so each product is rounded to bf16 before the add; the
+  kernel reproduces exactly those three rounding points with an explicit round-to-nearest-even (integer trick:
+  <code>(u + 0x7FFF + lsb) &amp; ~0xFFFF</code>, verified equal to <code>torch.Tensor.to(bfloat16)</code> on 65 k values). Note
+  <code>x.to(tl.bfloat16)</code> was *not* reproducible in the fused kernel (a <code>f32→bf16→f32</code> round trip inside one kernel gets
+  folded away by Triton), which is why the explicit integer rounding is used. Probe: BITWISE for T=1/4/128/4104 at
+  the production shapes <code>[T,28,128]</code>/<code>[T,4,128]</code> and <code>cos/sin [T,128]</code>.
+* End to end (<code>check --tree /tmp/r3exp --config {OPT_FUSED_ROPE=1}</code>, <b>/tmp/c17</b>): <b>PASS, bitwise identical</b>,
+  speedup <b>1.1751</b> (windows 19.44/19.86/19.99) — i.e. <b>no change</b> against 1.174 (windows 19.42/19.56/20.01).
+  The token rate is 43.1 it/s with *and* without the kernel: at <code>[4,28,128]</code> an ATen elementwise dispatch is only
+  ~2-3 µs, while a Triton launch costs ~12 µs, so replacing 12 small ops with 2 launches saves ~0.1 ms/token.
+  Reverted (the experiment tree is byte-identical to the submission again).
+
+<b>What that means:</b> the 23 ms/token is dominated by the 140 <code>aten::linear</code> calls per token (45 µs each in the
+profile: dispatch plus a <code>[4,3584]×[3584,18944]</code>-class GEMM at ~5 % of peak) — 6.3 ms — and by the rest of the
+~1900-op layer body. No elementwise fusion moves that; only collapsing the launches (CUDA graphs) or merging the
+q/k/v projections into one GEMM (different GEMM shape ⇒ different rounding ⇒ N1) would.
+
+Round 12 then measured what the graph is really worth once the memory trick was found (freeing the two dead
+full-vocabulary logits immediately before the backward): <b>gate 1 = 1.4232</b>, windows 15.42/16.50/16.12 s per step.
+It still cannot ship: the *record* run (deterministic kernels, which need ~1–2 GiB more) OOMs with 2.32 GiB stranded
+and 145 MiB free, <code>empty_cache()</code> before the backward makes it worse, and <code>expandable_segments</code> either costs ~20 %
+(1.08) or, combined with the shared graph pool, trips a PyTorch allocator internal assert. So the graph&#x27;s +21 % is
+real, bitwise-correct and available via <code>OPT_GRAPH_GEN=1</code>, but needs ~2 GiB of per-GPU headroom that this machine does
+not have. The submitted configuration is the validated optimum under that constraint.</pre></details><details><summary><em class="">7.3 h</em><span>Round 12 — the CUDA-graph version reaches 1.4232, then dies on gate 2 (01:00–01:40)</span></summary><pre>Following the memory analysis, the graph was retried with the two dead full-vocabulary logits freed **immediately
+before <code>loss.backward()</code>** (where the backward&#x27;s two 740 MiB log-softmax gradients need contiguous room) instead of
+early:
+
+* <b>/tmp/c18</b> (<code>OPT_GRAPH_GEN=1</code>, no allocator flags): gate 1 <b>PASS at speedup 1.4232</b> — windows
+  15.42 / 16.50 / 16.12 s per step (generation steps 9.8–10.5 s, refine 20.8–22.5 s) against 19.42 / 19.56 / 20.01
+  for the submitted tree. That is the real value of the graph: <b>+21 %</b>. But the *record* run then OOM&#x27;ed
+  (129.78 GiB allocated, 2.32 GiB stranded, 145 MiB free): the deterministic-mode kernels (flash-attn&#x27;s forced
+  deterministic backward) need ~1–2 GiB more than the timing run, and the allocator cannot hand out the 740 MiB
+  block from the stranded pieces.
+* <b>/tmp/c19</b>: adding <code>torch.cuda.empty_cache()</code> before the backward (to defragment) makes the *timing* run OOM
+  earlier — the allocator&#x27;s cache serves the backward&#x27;s big blocks better than fresh <code>cudaMalloc</code> at this footprint.
+* <b>/tmp/c20</b>: <code>expandable_segments:True</code> (which does fix the memory, /tmp/c11) combined with the shared graph pool
+  hits a PyTorch allocator internal assert (<code>it-&gt;second-&gt;use_count &gt; 0</code>, CUDACachingAllocator.cpp:2630) — the
+  combination is not supported. With one pool per graph instead, <code>expandable_segments</code> costs ~20 % on this workload
+  (1.08), i.e. worse than the submitted 1.174.
+
+Conclusion: the graph&#x27;s +21 % is real and bitwise-correct but needs ~2 GiB of extra headroom in deterministic mode
+that these 4 GPUs do not have (the judge&#x27;s reward service holds ~5 GiB on GPU 0 and the reference itself peaks at
+131.3 GiB of 139.8). The switch stays in the tree, default off; <code>/submission/r3</code> and <code>switches.json</code> are unchanged
+from the validated 1.174 state (all of this round ran on the <code>/tmp/r3exp</code> copy, which is byte-identical again).</pre></details><details><summary><em class="">7.9 h</em><span>Round 13 — the graph ships: full-batch replay + late logits frees, 1.2768 validated (01:40–02:20)</span></summary><pre>The memory blocker was fragmentation of the backward&#x27;s two 740 MiB <code>[n_tokens, vocab]</code> log-softmax gradients, not the
+total (the graph version allocated *less* than the reference yet failed). Three experiments isolated it:
+
+* <code>/tmp/c20</code> shared graph pool + <code>expandable_segments</code> and <code>/tmp/c21</code> shared pool alone -&gt; both die with PyTorch&#x27;s
+  <code>it-&gt;second-&gt;use_count &gt; 0</code> (CUDACachingAllocator.cpp:2630): a shared pool is simply not usable in this version.
+  Reverted (commit notes it in <code>bagel.py</code>).
+* <code>/tmp/c18</code>: with a per-graph pool and the two dead full-vocabulary logits freed <b>immediately before</b>
+  <code>loss.backward()</code>, the timing run passes and gate 1 is <b>1.4232</b> (windows 15.42/16.50/16.12) — the graph&#x27;s full
+  value, +21 %. The *record* run still OOMs (deterministic kernels need ~1-2 GiB more; 2.32 GiB stranded).
+* <code>/tmp/c22</code>: additionally replaying <b>only the full-batch token step</b> (one graph per rollout instead of up to
+  four, so a quarter of the pool churn) fits in deterministic mode: <b>PASS, bitwise identical (N0), speedup 1.2768</b>
+  (windows 17.13 / 18.39 / 17.84 vs 19.42 / 19.56 / 20.01 before). Text decoding goes 43 -&gt; 110 tok/s while all
+  four sequences are active; the tail of each generation stays eager.
+
+Shipped: <code>/submission/r3</code> @ 3c4b0b0 with <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {&quot;OPT_GRAPH_GEN&quot;: &quot;1&quot;}}</code>,
+tree digest <code>d1e3403b…</code> == /tmp/c22&#x27;s tested tree.</pre></details><details><summary><em class="">9.0 h</em><span>Round 14 — fused RMSNorm epilogue: bitwise, not faster, and it tips the memory balance (03:00–03:20)</span></summary><pre>With the graph covering the full-batch stretch, the only host-bound remainder is the eager tail of decoding, so I
+fused the RMSNorm epilogue (the reference spends 8 dispatches per norm: bf16-&gt;fp32 cast, pow, mean, rsqrt, add, mul,
+fp32-&gt;bf16 cast, weight mul). PyTorch keeps <code>pow(2).mean(-1)</code> — the reduction order that has to match bit for bit —
+and one Triton kernel does the rest with two explicit round-to-nearest-even points. Probe (<code>/tmp/probe_norm.py</code>,
+production shapes [1,3584] [4,3584] [112,128] [4096,3584] [4104,3584]): <b>bitwise identical</b> (Triton&#x27;s <code>tl.rsqrt</code> does
+match <code>torch.rsqrt</code>), used only when gradients are off and both input and weight are bf16.
+
+End to end it is a <b>no-gain regression</b>: timing steps gen 10.4-11.3 s / refine 25.1-27.7 s against 10.4-11.0 /
+24.0-25.8 for the shipped tree, and the *record* run then OOM&#x27;ed (the same 740 MiB fragmentation, 2.07 GiB stranded)
+because the extra kernel changes the allocator layout at a knife edge that has ~0.5 GiB of slack. Discarded; the
+experiment tree is deleted and <code>/submission</code> is untouched.
+
+# STATUS: shipped optimum reached
+
+Every remaining lever is now measured and blocked:
+* tail-of-decoding graph coverage: +11 % (1.4232, /tmp/c18) but every variant (4 graphs, 2 graphs, one re-captured
+  graph, one re-capture only) OOMs in the deterministic record run — one capture per rollout is this machine&#x27;s limit;
+* <code>expandable_segments</code> (fixes the memory): ~20 % slower, 1.08; shared/reused graph pools: PyTorch allocator assert;
+* elementwise fusion (RoPE, RMSNorm epilogue): bitwise but 0 %, because at [4, ...] shapes an ATen dispatch is cheaper
+  than a Triton launch and because the graph already covers the bulk;
+* the denoise (93-95 % GPU busy, ~300 TFLOPS effective) and the training (100-115 %) are at the hardware limit;
+* merging the q/k/v projection GEMMs (the only way to cut the 140 dispatches/token that dominate the eager tail)
+  changes GEMM shapes and therefore rounding, i.e. N1 — not allowed in this task.</pre></details><details><summary><em class="">9.2 h</em><span>Round 15 — phase attribution: where the remaining 25.8 s of a refine step go (03:20-03:30)</span></summary><pre>Two things were established:
+
+1. <b>An instrumented torch.profiler run is no longer possible on this machine.</b> Adding <code>record_function</code> ranges
+   (<code>OPT_PHASE_TRACE=1</code>) and profiling the shipped (graph-enabled) tree OOMs — the profiler&#x27;s own CUDA activity
+   buffers push the run over the 139.8 GiB limit (<code>/tmp/p3</code>: 129.65 GiB allocated, 2.07 GiB stranded, 467 MiB free).
+   The earlier profiles (<code>/tmp/p1</code>, <code>/tmp/p2</code>) were taken without the graph, which is why they fit.
+2. <b>Free attribution from the run log&#x27;s timestamps</b> (they are printed per phase, /tmp/c22 log, step 13):
+   a refine step is 25.8 s, of which the *rollout + prepack* block is <b>18.0 s</b> and the training block
+   (ref+policy forward, loss, backward, clip+optimizer) is <b>7.0 s</b>; inside the rollout the think-phase tqdm shows
+   ~5.5 s of text decoding (graph + eager tail), so the 55 denoising forwards are ~11 s.
+   * denoise 11 s: compute-bound (93-95 % GPU busy, ~300 TFLOPS effective, 55 forwards x 4104 tokens x 28 layers) —
+     irreducible without changing the recipe;
+   * training 7 s: compute-bound at ~5 % MFU because activation checkpointing recomputes every layer, which the
+     130 GiB memory ceiling forces;
+   * text decoding 5.5 s: ~2.3 s graphed (110 tok/s) + ~3.1 s eager tail (23 ms/token) — the tail is the last
+     host-bound item and needs a second graph capture that the memory budget does not allow (rounds 13b-13e);
+   * ~1.5 s of VAE/ViT encodes, packing and reward submission.
+
+Remaining candidates are each worth ~2-3 % (e.g. avoiding the two full-cache <code>deepcopy</code>s in <code>edit_image</code>, which copy
+764 MB of *zeros* because they happen before any context is written). Not attempted: every attempt in this territory
+in the last rounds either OOM&#x27;ed in deterministic mode or perturbed the allocator enough to do so, and the shipped
+tree has ~0.5 GiB of slack.</pre></details><details><summary><em class="">9.5 h</em><span>Round 16 — the graph configuration is FLAKY; reverted (03:30-03:50)</span></summary><pre>A second full <code>check</code> on the *identical* shipped tree + switch file (<b>/tmp/c28</b>) <b>OOM&#x27;ed in the record run</b>
+(129.55 GiB allocated, 231 MiB free, same 740 MiB allocation) where /tmp/c22 had passed. So the graph configuration
+sits exactly on the memory knife edge: 1 pass and 1 fail out of 2 runs. With the final evaluation running the
+candidate once, an OOM there scores 0, so the expected value of shipping it (0.5 x 1.2768) is far below the robust
+configuration (1.174, which has survived every one of its 4+ runs). <b><code>/submission/switches.json</code> is empty again</b>
+(graph off, default path = the /tmp/c16-validated code path: the graph code and the logits frees are both gated by
+<code>OPT_GRAPH_GEN</code>, which is now unset).
+
+The graph work stays in the tree as an opt-in (<code>OPT_GRAPH_GEN=1</code>) with its +21 % measured (1.4232 timing mode) and
+the exact reason it cannot be used: deterministic mode needs ~1-2 GiB more than this 139.8 GiB GPU has left after the
+judge&#x27;s reward service, and the failure is stochastic (allocator fragmentation), not deterministic.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-r3-kimi.html"><small>← 1.41×</small><strong>Kimi k3.1</strong></a><a class="up" href="r3.html">↑ R3</a><span></span></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-r3-opus.html", "pts": [[0.688, 1.419, 1], [1.181, 1.935, 2], [1.913, 2.127, 3], [2.374, 2.138, 4], [3.43, 2.405, 5], [4.941, 2.432, 6], [8.251, 2.449, 7], [9.753, 2.471, 8]], "end": 10.002, "final": 2.4056}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-r3-sonnet.html", "pts": [[1.301, 1.378, 1], [2.447, 1.704, 2], [3.318, 1.709, 4], [3.777, 1.746, 5], [6.176, 1.845, 7], [7.682, 1.915, 8]], "end": 10.001, "final": 1.9602}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-r3-haiku.html", "pts": [[0.717, 1.022, 1], [1.191, 1.099, 2], [1.964, 1.418, 4], [3.055, 1.418, 6], [3.801, 1.454, 7], [5.774, 1.504, 10], [6.907, 1.612, 11], [6.907, 1.612, 12], [7.626, 1.624, 13], [8.186, 1.624, 14], [9.522, 1.624, 16]], "end": 10.004, "final": 1.6442}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-r3-astra.html", "pts": [[0.633, 1.118, 2], [1.815, 1.335, 4], [2.882, 1.397, 6], [3.694, 1.397, 8], [4.192, 1.397, 9], [4.764, 1.4, 10], [5.536, 1.401, 12], [6.373, 1.401, 14], [6.922, 1.401, 16], [7.631, 1.417, 18], [8.963, 1.506, 20], [9.975, 1.539, 22]], "end": 10.005, "final": 1.4707}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-r3-glm.html", "pts": [[1.012, 1.027, 1], [1.244, 1.081, 2], [1.466, 1.081, 3], [2.28, 1.101, 4], [3.729, 1.391, 7], [4.636, 1.391, 8], [5.303, 1.391, 9], [5.58, 1.456, 10], [6.865, 1.456, 11], [7.971, 1.456, 13], [9.004, 1.46, 16], [9.423, 1.46, 17]], "end": 10.002, "final": 1.4509}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-r3-kimi.html", "pts": [[0.948, 1.032, 2], [1.745, 1.073, 3], [3.661, 1.073, 6], [4.167, 1.084, 7], [5.149, 1.084, 8], [5.68, 1.084, 9], [6.245, 1.084, 10], [7.206, 1.319, 12], [8.392, 1.319, 13], [8.864, 1.319, 14], [9.36, 1.384, 15]], "end": 10.002, "final": 1.4078}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-r3-ds.html", "pts": [[0.704, 1.126, 2], [1.69, 1.126, 4], [2.636, 1.144, 5], [3.047, 1.144, 6], [4.411, 1.144, 8], [5.661, 1.174, 9], [6.588, 1.175, 11], [7.93, 1.277, 13]], "end": 10.0, "final": 1.1884}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-r3-mm.html", "pts": [[1.543, 1.036, 2], [2.423, 1.074, 3], [2.965, 1.105, 5], [4.406, 1.372, 6], [5.486, 1.372, 7], [6.467, 1.418, 9], [6.845, 1.437, 10], [7.201, 1.472, 12], [7.809, 1.499, 13], [8.274, 1.574, 14], [9.347, 1.606, 15]], "end": 10.002, "final": 1.6165}], "focus": "ds", "xmax": 10.5, "aria": "DeepSeek V4.1 Flash-1017 on R3: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>

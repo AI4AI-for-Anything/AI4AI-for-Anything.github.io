@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepSeek V4.1 Flash-1017 · Slime OPD · RSI-Infra Bench</title><meta name="description" content="DeepSeek V4.1 Flash-1017 on Slime OPD: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11170650"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="on">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_opd.html">Slime OPD</a><span>/</span><b>DeepSeek V4.1 Flash-1017</b></nav><h1>DeepSeek V4.1 Flash-1017 <em>1.43×</em></h1><p class="lede">Harness: DeepSeek's own harness · switches: <code>SLIME_OPD_SKIP_REF_FORWARD=1</code> <code>SLIME_OPD_NO_RECOMPUTE=1</code> <code>SLIME_OPD_KEEP_TRAIN_RESIDENT=1</code> <code>OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 16384 --max-prefill-tokens 32768</code> <code>SLIME_STUDENT_SGLANG_ARGS=--disable-radix-cache</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.43×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.43×</dd></div><div class=""><dt>Rounds</dt><dd>13</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$2.06</dd></div><div class=""><dt>Input tokens · 99.6% cached</dt><dd>213 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.4 M</dd></div><div class=""><dt>Requests</dt><dd>519</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="sonnet" href="t-slime_opd-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.76×</small></a><a class="chip" data-k="opus" href="t-slime_opd-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.64×</small></a><a class="chip" data-k="kimi" href="t-slime_opd-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.59×</small></a><a class="chip" data-k="glm" href="t-slime_opd-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.46×</small></a><a class="chip self" data-k="ds" href="t-slime_opd-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.43×</small></a><a class="chip" data-k="mm" href="t-slime_opd-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.40×</small></a><a class="chip" data-k="astra" href="t-slime_opd-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.30×</small></a><a class="chip" data-k="haiku" href="t-slime_opd-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.23×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>107.1 / 108.1 / 106.6</dd><dt>Rollout side</dt><dd>1.29×</dd><dt>Teacher side</dt><dd>1.06×</dd><dt>Train side</dt><dd>1.58×</dd><dt>Per-step sampler sync</dt><dd>✓</dd><dt>Train-side main levers</dt><dd>partial: skip reference forward, no recompute, training resident</dd><dt>Teacher-side changes</dt><dd>chunking only: teacher chunk 16384 + single-batch prefill 32768; student radix cache off</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>15 sections</small></summary><div class="rounds"><details><summary><em class="">0.0 h</em><span>Round 1 — baseline profiles</span></summary><pre>Thu Nov 12 11:25:40 PM UTC 2026</pre></details><details><summary><em class="">0.0 h</em><span>Round 1 (start 23:25 UTC) — baseline profiling</span></summary><pre>- Started all three <code>bench.py profile</code> runs on the unchanged reference (job 501481, log /tmp/r1/profile.log).
+- Reference component timings from <code>runs/bootstrap/timing_train_1/.../train.log</code> (steady step):
+  step window 74.6 s = ref_log_probs 10.8 + actor log_probs 10.1 + actor_train 46.7 + sleep/wakeup 6.6.
+  Full loop 153.8 s = rollout 76.3 (generation ~59.9 + teacher tail 16.4) + train 67.8 + sleep/wake 5.2
+  + update_weights 2.0 + misc.
+- Key facts: student decode is bandwidth-bound (~4950 tok/s/engine at short context, ~3700 tok/s at 8k);
+  teacher replay (64 x ~8.5k tokens prefill) is ~45% MFU; reference train record is NOT bitwise repeatable
+  (repeatable=false), so the statistical N1 gate is the realistic target.
+- Candidate changes prepared:
+  T1 <code>SLIME_OPD_SKIP_REF_FORWARD</code>: the reference-model log-prob forward pass is dead code when every KL
+     coefficient is 0 (recipe: kl_coef 0, kl_loss_coef 0). Saves ~10.8 s/step (train side, loss/grad unchanged).
+  T2 <code>SLIME_OPD_NO_RECOMPUTE</code>: drop full activation recompute (memory strategy; arithmetic unchanged).
+  Teacher <code>OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 8192</code> (one of the reference&#x27;s own frozen rebatchings,
+     so it is inside the teacher tolerance by construction).
+Thu Nov 12 11:30:02 PM UTC 2026</pre></details><details><summary><em class="">1.1 h</em><span>Round 2 (23:45–00:30 UTC) — train: dead ref forward + no recompute; teacher chunk</span></summary><pre>Measured with <code>time</code> (frozen reference windows in brackets):
+- train, switches SKIP_REF_FORWARD+NO_RECOMPUTE (/tmp/sw_train.json): windows 56.239/75.342/55.065 s
+  [76.649/88.036/73.417] -&gt; side speedup 1.1685, mean step 62.2 s vs 79.4. Components (steady):
+  log_probs 10.8 s (unchanged), actor_train 38.0 s [46.7], sleep+wake+wait 7.4 s [6.6].
+  Window 2 hit the same host-side stall the reference shows (actor_train 57 s instead of 38 s).
+- OMP_NUM_THREADS=24 + max-tokens-per-gpu=8192 (v3): step 57.4/58.8 s — neutral, dropped.
+  max-tokens-per-gpu=16384 OOMs (a 32k-token microbatch needs &gt;100 GB of activations), dropped.
+- teacher, OPD_TEACHER_SERVER_ARGS=&quot;--chunked-prefill-size 8192&quot;: 17.536/17.821/17.324 s
+  [18.375/18.303/17.912] -&gt; 1.027. Adding --max-prefill-tokens 32768: identical (1.028); the
+  scheduler caps the prefill batch at chunked_prefill_size, and throughput is flat in batch size
+  (~30k tok/s, ~41% MFU) -&gt; the teacher is compute-bound, not batching-bound.
+- rollout profile (200 decode steps, 1 engine): kernel time 4.99 ms/step of a 6.4 ms step;
+  GEMM 68.5% (3.42 ms, all ~0.73-wave 96-block cuBLASLt nvjet kernels at ~1.5-1.9 TB/s of 4.8),
+  GDN/mamba 11.7%, comm (allreduce fusion + allgather) 11.0%, elementwise 6.1%, attention 1.5%.
+  The allreduce fusion is already active (backend auto -&gt; trtllm); sampling backend already flashinfer.
+  -&gt; decode is bandwidth/occupancy-bound at ~30% of HBM peak; no config fast path identified.
+
+Full check started 00:30 UTC on /tmp/r3/check with switches
+{SKIP_REF_FORWARD, NO_RECOMPUTE, teacher chunked-prefill 8192}.
+Fri Nov 13 12:31:05 AM UTC 2026</pre></details><details><summary><em class="">2.5 h</em><span>Round 3 (00:30–01:47 UTC) — FULL CHECK</span></summary><pre>- First attempt (/tmp/r3) crashed in the judge itself: <code>judge_rollout</code> reuses gate-1&#x27;s run and never
+  creates <code>&lt;out&gt;/rollout</code>, so <code>score()</code> died on <code>open(&lt;out&gt;/rollout/score.log)</code>. Pre-creating
+  <code>&lt;out&gt;/rollout</code> (+ teacher, train) fixed it. Gate-1 data from that run was still valid:
+  rollout windows 75.94/76.46/76.41, train windows 55.4/56.1/56.7.
+- Second attempt: <code>/tmp/r4/check</code> → <b>PASS, speedup 1.1424, tier N1</b> (check.json).
+  side speedups: rollout 1.010, teacher 1.0283, train 1.3032.
+  - rollout: exact ok; token forcing mean|d| ratio 0.9905 (&lt;2), 4 events (p=0.35), sampler t=1.52 (&lt;4);
+    train-inference mismatch ratio 1.0034.
+  - teacher: mean|d| ratio 1.0149 of the reference&#x27;s pooled rebatching bound (limit 2), 10 events (p=0.38),
+    bias t=-1.03 (limit 4) — exactly the frozen <code>rebatch_chunk8192</code> variant, i.e. bitwise that rebatching.
+  - train: exact ok; not bitwise (reference itself is not repeatable); statistical gate all within:
+    update_norm 0.148319 vs 0.148452 (tol 1.20e-3), exp_avg_sq 0.0016464 vs 0.0016418 (tol 4.4e-4),
+    loss_mean 0.0516844 vs 0.0516909 (tol 3.8e-5), grad_norm_first 0.99652 vs 0.99674 (tol 1.65e-3),
+    update-direction cosine 0.99358 (min 0.95660). mismatch ratio 1.0.</pre></details><details><summary><em class="">2.9 h</em><span>Round 4 (01:53–02:16 UTC) — marginal levers, separate trees (no submission change yet)</span></summary><pre>- teacher <code>--disable-radix-cache</code> (on top of chunk 8192): windows 17.063/17.156/16.746 s -&gt; teacher side
+  1.0669 (vs 1.0283 for chunk only). Numerics validated by <code>check --quick</code> on a reference-shaped tree
+  (/tmp/reftree + teacher switch): PASS, i.e. bitwise the frozen <code>rebatch_noradix</code> variant.
+  Full-loop value is small (~0.4 s of the teacher tail, ~0.3 %), so NOT put into switches.json; the
+  submission keeps the config that passed the full check.
+- teacher <code>--linear-attn-prefill-backend flashinfer</code>: 1.0289 (no gain over chunk 8192).
+- student <code>--linear-attn-decode-backend flashinfer</code>: rollout windows 86.6/87.2/87.4 s -&gt; 0.883x
+  (12 % SLOWER than the reference). Rejected.
+Fri Nov 13 02:16:17 AM UTC 2026</pre></details><details><summary><em class="">3.5 h</em><span>Round 5 (02:16–02:52 UTC) — student radix cache off (accepted)</span></summary><pre>- <code>time --side rollout</code> with student <code>SLIME_STUDENT_SGLANG_ARGS=&quot;--disable-radix-cache&quot;</code> (teacher chunk 8192):
+  windows 74.177/74.216/74.173 s vs frozen 77.402/77.246/77.164 -&gt; rollout side <b>1.0403</b>
+  (was 1.010 with the radix cache on). The radix cache never hits (prefix_cache_hit_rate 0) and its
+  mamba extra-buffer state tracking costs ~2.1 s per rollout.
+- Gate validation: <code>check --quick --tree /tmp/rolltree</code> (reference slime/Megatron + sglang copy whose
+  disable_radix_cache default is True) -&gt; rollout gate PASS: exact ok, token forcing mean|d| ratio
+  0.9957 (limit 2), 7 events (rate 2.3x reference but binomial p=0.034 &gt;&gt; 0.001), sampler t=0.739,
+  train-inference mismatch ratio ~1.0; teacher gate PASS.
+- Final switches.json:
+  {SLIME_OPD_SKIP_REF_FORWARD=1, SLIME_OPD_NO_RECOMPUTE=1,
+   OPD_TEACHER_SERVER_ARGS=&quot;--chunked-prefill-size 8192&quot;,
+   SLIME_STUDENT_SGLANG_ARGS=&quot;--disable-radix-cache&quot;}
+  (teacher kept at chunk 8192 only: that exact teacher was validated end-to-end by the full check;
+   adding --disable-radix-cache to the teacher is validated on the teacher gate but gains only ~0.4 s
+   and would leave the online teacher+rollout combination untested, so it is not used.)
+- Expected projection with the final switches: 1/(1 - 0.501*(1-1/1.0403) - 0.5146*(1-1/1.3032)) = 1.161.
+- A final full check (/tmp/r7/check) with the final switches was queued at 02:52 UTC.
+Fri Nov 13 02:52:27 AM UTC 2026</pre></details><details><summary><em class="">4.2 h</em><span>Round 6 (02:52–03:30 UTC) — final full check on the final switches</span></summary><pre>- <code>/tmp/r7/check</code>: gate 1 rollout 1.0302 (windows 74.104/74.222/74.899), teacher 1.0255,
+  train 0.9869 -&gt; status UNAVAILABLE (speedup 1.0079). The train window 3 hit the host-side stall
+  (+17 s inside the *microbatch loop*, actor_train 56 s instead of 38 s), so the min ratio fell below 1.
+- Diagnosis of the stall: it appears only in <code>--debug-train-only</code> runs (fixture dumps 1–3):
+  v1 timing (step 5), r7 (step 6), the reference&#x27;s own train timing runs (step 5, both runs), while
+  the bootstrap full-loop reference A/B and control runs (5 RL steps each, 10 timed steps) show no
+  stall (spreads 0.8 %). Not Triton first-use (first_use.seconds = 0 in every timed window), not
+  cgroup CPU throttling (0.16 s total throttled), not memory pressure (1 TiB container limit, ~200 GB
+  used). Treated as a train-only artifact; the final evaluation times the full loop.
+- Because a stalled full-loop window would zero the score, the last large lever (keep Megatron resident
+  across the rollout, ~5 s/step) was re-rejected: it cannot be validated in the full loop with the
+  judge&#x27;s tools (<code>--final</code> is unavailable), the colocate path with <code>offload_train=False</code> also changes
+  the grad/param CPU-backup flags used by the weight sync, and an OOM/regression would zero the score.
+- Final state: see the summary below. No processes left running; GPUs idle.</pre></details><details><summary><em class="">4.6 h</em><span>Round 7 (03:35–04:03 UTC) — expensive levers tried</span></summary><pre>- <b>Log-prob pass microbatch repacking</b> (<code>SLIME_OPD_LOGPROB_TOKENS_PER_MB</code> in actor.py: repack the
+  samples into 4-sample bins for the inference-only log-prob forward, which stores no activations;
+  forward_only already restores the sample order from the iterator). Implemented, timed, <b>rejected</b>:
+  the log-prob pass did get faster (10.8 -&gt; 9.3 s) but the transient 8.6 GB logits buffers grew the
+  caching allocator&#x27;s reserved memory 33 -&gt; 40 GB, which made the colocated sleep grow 4.1 -&gt; 9.1 s and
+  wake 1.4 -&gt; 2.8 s: step 60.5-66.1 s vs 56-58 s before. Code reverted (git checkout).
+- <b>Student engine <code>--enable-torch-compile</code></b> (inductor max-autotune compiles the decode forward and
+  captures it in the CUDA graph; the autotune log shows BLOCK_M=32 Triton GEMMs, promising against the
+  0.73-wave 128x32 cuBLASLt kernels in the trace). First attempt with the recipe&#x27;s mem-fraction 0.45
+  OOMs during capture (needs &gt;12 GB on top of the 63 GB static pool + 35 GB teacher). Retesting with
+  <code>--mem-fraction-static 0.35</code> (KV pool still ~2.5x the used capacity). Compile time is outside every
+  timed window (graph capture is at engine init), but it makes each run ~10-20 min longer.
+Fri Nov 13 04:02:48 AM UTC 2026
+- <b>Student <code>--enable-torch-compile</code> — rejected (memory).</b> Even with <code>--mem-fraction-static 0.35</code>
+  (max-autotune) or <code>0.40</code> with <code>SGLANG_TORCH_COMPILE_MODE=default</code>, the decode-graph capture +
+  inductor workspaces OOM during engine init (needs 8.3-12.2 GB on top of the 49-56 GB static pool and
+  the 35 GB teacher; only 1.3-2.7 GB free). The colocated 4-GPU layout has no room for the compile
+  workspace. Note: with compile on, the engine takes a different GDN decode path (&quot;fused GDN decode
+  QKVZ/BA unpack + indexed Conv1D&quot;) and inductor autotunes BLOCK_M=32 Triton GEMMs, so it is the
+  promising direction if the memory were available; it is not on this layout.
+- Submission left at the validated Round-5 configuration (no further switch changes).</pre></details><details><summary><em class="">5.4 h</em><span>Round 8 (04:20–04:46 UTC) — keep the actor resident across the rollout (ACCEPTED)</span></summary><pre>- Change: <code>SLIME_OPD_KEEP_TRAIN_RESIDENT=1</code> (committed 0ae905df, <code>slime/utils/arguments.py</code>):
+  with the colocated recipe the actor otherwise offloads to host inside every train step
+  (sleep 4.1 s + wake 1.4 s + process-group destroy/reload + cold-cache effects). The resident
+  actor fits: the student engines still release their KV/state pool during training
+  (<code>offload_rollout</code> untouched).
+- <code>time --side train</code> (judge tool): windows <b>47.072 / 46.565 / 46.323 s</b> vs
+  [76.649 / 88.036 / 73.417] -&gt; side speedup <b>1.5849</b>. Steady components: log_probs 9.5 s
+  (was 10.8-12), actor_train 35.2 s (was 38-39, no cold allocator/process-group reload),
+  train_wait 1.7 s (was 7.4).
+- Full-mode validation (the judge&#x27;s own <code>bench/launch.sh</code>, MODE=full, NUM_ROLLOUT=2, forced lengths,
+  run under the judge&#x27;s GPU flock, no timing read): <b>exit 0</b>, 2 RL steps, no OOM; peak GPU memory
+  125 GB of 140 GB during generation, 96 GB after the weight sync; the step-1 train-inference
+  mismatch 0.00810 (reference 0.00805) so the weight sync is correct; update_weights 0.73-1.36 s.
+- switches.json now: SKIP_REF_FORWARD, NO_RECOMPUTE, KEEP_TRAIN_RESIDENT, teacher chunk 8192,
+  student radix cache off. Projected step speedup with rollout 1.030 and train 1.585 = 1.257;
+  expected full-loop speedup ~154.2/125.7 = <b>~1.23</b>.
+- <code>check --quick</code> on the final switches started 04:46 UTC (/tmp/r12/quick) to re-validate the
+  three correctness gates with the resident actor.
+Fri Nov 13 04:46:36 AM UTC 2026</pre></details><details><summary><em class="">5.4 h</em><span>Round 8 verdict — quick check PASS with the final switches</span></summary><pre><code>/tmp/r12/quick/check.json</code> (04:46–05:21 UTC): <b>status PASS</b>, all three sides PASS with the resident
+actor: rollout PASS (exact + token forcing + teacher-on-rollout + mismatch), teacher PASS, train PASS
+(exact ok; update_norm 0.148195 vs 0.148452, loss_mean 0.051672 vs 0.051691, grad_norm_first 0.996354
+vs 0.996736, update-direction cosine 0.99253 vs min 0.95660).</pre></details><details><summary><em class="">6.8 h</em><span>Round 9 (05:23–06:11 UTC) — FULL CHECK on the final configuration</span></summary><pre><code>/tmp/r13/check/check.json</code>: <b>status PASS, projected step speedup 1.2554</b>, tier N1.
+- gate 1: rollout side 1.0294 (74.568/74.591/74.959 s vs 77.402/77.246/77.164), teacher side 1.0294
+  (17.49/17.78/17.34 vs 18.375/18.303/17.912), train side <b>1.581</b> (46.55/46.92/47.00 vs
+  76.649/88.036/73.417). No per-window stall this time.
+- correctness: rollout PASS (exact, token forcing, teacher-on-rollout, mismatch), teacher PASS,
+  train PASS (update_norm 0.148440 vs 0.148452, loss_mean 0.051687 vs 0.051691,
+  grad_norm_first 0.996474 vs 0.996736, update-direction cosine 0.99564 vs min 0.95660).
+- Expected final full-loop speedup: 154.2 / (74.6 rollout + 47.0 train + ~4 sync/misc) = <b>~1.23</b>.
+Fri Nov 13 06:14:12 AM UTC 2026</pre></details><details><summary><em class="">7.2 h</em><span>Round 10 (06:15–06:35 UTC) — profile + torch.compile retry with one captured bs; no gain</span></summary><pre>- Profiled the current best rollout (200 decode steps, radix cache off, /tmp/r14/profile_rollout):
+  kernel time 5.00 ms/step of a 6.4 ms step; GEMM 63% (same 0.73-wave nvjet classes), GDN decode
+  9.9% (0.50 ms, 66% of HBM peak), allreduce fusion 9.4%, attention 2.6%, elementwise ~4%,
+  sampling 1.5%. The mamba state-tracking kernel is gone (that is the radix-off gain). No new hotspot.
+- Retried student <code>--enable-torch-compile</code> with a single captured decode bs (`--cuda-graph-bs-decode
+  [32]<code>, </code>--mem-fraction-static 0.30`, keep-resident active) to fit the compile workspace. The engine
+  still dies during graph capture: an inductor-generated kernel allocates a 1.88e9-element fp32 buffer
+  (<code>empty_strided_cuda((1882718208,))</code>, 7.5 GB) inside the compiled linear-attention decode path and
+  OOMs. Inductor&#x27;s codegen for this hybrid GDN decode is not usable at this model/batch; the direction
+  is closed. Parser change reverted; tree back at 0ae905df.
+Fri Nov 13 06:34:23 AM UTC 2026</pre></details><details><summary><em class="">7.6 h</em><span>Round 11 (06:35–07:25 UTC) — second full check (reproducibility)</span></summary><pre>- /tmp/r16/check (same tree/switches as the PASSING /tmp/r13/check): gate-1 rollout windows
+  74.473/74.147/74.380 s (stable, side ~1.037), teacher 1.029, train windows
+  46.37 / 47.11 / 46.99 / 62.87 s -&gt; the last timed window hit the train-only host stall again
+  (+16 s on actors), so this check projects ~1.10 instead of r13&#x27;s 1.2554. The stall has only ever
+  been seen in <code>--debug-train-only</code> runs (fixture dumps), not in full-loop runs.
+- Robustness note: with the resident actor the full step is ~125 s vs the reference&#x27;s 154 s, so even a
+  +16 s stall in a full-loop window would still give a ratio of ~141 -&gt; 154/141 = 1.09, above the
+  max(1.02, 1+2*spread) bar; the change also widened that margin.
+- Correctness gates of r16 are re-running; the r13 full check already PASSed all three with the same
+  configuration (and /tmp/r12/quick PASSed with the identical switches).
+Fri Nov 13 07:01:35 AM UTC 2026</pre></details><details><summary><em class="">9.2 h</em><span>Round 12 (07:33–08:32 UTC) — sampler per-step device sync removed (ACCEPTED, big)</span></summary><pre>- CPU-profiled a student engine&#x27;s scheduler with py-spy during a rollout: **70.9 % of the samples sat in
+  one line of <code>Sampler.forward</code>** — <code>sampling_info.return_top_p_log_probs.any().item()</code>. The field is
+  always a CUDA bool tensor (never None), so a reduction + device-to-host sync ran on *every decode
+  step* even though the recipe never asks for top-p logprobs, stalling the scheduler and breaking the
+  overlap pipeline.
+- Fix (sglang commit 453bb3d, sglang/): carry the same information as a CPU flag
+  (<code>need_return_top_p_log_probs</code>, built from the per-request custom params and OR-ed on batch merge),
+  exactly equivalent to the tensor check. Sampling results unchanged; only the sync is gone.
+- <code>time --side rollout</code>: windows <b>60.10 / 59.44 / 58.85 s</b> (was 74.57/74.15/74.38) -&gt; rollout side
+  <b>1.2879</b> (was 1.030). ~14 s per rollout recovered.
+- FULL CHECK <code>/tmp/r19/check</code>: <b>PASS, projected step speedup 1.4342</b> (side: rollout 1.2943,
+  teacher 1.0283, train 1.5796), all three correctness gates PASS (rollout exact/token forcing/
+  teacher-on-rollout/mismatch; teacher; train statistical).
+- Expected final full-loop speedup: 154.2 / (59.4 rollout + 47.0 train + ~4 sync/misc) = <b>~1.40</b>.
+Fri Nov 13 08:34:04 AM UTC 2026</pre></details><details><summary><em class="">9.8 h</em><span>Round 13 (08:48–09:13 UTC) — CPU profiles of the train and teacher; teacher prefill chunk 16384</span></summary><pre>- py-spy of a Megatron rank during a train step: 26 % of the CPU samples in TE&#x27;s CP-attention backward
+  (<code>context_parallel.py:2869</code>, the <code>dq[cu_seqlens_q_padded[-1]:].fill_(0)</code> GPU-scalar slice that syncs
+  once per full-attention layer per backward), ~19 % in Triton JIT compilation (warm-up steps only;
+  <code>first_use</code> inside the timed windows is 0), 8.9 % <code>torch.cuda.synchronize</code> from the Triton autotuner
+  (also warm-up), and the rest diffuse. The TE sync only makes the CPU wait while the GPU runs, and the
+  patched alternative would need monkey-patching an installed package, so it was not pursued.
+- py-spy of the teacher scheduler during a replay: the process is mostly waiting on the GPU (60 samples
+  in 12 s; 55 % memory-pool alloc, 23 % CUDA-graph replay), i.e. the 15 s teacher tail is GPU-bound
+  prefill (42 % MFU), no CPU serialization to remove.
+- Teacher <code>--chunked-prefill-size 16384 --max-prefill-tokens 32768</code> (one chunk per 8.5k-token request
+  instead of two): <code>time --side teacher</code> windows 17.165/17.160/16.941 s -&gt; teacher side <b>1.0573</b>
+  (was 1.0283); teacher gate PASS (mean|d| ratio 1.0128, 11 events p=0.26, bias t=0.02,
+  /tmp/r23/quick_t). ~0.4 s off the rollout&#x27;s teacher tail.
+- switches.json updated to the 16k teacher chunks; full check /tmp/r24/check started 09:13 UTC.
+Fri Nov 13 09:13:42 AM UTC 2026</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_opd-glm.html"><small>← 1.46×</small><strong>GLM-5.3</strong></a><a class="up" href="slime_opd.html">↑ Slime OPD</a><a class="next" href="t-slime_opd-mm.html"><small>1.40× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-17 22:50 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_opd-opus.html", "pts": [[0.532, 1.116, 2], [0.761, 1.39, 3], [2.833, 1.39, 4], [3.465, 1.44, 6], [4.781, 1.496, 7], [7.52, 1.63, 8]], "end": 10.0, "final": 1.6416}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_opd-sonnet.html", "pts": [[2.209, 1.208, 2], [4.303, 1.208, 3], [6.164, 1.676, 4], [6.95, 1.676, 5]], "end": 10.0, "final": 1.7587}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_opd-haiku.html", "pts": [[0.842, 1.21, 1], [9.901, 1.245, 3]], "end": 10.002, "final": 1.2273}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_opd-astra.html", "pts": [[0.704, 1.025, 1], [2.689, 1.175, 6], [3.29, 1.175, 7], [5.072, 1.2, 8], [5.072, 1.204, 10], [6.257, 1.204, 13], [6.344, 1.204, 14], [6.869, 1.375, 15]], "end": 10.0, "final": 1.3044}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_opd-glm.html", "pts": [[0.171, 1.39, 1], [1.038, 1.39, 2], [1.272, 1.424, 3], [1.479, 1.581, 4], [2.48, 1.581, 5], [3.956, 1.581, 7], [4.436, 1.581, 8], [4.85, 1.581, 9], [7.574, 1.581, 14], [7.917, 1.581, 15], [9.001, 1.581, 17]], "end": 10.0, "final": 1.4556}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_opd-kimi.html", "pts": [[1.477, 1.139, 5], [2.246, 1.427, 6], [2.841, 1.427, 7], [3.126, 1.427, 8], [4.521, 1.427, 11], [4.816, 1.427, 12], [5.084, 1.427, 13], [5.429, 1.427, 14], [5.743, 1.427, 15], [6.184, 1.427, 16], [6.555, 1.427, 17], [6.589, 1.427, 18], [7.546, 1.575, 19], [8.333, 1.575, 20], [9.421, 1.575, 21], [9.513, 1.575, 22], [9.635, 1.575, 23]], "end": 10.008, "final": 1.5881}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_opd-ds.html", "pts": [[1.107, 1.169, 2], [2.487, 1.169, 3], [4.183, 1.169, 6], [5.366, 1.169, 8], [6.826, 1.255, 9], [9.157, 1.434, 12]], "end": 10.0, "final": 1.4336}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_opd-mm.html", "pts": [[0.945, 1.109, 1], [1.555, 1.368, 4], [2.15, 1.368, 6], [3.524, 1.368, 8], [4.451, 1.368, 9], [4.451, 1.39, 10], [5.957, 1.39, 12], [6.179, 1.39, 13], [6.394, 1.39, 14], [6.799, 1.39, 15], [6.799, 1.489, 16], [7.218, 1.489, 17], [7.992, 1.489, 20], [8.226, 1.489, 21], [8.917, 1.503, 23], [9.234, 1.503, 25]], "end": 10.0, "final": 1.3997}], "focus": "ds", "xmax": 10.5, "aria": "DeepSeek V4.1 Flash-1017 on Slime OPD: best self-measured speedup over time"}</script><script src="chart.js?v=11170650"></script></body></html>
