@@ -14,7 +14,9 @@ This is a buildless static website. GitHub Pages serves `main` from the reposito
 - `assets/rba-mark.png`, `favicon-*.png`, `apple-touch-icon.png`: the emblem from the ResearchBoost-Agent logo (`docs/assets/researchboost-agent-logo.png`), cut out on a transparent background
 - other `assets/` files: earlier illustrations and the original workflow diagram (not used by the current page)
 
-Project details and evaluation protocols live in the linked research repositories. Mini Bench rankings remain pending validation. The Star link opens ResearchBoost-Agent on GitHub, where visitors confirm their star.
+Project details and evaluation protocols live in the linked research repositories. Mini Bench rankings remain pending validation. The Star link opens DAGroup-PKU/ResearchBoost-Agent on GitHub, where visitors confirm their star. Its count comes from the public GitHub API on page load and every five minutes while visible, with a ten-second timeout. A valid zero is displayed as zero; request failures retain a labeled cached count or show an em dash when no count is available. No token is used.
+
+Results cover 21 projects in seven domains. Ranges retain their reported endpoints; the geometric-mean interval uses lower and upper endpoints independently, always relative to each project’s own baseline. Community and validation labels remain distinct. NanoChat’s 1.20× headline is the project-owner update; the earlier timing pair is explicitly historical.
 
 
 ## Local preview

@@ -12,8 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261027-about">
-  <script src="app.js?v=20261026-nohw" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261117-results-stars">
+  <script src="app.js?v=20261117-results-stars" defer></script>
   <script src="loop.js?v=20261026-nohw" defer></script>
   <script src="motion.js?v=20261026-nohw" defer></script>
 </head>
@@ -25,7 +25,7 @@
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
     <nav id="primary-nav" aria-label="Main navigation">
       <a href="#research">Results</a><a href="#workflow">Research Loop</a><a href="#wishing-list">Wishing List</a><a href="#mini-bench">LeaderBoard</a><a href="#contribute">Contribute</a><a href="#about-us">About us</a>
-      <a class="nav-github" href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent" target="_blank" rel="noopener noreferrer" title="Open GitHub to star ResearchBoost-Agent (new tab)" aria-label="Star on GitHub: open ResearchBoost-Agent in a new tab to confirm your star"><svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z"/></svg>Star on GitHub</a>
+      <a class="nav-github" href="https://github.com/DAGroup-PKU/ResearchBoost-Agent" target="_blank" rel="noopener noreferrer" title="Open GitHub to star ResearchBoost-Agent (new tab)" aria-label="Star on GitHub: open ResearchBoost-Agent in a new tab to confirm your star"><svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z"/></svg>Star on GitHub <span class="star-count" data-star-count aria-live="polite" aria-label="GitHub star count unavailable">—</span></a>
     </nav>
   </header>
 
@@ -51,9 +51,9 @@
         <span class="upcoming"><span class="live-dot"></span> More cases being collected</span>
       </div>
       <dl class="stats" data-reveal>
-        <div><dt>workloads</dt><dd data-total-projects>12</dd></div>
-        <div><dt>domains</dt><dd>5</dd></div>
-        <div title="Geometric mean across all workloads"><dt>mean speedup</dt><dd><span data-speed-mean>2.51</span>×</dd></div>
+        <div><dt>workloads</dt><dd data-total-projects>21</dd></div>
+        <div><dt>domains</dt><dd data-total-domains>7</dd></div>
+        <div title="Geometric mean across 21 workloads; range endpoints reflect reported speedup ranges"><dt>mean speedup</dt><dd><span data-speed-mean>2.28–2.33</span>×</dd></div>
         <div><dt>max speedup</dt><dd><span data-speed-max>9.59</span>×</dd></div>
       </dl>
       <div class="filters" role="group" aria-label="Show results by domain"></div>
@@ -62,10 +62,10 @@
           <div class="ladder-axis" aria-hidden="true"></div>
           <div class="ladder-rows"></div>
         </div>
-        <button class="results-more" type="button" aria-expanded="false" aria-controls="ladder-panel" hidden>View all 12 results</button>
-        <p class="section-note">Speedup on a log scale, each against its own baseline (1×). Source-reported measurements—not a head-to-head ranking. See each repository for its evaluation setup.</p>
+        <button class="results-more" type="button" aria-expanded="false" aria-controls="ladder-panel" hidden>View all 21 results</button>
+        <p class="section-note">Speedup on a log scale, each against its own baseline (1×). Source-reported measurements—not a head-to-head ranking. Ranges reflect different reported configurations; mean speedup uses their lower and upper endpoints. Community marks contributed cases. Validation labels describe different evidence levels; see each result for scope and limitations.</p>
       </div></div>
-      <noscript><p class="section-note">Enable JavaScript to browse the project results. Every project is listed at <a class="text-link" href="https://github.com/AI4AI-for-Anything">github.com/AI4AI-for-Anything ↗</a></p></noscript>
+      <noscript><div class="results-fallback"><table><caption>21 workloads across 7 research domains</caption><thead><tr><th>Project</th><th>Speedup</th><th>Validation</th><th>Scope &amp; limitations</th></tr></thead><tbody><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-Motus">Motus</a></td><td>9.59×</td><td>Bitwise identical · 1,100 iterations</td><td>All 8 ranks match across two epoch boundaries: losses, learning rates, batches, validation metrics, final parameters and optimizer state. No full training run or RoboTwin evaluation.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-RAE">RAE</a></td><td>5.32×</td><td>Statistical equivalence</td><td>Not the complete 16-epoch runtime. RAE is a representation autoencoder, not a VAE.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-RoboTwin">RoboTwin</a></td><td>4.38× est.</td><td>Compared episodes match bitwise</td><td>Seven-task smoke checks, 2–10 episodes/job; the full 10,000-episode run was not performed.</td></tr><tr><td><a href="https://github.com/HaoqinHong/Physics-Informed-Deformable-Gaussian-Splatting-ResearchBoost">PIDG (module)</a> · Community</td><td>4.17×</td><td>Task metric · module numerical checks</td><td>R06 generic module PASS; formal benefit verdict UNAVAILABLE_SHARED_WORKLOAD. Excludes complete training; not formal ResearchBoost acceptance.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-FastWAM">FastWAM</a></td><td>3.46×</td><td>Task metric · LIBERO evaluation reproduced</td><td>LIBERO overall: release checkpoint 97.15%, faster run 96.90%. Not a claim of bitwise equivalence.</td></tr><tr><td><a href="https://github.com/EvolvingLMMs-Lab/LLaVA-OneVision-2#training-acceleration">LLaVA-OneVision-2</a> · Community</td><td>2.2–3.0×</td><td>Statistical equivalence</td><td>One-epoch fixed evaluation loss checks. Hopper preset was timed on GPUs with more than 80 GB; not yet tested on 80 GB cards.</td></tr><tr><td><a href="https://github.com/OpenWAM-Official/OpenWAM#training-acceleration">OpenWAM</a> · Community</td><td>2.54–2.77×</td><td>Task metric · LIBERO evaluation reproduced</td><td>Measured without checkpointing or an 80 GiB cap versus all-layer checkpointing. LIBERO 99.05% vs released checkpoint 99.2%. Merged upstream.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-LLaVA">LLaVA</a></td><td>2.39×</td><td>Statistical equivalence</td><td>Source-reported PASS under the task judge.</td></tr><tr><td><a href="https://github.com/micky-li-hd/Faster-ProteinMPNN">ProteinMPNN</a> · Community</td><td>2.25×</td><td>Exploratory comparison</td><td>Six of 150 epochs per arm; validation perplexity 5.884 vs 5.934 / 5.897. Not a frozen-judge four-gate PASS or full-training convergence claim.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-YOCO">YOCO</a></td><td>2.12×</td><td>Statistical equivalence</td><td>20,000-update run: 1.91× end-to-end (5,345 → 2,799 s), including startup and saves. Not a claim of bitwise-identical losses.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-SelfForcing">Self-Forcing</a></td><td>2.08×</td><td>Statistical equivalence</td><td>Source-reported PASS under the task judge.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-R3">R3</a></td><td>2.08×</td><td>Bitwise identical · 14-step check</td><td>16-step timing run; 14 deterministic steps match bitwise on all eight ranks. Includes reward-service improvements; training code alone is 1.88× with the optimized service on both sides.</td></tr><tr><td><a href="https://github.com/2018cx/Faster-MiniMax-H3">MiniMax-H3</a> · Community</td><td>1.86×</td><td>Statistical equivalence</td><td>Source-reported statistical equivalence; see project evidence for the fixed workload.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-BAGEL">BAGEL</a></td><td>1.82×</td><td>Statistical equivalence</td><td>2,000 steps × 4 seeds; reference 2σ consistency and held-out VLM CE checks pass. Image-generation quality was not evaluated.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-DMD">DMD2</a></td><td>1.72×</td><td>Statistical equivalence</td><td>Source-reported PASS under the task judge.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-LLM2Vec">LLM2Vec</a> · Community</td><td>1.60×</td><td>Statistical equivalence · historical N1 checks</td><td>1.60× SimCSE; 1.29× MNTP, measured as independent stages. Three seeds, 60 updates each. Full-schedule training, MTEB quality and MNTP-to-SimCSE handoff untested; combined source has not been revalidated on GPU.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-JiT">JiT</a></td><td>1.56×</td><td>Statistical equivalence</td><td>BF16, no FP8. Separate 40-epoch, single-seed check: FID50k 39.07 vs 39.24; 600 epochs not run.</td></tr><tr><td><a href="https://github.com/micky-li-hd/Faster-Protenix">Protenix</a> · Community</td><td>1.55×</td><td>Manual review</td><td>216/216 training and 135/138 normal/EMA comparisons passed; three EMA deviations accepted within reference-repeat variance. Full-corpus convergence outside scope.</td></tr><tr><td><a href="https://github.com/sen-ye/faster-ferminet">FermiNet</a> · Community</td><td>1.25×</td><td>Bitwise identical</td><td>Frozen timing and bitwise gates PASS across all four atoms; 8- and 110-step checks. Compilation/warmup excluded; full convergence not run.</td></tr><tr><td><a href="https://github.com/AI4AI-for-Anything/Faster-NanoChat">NanoChat</a> · Community</td><td>1.20×</td><td>N1 statistical equivalence</td><td>Updated headline supplied by the project owner. Earlier 1.0744× timing (3,358.4 → 3,126.0 ms/update) and six-seed N1 check are historical; no new timing pair was supplied. Full-schedule BPB/CORE evaluation was not run.</td></tr><tr><td><a href="https://github.com/HaoqinHong/Physics-Informed-Deformable-Gaussian-Splatting-ResearchBoost">3DGS</a> · Community</td><td>1.13×</td><td>Task metric · held-out-view PSNR</td><td>Frozen judge INCORRECT: 11 numerical violations remain unresolved; no formal acceptance. ΔPSNR −0.014 to +0.038 dB. One eligible timing pair per scene; noise not estimated.</td></tr></tbody></table></div></noscript>
     </section>
 
     <section class="premise wrap section-pad" aria-labelledby="intro-title">
@@ -76,7 +76,7 @@
           <p class="lede" data-reveal>AI research depends on the infrastructure beneath it. Improving that infrastructure gives researchers more room to experiment.</p>
           <p data-reveal>The work spans architecture, execution and kernels; every step is checked for correctness, speed and training quality.</p>
           <ul class="chips" data-reveal><li>long-horizon</li><li>technically demanding</li><li>clear feedback</li></ul>
-          <a class="text-link" href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent">Explore the ResearchBoost agent <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/DAGroup-PKU/ResearchBoost-Agent">Explore the ResearchBoost agent <span aria-hidden="true">↗</span></a>
         </div>
         <figure class="figure stack-figure" aria-labelledby="fig2-caption">
           <div class="figure-bar"><span>Fig. 2</span><span>the research stack</span></div>
@@ -92,7 +92,7 @@
         <div class="section-label"><span>§ 02</span>The agent at work</div>
         <div class="section-intro">
           <h2 id="method-title" class="split">Profile. Optimize. <em>Verify.</em></h2>
-          <div><p data-reveal>One agent, one frozen task. Each round tests one idea; a judge the agent cannot edit decides.</p><a class="text-link" href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent">Inside the workflow <span aria-hidden="true">↗</span></a></div>
+          <div><p data-reveal>One agent, one frozen task. Each round tests one idea; a judge the agent cannot edit decides.</p><a class="text-link" href="https://github.com/DAGroup-PKU/ResearchBoost-Agent">Inside the workflow <span aria-hidden="true">↗</span></a></div>
         </div>
 
         <div class="workflow figure" data-step="0" data-outcome="pass" aria-label="Interactive ResearchBoost workflow">
@@ -207,8 +207,8 @@
             <div><p data-reveal>Build an agent. Bring a workload. Question a result. Share what you learn. There is more than one way to move research forward.</p></div>
           </div>
           <div class="contribute-links">
-            <a href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent" data-reveal><span>01 · Build with us</span><strong>Contribute to the agent</strong><span class="arrow" aria-hidden="true">↗</span></a>
-            <a href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent/issues" data-reveal><span>02 · Open a conversation</span><strong>Ideas, issues &amp; workloads</strong><span class="arrow" aria-hidden="true">↗</span></a>
+            <a href="https://github.com/DAGroup-PKU/ResearchBoost-Agent" data-reveal><span>01 · Build with us</span><strong>Contribute to the agent</strong><span class="arrow" aria-hidden="true">↗</span></a>
+            <a href="https://github.com/DAGroup-PKU/ResearchBoost-Agent/issues" data-reveal><span>02 · Open a conversation</span><strong>Ideas, issues &amp; workloads</strong><span class="arrow" aria-hidden="true">↗</span></a>
             <a href="https://ydove0324.github.io/hx_resume/blog/researchboost/" data-reveal><span>03 · Follow the research</span><strong>Read the project story</strong><span class="arrow" aria-hidden="true">↗</span></a>
           </div>
         </div>
@@ -244,7 +244,7 @@
     <div class="footer-top">
       <p class="footer-claim">Research, accelerated. <span class="serif"><em>Evidence, preserved.</em></span></p>
       <div class="footer-cols">
-        <div><span>Project</span><a href="https://github.com/AI4AI-for-Anything/ResearchBoost-Agent">ResearchBoost-Agent ↗</a><!-- private for now: <a href="https://github.com/AI4AI-for-Anything/ResearchBoost-Bench">ResearchBoost-Bench ↗</a> --><a href="https://ydove0324.github.io/hx_resume/blog/researchboost/">Blog ↗</a></div>
+        <div><span>Project</span><a href="https://github.com/DAGroup-PKU/ResearchBoost-Agent">ResearchBoost-Agent ↗</a><!-- private for now: <a href="https://github.com/AI4AI-for-Anything/ResearchBoost-Bench">ResearchBoost-Bench ↗</a> --><a href="https://ydove0324.github.io/hx_resume/blog/researchboost/">Blog ↗</a></div>
         <div><span>Contact</span><a href="https://github.com/AI4AI-for-Anything">GitHub ↗</a><a href="mailto:ydove1031@gmail.com">Get in touch ↗</a><a href="#top">Back to top ↑</a></div>
       </div>
     </div>
