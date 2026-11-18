@@ -354,3 +354,4 @@ a.bar:hover span{color:var(--red)}
 .lbblog a i{font-style:normal}
 .astra-note{margin:12px 0 0;max-width:62em;font-size:14px;line-height:1.6;color:var(--muted)}
 .astra-note em{font-style:italic;font-weight:400}
+#board td.tk.rej a{color:var(--muted);font-weight:500}

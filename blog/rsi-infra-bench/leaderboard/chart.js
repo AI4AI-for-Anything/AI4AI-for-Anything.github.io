@@ -76,7 +76,7 @@
         } else if (n.classList.contains('fin')) {
           h += `judged ${fmt(r.final)}<br>run ended at ${r.end.toFixed(1)} h`;
         } else {
-          h += `self-best ${r.pts.length ? fmt(r.pts[r.pts.length - 1][1]) : '—'} · judged ${r.final ? fmt(r.final) : '—'}`;
+          h += `self-best ${r.pts.length ? fmt(r.pts[r.pts.length - 1][1]) : '—'} · judged ${r.rej ? 'rejected' : r.final ? fmt(r.final) : '—'}`;
         }
         if (r.k !== D.focus) h += `<br><span style="color:var(--red)">open the trace →</span>`;
         show(e, h);
@@ -98,7 +98,7 @@
     set('figname', esc(D.name));
     set('cap', D.cap);
     set('chips', [...D.series].sort((a, b) => b.final - a.final).map(r =>
-      `<a class="chip" data-k="${r.k}" href="${r.href}"><i style="background:${r.color}"></i>${esc(r.short)}${r.tag ? `<span class="nerf">${esc(r.tag)}</span>` : ''}<small>${fmt(r.final)}</small></a>`).join(''));
+      `<a class="chip" data-k="${r.k}" href="${r.href}"><i style="background:${r.color}"></i>${esc(r.short)}${r.tag ? `<span class="nerf">${esc(r.tag)}</span>` : ''}<small>${r.rej ? 'rejected' : fmt(r.final)}</small></a>`).join(''));
     const pg = document.getElementById('taskpage'); if (pg) { pg.href = D.page; pg.textContent = D.name + ' →'; }
     bindChips(); render();
     if (push) history.replaceState(null, '', '#' + t);
