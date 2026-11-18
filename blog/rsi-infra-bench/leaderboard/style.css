@@ -219,8 +219,9 @@ svg.cols .hit{fill:transparent}svg.cols g:hover path{filter:brightness(1.05)}
 
 .pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 14px}
 .pick .pl{font:400 11.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.pick select{font:400 14px/1.2 var(--sans);color:var(--ink);background:var(--white);border:1px solid var(--hair);border-radius:999px;padding:8px 12px;max-width:100%}
-.pick a{display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:var(--ink);color:var(--paper);font:400 14px/1.2 var(--sans);transition:background .2s}
+.pick select{-webkit-appearance:none;appearance:none;box-sizing:border-box;height:36px;font:400 14px/1.2 var(--sans);color:var(--ink);background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23151412' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 15px center/10px 6px;border:1px solid var(--hair);border-radius:999px;padding:0 36px 0 15px;max-width:100%;cursor:pointer}
+.pick select:hover{border-color:var(--ink)}
+.pick a{display:inline-flex;align-items:center;box-sizing:border-box;height:36px;padding:0 16px;border-radius:999px;background:var(--ink);color:var(--paper);font:400 14px/1.2 var(--sans);transition:background .2s}
 .pick a:hover{background:var(--red)}
 .pick .ph{font-size:13px;color:var(--faint)}
 
