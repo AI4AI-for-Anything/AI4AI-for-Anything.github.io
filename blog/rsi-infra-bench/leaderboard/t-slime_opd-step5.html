@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Step-5 Preview · Slime OPD · RSI-Infra Bench</title><meta name="description" content="Step-5 Preview on Slime OPD: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="on">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_opd.html">Slime OPD</a><span>/</span><b>Step-5 Preview</b></nav><h1>Step-5 Preview <em>1.33×</em></h1><p class="lede">Harness: Claude Code · switches: <code>SLIME_RECOMPUTE_GRANULARITY=none</code> <code>SLIME_OPD_INLINE_ADVANTAGE=1</code> <code>SLIME_OPD_SKIP_WAKEUP_CACHE_CLEAR=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.33×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.30×</dd></div><div class=""><dt>Rounds</dt><dd>6</dd></div><div class=""><dt>Hours</dt><dd>10.3</dd></div><div class=""><dt>API cost</dt><dd>$192</dd></div><div class=""><dt>Input tokens · 99.8% cached</dt><dd>1869 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.8 M</dd></div><div class=""><dt>Requests</dt><dd>3,459</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-slime_opd-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>1.95×</small></a><a class="chip" data-k="sonnet" href="t-slime_opd-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.76×</small></a><a class="chip" data-k="opus" href="t-slime_opd-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.64×</small></a><a class="chip" data-k="kimi" href="t-slime_opd-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.59×</small></a><a class="chip" data-k="gcarbon" href="t-slime_opd-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>1.50×</small></a><a class="chip" data-k="astra62" href="t-slime_opd-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.46×</small></a><a class="chip" data-k="glm" href="t-slime_opd-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.46×</small></a><a class="chip" data-k="ds" href="t-slime_opd-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.43×</small></a><a class="chip" data-k="qwen4" href="t-slime_opd-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.40×</small></a><a class="chip" data-k="mm" href="t-slime_opd-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.40×</small></a><a class="chip" data-k="sol62" href="t-slime_opd-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.37×</small></a><a class="chip self" data-k="step5" href="t-slime_opd-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.33×</small></a><a class="chip" data-k="astra" href="t-slime_opd-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.30×</small></a><a class="chip" data-k="haiku" href="t-slime_opd-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.23×</small></a><a class="chip" data-k="ghydrogen" href="t-slime_opd-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.10×</small></a><a class="chip" data-k="hy4" href="t-slime_opd-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.07×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>7 sections</small></summary><div class="rounds"><details><summary><em class="">0.3 h</em><span>Round 1 - profile the unchanged reference</span></summary><pre>- rollout profile (tree <code>/tmp/ref-tree</code>, <code>profile --side rollout</code>, 200 decode steps of
+  rollout 1, both student engines): <code>/tmp/r1/profile/trace/*.trace.json.gz</code>,
+  report via <code>bench/kernel_util.py</code>.
+- train profile (<code>profile --side train</code>): <code>/tmp/r1/tprofile</code>.
+- Findings (rollout, per decode step at bs=32/engine):
+  - profiled step 10.11 ms, GPU kernel busy 4.22 ms; the *real* step is 6.58 ms
+    (measured gen throughput 4850-4914 tok/s per engine, 32 running requests).
+  - kernel time split: cuBLAS nvjet GEMMs ~61%, GDN packed decode 9.9%,
+    FlashInfer allreduce-fusion 8.2%, fa3 attention 2.6%, sampler path ~9%.
+  - <b>one <code>aten::item()</code> per decode step blocks ~3.8 ms</b>: <code>sampler.py</code>
+    <code>bool(sampling_info.return_top_p_log_probs.any().item())</code> is evaluated on a GPU
+    bool tensor every step even though score centering is off. It drains the pipeline,
+    so the GPU sits idle for the batch-prep that follows.
+  - under-filled tiny GEMM <code>nvjet_..._1x1_h_bz_splitK_TNT</code>: 4752 calls, 13.1 us each,
+    3 blocks / 2% SM coverage, 6.2% of kernel time (the GDN a/b projection).
+- Roofline check: weights 8.65 GB + KV reads 4.33 GB + GDN state 0.8 GB per GPU per
+  step at seq len ~8300 =&gt; ~14 GB; the lm_head GEMM alone sustains ~4.1 TB/s, so the
+  memory roofline is ~3.0 ms/step and we are at 6.58 ms.</pre></details><details><summary><em class="">0.3 h</em><span>Round 2 - remove the per-step GPU sync in the sampler (rollout side) - RESULT</span></summary><pre><code>time --side rollout</code> (tree /submission/slime_opd, switches empty), windows from
+<code>/tmp/r2/time_rollout/rollout_tree/judge/rollout_clock.jsonl</code>:
+- candidate windows: <b>61.114 / 59.442 / 59.468 s</b> (mean 60.008)
+- frozen reference: 75.611 / 76.071 / 75.633 s (mean 75.772)
+- <b>side speedup 1.2629</b>, projected step speedup 1.1143 (rollout side only)
+- engine log: gen throughput 4850-4914 -&gt; 6712-7046 tok/s at bs=32/engine</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 - train side: dead reference pass + recompute override - RESULT</span></summary><pre><code>time --side train</code> with <code>SLIME_RECOMPUTE_GRANULARITY=none</code>:
+- candidate windows: <b>56.516 / 56.184 / 55.719 s</b> (mean 56.14)
+- frozen reference: 73.779 / 72.317 / 72.521 s (mean 72.872)
+- <b>side speedup 1.298</b>, first_use 0 s in every window
+
+Breakdown from the run&#x27;s own timers (step 1, warm): the reference model&#x27;s log-prob pass
+is gone and <code>actor train</code> runs at 2.0 vs the reference&#x27;s 1.55 microbatches/s.
+Numerics: step 0&#x27;s <code>train/loss</code>, <code>train/pg_loss</code>, <code>train/entropy_loss</code>, <code>train/pg_clipfrac</code>,
+<code>train/ppo_kl</code> and <code>train/train_rollout_logprob_abs_diff</code> are <b>bitwise identical</b> to the
+reference run&#x27;s step 0 (0.05341373383998871 / 0.3821689486503601 / 0.0 / 0.0 /
+0.008052160032093525). <code>train/grad_norm</code> differs by 3.9e-5 relative (0.9966256618 vs
+0.9966646433) because recompute=none moves the recompute out of the backward; that is the
+only visible numeric change and it is far inside the N1 statistical gate.
+
+Combined projection (both sides): 1 / (1 - (0.4926*0.2080 + 0.4738*0.2296)) = <b>1.27</b>.</pre></details><details><summary><em class="">1.6 h</em><span>Round 4 - full correctness check: `check --quick` PASS (tier N1)</span></summary><pre><code>/tmp/r4/quick/check.json</code> -&gt; <code>{&quot;status&quot;: &quot;PASS&quot;, &quot;tier&quot;: &quot;N1&quot;}</code>, judged sides
+rollout + teacher + train. Numbers:
+- rollout windows 59.574 / 60.230 / 59.632 (mean 59.812) vs frozen 75.772 -&gt; <b>1.267</b>
+- rollout teacher tail 16.9 / 15.9 / 15.7 s
+- teacher replay windows 18.318 / 18.275 / 17.905 (mean 18.166) vs frozen 18.132 -&gt; 0.998
+  (the teacher replay&#x27;s log-probabilities are <b>bitwise identical</b> to the frozen
+  reference replay: candidate mean|d| = 0.0)
+- rollout token forcing: mean|d| 0.0077267 vs the reference&#x27;s own 0.0077868
+  (ratio 0.992), event rate identical, sampler t = 1.13 (&lt; 4)
+- rollout teacher log-probs: mean|d| 0.0069426 vs 0.0069976 (ratio 0.992), bias t = -0.68
+- train-inference mismatch 0.008033 vs the reference&#x27;s 0.008085 (ratio 0.994)
+- train statistical gate (N1): update norm d = -2.3e-5 (tol 1.2e-3), exp_avg_sq norm
+  d = 8.1e-5 (tol 4.4e-4), mean loss d = 1.5e-5 (tol 3.8e-5), first grad norm
+  d = -1.2e-4 (tol 1.65e-3), update direction cosine 0.99541 (min 0.95660). All within.
+
+Projected step speedup from the two measured sides:
+1 / (1 - (0.4926*(1-1/1.267) + 0.4738*(1-1/1.298))) = <b>1.27</b>.</pre></details><details><summary><em class="">2.1 h</em><span>Round 5 - train side: form the OPD advantage inside the training forward</span></summary><pre>The actor&#x27;s forward-only log-prob pass existed only to give the OPD advantage the
+student&#x27;s log-probs of the current weights - which the training forward computes anyway.
+When both KL terms are dead and the advantages are not whitened the two are the same
+tensors, so the loss can apply the reverse KL to what it just computed
+(<code>SLIME_OPD_INLINE_ADVANTAGE=1</code>).
+
+First attempt was wrong: the inline advantage carried the forward&#x27;s graph, so the policy
+gradient picked up an extra <code>d(advantage)/d(log_probs)</code> term (<code>grad_norm</code> 1.088 vs the
+reference&#x27;s 0.9966). The reference&#x27;s advantage comes from a graph-free forward, so the
+substitution has to detach it; with that, step 0&#x27;s <code>loss</code>, <code>pg_loss</code>, <code>entropy_loss</code>,
+<code>pg_clipfrac</code>, <code>ppo_kl</code> and <code>train_rollout_logprob_abs_diff</code> are bitwise identical to the
+reference&#x27;s and <code>grad_norm</code> is 0.99655 vs 0.99666 (d = 1.2e-4, tolerance 1.65e-3).
+
+<code>time --side train</code> with both switches: windows 46.320 / 48.323 / 44.952 (mean 46.532) vs
+the frozen 73.779 / 72.317 / 72.521 -&gt; <b>side speedup 1.5675</b> (was 1.298 without it).
+The log-prob timer disappears from the run&#x27;s own timer log.
+
+Combined projection: 1 / (1 - (0.4926*0.2109 + 0.4738*0.3620)) = <b>1.38</b>.
+
+Teacher attempt (logged as no-gain): <code>OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 8192</code>
+gives teacher windows 17.579/17.860/17.358 vs the frozen 18.284/18.251/17.861, side
+speedup 1.0303 - 0.3% of the step, and it would trade the teacher&#x27;s currently
+<b>bitwise-identical</b> replay log-probabilities for a tolerance-based match. Not taken.</pre></details><details><summary><em class="">2.7 h</em><span>Round 6 - full correctness check with both switches: PASS (N1)</span></summary><pre><code>check --quick</code> with <code>SLIME_RECOMPUTE_GRANULARITY=none</code> +
+<code>SLIME_OPD_INLINE_ADVANTAGE=1</code> (<code>/tmp/r8/quick/check.json</code>) -&gt; <code>{&quot;status&quot;: &quot;PASS&quot;}</code>,
+<code>passed: true</code>, <code>measured_tier: N1</code>, <code>verdict: equivalent</code>, judged sides rollout +
+teacher + train. Train statistical gate (all <code>within: true</code>):
+
+| metric | candidate | reference | d | tolerance |
+|---|---|---|---|---|
+| update norm | 0.148315 | 0.148452 | -1.37e-4 | 1.20e-3 |
+| exp_avg_sq norm | 0.0017041 | 0.0016418 | +6.23e-5 | 4.36e-4 |
+| mean loss | 0.05169098 | 0.05169092 | +6.1e-8 | 3.75e-5 |
+| first grad norm | 0.996532 | 0.996736 | -2.05e-4 | 1.65e-3 |
+| update direction cos | 0.99325 | - | min 0.95660 | |
+
+Rollout windows in the same run: 59.574 / 60.230 / 59.632 (mean 59.812) vs frozen
+75.772. Teacher replay windows 18.318 / 18.275 / 17.905 (mean 18.166) vs 18.132.
+
+<b>Current submission state</b> (<code>/submission/switches.json</code>):
+<code>{&quot;environment&quot;: {&quot;SLIME_RECOMPUTE_GRANULARITY&quot;: &quot;none&quot;, &quot;SLIME_OPD_INLINE_ADVANTAGE&quot;: &quot;1&quot;}}</code>
+- rollout side speedup 1.263 (<code>time --side rollout</code>), train side 1.5675
+  (<code>time --side train</code>), teacher side 1.00 (unchanged).
+- projected step speedup 1 / (1 - (0.4926*0.2109 + 0.4738*0.3620)) = <b>1.38</b>.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 - train-side profile and the dead reference pass</span></summary><pre><code>profile --side train</code> timer breakdown of one warm train step (72.9 s total):
+- <code>ref_log_probs</code> (reference model&#x27;s forward-only log-prob pass): <b>10.8 s</b>
+- <code>log_probs</code> (actor&#x27;s forward-only log-prob pass): 9.9 s
+- <code>actor_train</code> (fwd + full-recompute + bwd): 45.9 s
+- sleep/wake of the colocated Megatron: 5.7 s
+The recipe passes <code>--use-kl-loss --kl-loss-coef 0.00</code> and <code>--kl-coef</code> defaults to 0, so
+the reference model&#x27;s log-probs feed only terms multiplied by zero. Change: the actor
+skips that forward pass when both KL coefficients are zero, and <code>policy_loss_function</code>
+follows the data&#x27;s presence. Tier N0 (the loss and its gradient are unchanged bitwise:
+<code>loss + 0 * kl_loss == loss</code>).
+
+Also added <code>SLIME_RECOMPUTE_GRANULARITY</code> (Megatron <code>training/arguments.py</code>): an opt-in
+override of the activation-recompute granularity. Full recompute costs one extra
+forward per layer; the colocated engines release their pools during training, so there
+is device headroom to keep the activations instead.
+
+<b>Bug found and fixed while timing this</b>: <code>DataIterator.get_next</code> fills a requested key
+with <code>None</code> when the rollout data does not carry it, so <code>&quot;ref_log_probs&quot; in batch</code> is
+True with a <code>None</code> value. The first version of the loss guard used <code>in batch</code> and
+crashed with <code>TypeError: cat(): argument &#x27;tensors&#x27; ... not NoneType</code>. The guard now
+tests <code>batch.get(&quot;ref_log_probs&quot;) is not None</code>, and <code>kl_loss</code> is reported only when it
+was computed.
+
+
+---</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_opd-sol62.html"><small>← 1.37×</small><strong>GPT-6.2 Sol</strong></a><a class="up" href="slime_opd.html">↑ Slime OPD</a><a class="next" href="t-slime_opd-astra.html"><small>1.30× →</small><strong>GPT-6 Astra<span class="nerf">suspected nerf</span></strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_opd-opus.html", "pts": [[0.532, 1.116, 2], [0.761, 1.39, 3], [2.833, 1.39, 4], [3.465, 1.44, 6], [4.781, 1.496, 7], [7.52, 1.63, 8]], "end": 10.0, "final": 1.6416, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_opd-sonnet.html", "pts": [[2.209, 1.208, 2], [4.303, 1.208, 3], [6.164, 1.676, 4], [6.95, 1.676, 5]], "end": 10.0, "final": 1.7587, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_opd-haiku.html", "pts": [[0.842, 1.21, 1], [9.901, 1.245, 3]], "end": 10.002, "final": 1.2273, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-slime_opd-astra62.html", "pts": [[1.477, 1.199, 3], [2.849, 1.27, 4], [5.842, 1.27, 7], [5.908, 1.455, 9]], "end": 10.0, "final": 1.463, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-slime_opd-sol62.html", "pts": [[3.101, 1.308, 7], [4.13, 1.315, 9], [9.673, 1.315, 18]], "end": 10.0, "final": 1.3746, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-slime_opd-gneon.html", "pts": [[7.201, 1.859, 6], [9.655, 2.005, 7]], "end": 9.998, "final": 1.9452, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-slime_opd-gcarbon.html", "pts": [[6.251, 1.36, 5], [9.309, 1.46, 6]], "end": 9.998, "final": 1.4962, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-slime_opd-ghydrogen.html", "pts": [[1.587, 1.138, 1]], "end": 9.999, "final": 1.0964, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-slime_opd-qwen4.html", "pts": [[9.657, 1.375, 12]], "end": 10.0, "final": 1.4004, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-slime_opd-step5.html", "pts": [[0.923, 1.263, 2], [0.923, 1.298, 3], [2.089, 1.298, 5], [2.745, 1.298, 6]], "end": 10.292, "final": 1.3252, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-slime_opd-hy4.html", "pts": [[1.258, 1.085, 2], [1.624, 1.085, 3], [2.797, 1.136, 5], [5.668, 1.136, 6], [5.96, 1.149, 7], [6.482, 1.149, 9], [6.937, 1.149, 10], [6.937, 1.149, 11], [7.462, 1.149, 12], [7.462, 1.149, 13], [7.761, 1.149, 14], [8.864, 1.149, 15], [9.936, 1.149, 16]], "end": 10.0, "final": 1.0677, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_opd-astra.html", "pts": [[0.704, 1.025, 1], [2.689, 1.175, 6], [3.29, 1.175, 7], [5.072, 1.2, 8], [5.072, 1.204, 10], [6.257, 1.204, 13], [6.344, 1.204, 14], [6.869, 1.375, 15]], "end": 10.0, "final": 1.3044, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_opd-glm.html", "pts": [[0.171, 1.39, 1], [1.038, 1.39, 2], [1.272, 1.424, 3], [1.479, 1.581, 4], [2.48, 1.581, 5], [3.956, 1.581, 7], [4.436, 1.581, 8], [4.85, 1.581, 9], [7.574, 1.581, 14], [7.917, 1.581, 15], [9.001, 1.581, 17]], "end": 10.0, "final": 1.4556, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_opd-kimi.html", "pts": [[1.477, 1.139, 5], [2.246, 1.427, 6], [2.841, 1.427, 7], [3.126, 1.427, 8], [4.521, 1.427, 11], [4.816, 1.427, 12], [5.084, 1.427, 13], [5.429, 1.427, 14], [5.743, 1.427, 15], [6.184, 1.427, 16], [6.555, 1.427, 17], [6.589, 1.427, 18], [7.546, 1.575, 19], [8.333, 1.575, 20], [9.421, 1.575, 21], [9.513, 1.575, 22], [9.635, 1.575, 23]], "end": 10.008, "final": 1.5881, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_opd-ds.html", "pts": [[1.107, 1.169, 2], [2.487, 1.169, 3], [4.183, 1.169, 6], [5.366, 1.169, 8], [6.826, 1.255, 9], [9.157, 1.434, 12]], "end": 10.0, "final": 1.4336, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_opd-mm.html", "pts": [[0.945, 1.109, 1], [1.555, 1.368, 4], [2.15, 1.368, 6], [3.524, 1.368, 8], [4.451, 1.368, 9], [4.451, 1.39, 10], [5.957, 1.39, 12], [6.179, 1.39, 13], [6.394, 1.39, 14], [6.799, 1.39, 15], [6.799, 1.489, 16], [7.218, 1.489, 17], [7.992, 1.489, 20], [8.226, 1.489, 21], [8.917, 1.503, 23], [9.234, 1.503, 25]], "end": 10.0, "final": 1.3997, "rej": false}], "focus": "step5", "xmax": 10.5, "aria": "Step-5 Preview on Slime OPD: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

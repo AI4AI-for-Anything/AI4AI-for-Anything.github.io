@@ -1,0 +1,544 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Step-5 Preview · 3DGS · RSI-Infra Bench</title><meta name="description" content="Step-5 Preview on 3DGS: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="on">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="3dgs.html">3DGS</a><span>/</span><b>Step-5 Preview</b></nav><h1>Step-5 Preview <em>1.59×</em></h1><p class="lede">Harness: Claude Code · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.59×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.58×</dd></div><div class=""><dt>Rounds</dt><dd>32</dd></div><div class=""><dt>Hours</dt><dd>10.1</dd></div><div class=""><dt>API cost</dt><dd>$45.2</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>407 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.0 M</dd></div><div class=""><dt>Requests</dt><dd>876</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="opus" href="t-3dgs-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>5.82×</small></a><a class="chip" data-k="sonnet" href="t-3dgs-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>4.44×</small></a><a class="chip" data-k="gneon" href="t-3dgs-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>4.23×</small></a><a class="chip" data-k="astra62" href="t-3dgs-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>3.58×</small></a><a class="chip" data-k="ghydrogen" href="t-3dgs-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>3.57×</small></a><a class="chip" data-k="gcarbon" href="t-3dgs-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>3.12×</small></a><a class="chip" data-k="mm" href="t-3dgs-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.54×</small></a><a class="chip" data-k="sol62" href="t-3dgs-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>2.35×</small></a><a class="chip" data-k="haiku" href="t-3dgs-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.35×</small></a><a class="chip" data-k="astra" href="t-3dgs-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>2.04×</small></a><a class="chip" data-k="glm" href="t-3dgs-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.76×</small></a><a class="chip" data-k="ds" href="t-3dgs-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.71×</small></a><a class="chip" data-k="kimi" href="t-3dgs-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.68×</small></a><a class="chip" data-k="qwen4" href="t-3dgs-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.60×</small></a><a class="chip self" data-k="step5" href="t-3dgs-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.59×</small></a><a class="chip" data-k="hy4" href="t-3dgs-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.51×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>34 sections</small></summary><div class="rounds"><details><summary><em class="">0.7 h</em><span>Round 1 — profile the unchanged reference, then remove the mid-iteration host syncs</span></summary><pre>- <b>Profile</b> (<code>/tmp/r1/profile</code>, steps 7000..7019, 20 steps): GPU busy 9.62 ms/step, CPU span 9.9 ms/step,
+  GPU wall 9.8 ms/step → <b>~1.1 ms/step of GPU idle per iteration</b>. 177 kernels, 494 CPU ops per step.
+  Top CUDA consumers (share of self CUDA): <code>PerGaussianRenderCUDA</code> (backward) 27 %, <code>renderCUDA</code> (forward)
+  16 %, Adam 26 %, <code>preprocessCUDA</code> 10 %, <code>duplicateWithKeys</code> 5 %, fused-SSIM 1.4 %.
+  A timestamp-correlated look at one iteration showed the cause of the idle: <code>(radii &gt; 0).nonzero()</code> in
+  <code>gaussian_renderer/__init__.py</code> blocks the CPU for 1.4–3.0 ms waiting for the render kernel, and while the
+  CPU then runs the (host-only) loss forward the GPU has nothing queued. <code>loss.item()</code> in <code>train.py</code> is a second
+  sync at the same point in the iteration.
+- <b>Changes</b> (all N0 — no value is changed, only where the work is issued):
+  - <code>gaussian_renderer/__init__.py</code>: <code>visibility_filter</code> is now the boolean mask <code>radii &gt; 0</code> instead of
+    <code>(radii &gt; 0).nonzero()</code>; the consumers (<code>max_radii2D</code> update, <code>add_densification_stats</code>) take the same rows
+    with the same values.
+  - <code>train.py</code>: dropped <code>loss.item()</code> from the per-iteration logging (tqdm postfix only; tensorboard is not
+    installed in the judged environment, so <code>training_report</code> is skipped unless a writer exists), and guarded
+    the <code>iter_start.elapsed_time(iter_end)</code> call so it is not evaluated without a logger.
+  - <code>scene/gaussian_model.py</code>: dropped <code>torch.cuda.empty_cache()</code> from <code>densify_and_prune</code>.
+- <b>Result</b>: <code>time</code> → 291.857 s, <code>speedup_vs_frozen_reference</code> <b>1.0484</b>; <code>check --quick</code> PASS (exact items).
+  The gain is much smaller than the 11 % the profile suggested, because the GPU idle is only ~0.6 ms/step in
+  window 1 and ~0.9 ms/step in window 2; windows 2–3 are already GPU-bound (window 3: GPU busy 10.11 ms/step
+  vs wall 10.19 ms/step at N≈2 M).
+- Second profile at step 25050 (<code>/tmp/r1/profile3</code>, steady state, no densification): GPU busy 10.11 ms/step —
+  backward rasterizer 3.58 ms, <b>Adam 3.05 ms</b>, forward rasterizer 2.64 ms, radix sort 0.23 ms.
+  → the next hotspot is the optimizer step (30 % of the GPU time), and after it the rasterizer (61 %).</pre></details><details><summary><em class="">0.7 h</em><span>Round 2 — one fused, bitwise-identical Adam step</span></summary><pre>- <b>Change</b> (<code>utils/fast_adam.py</code>, new; <code>scene/gaussian_model.py</code>): <code>FusedAdam</code>, a <code>torch.optim.Adam</code> subclass
+  whose <code>step()</code> performs exactly upstream&#x27;s update — the same operations in the same order with the same
+  rounding boundaries — in <b>one pass per parameter tensor</b> with a Triton kernel, instead of torch&#x27;s seven
+  <code>_foreach_*</code> passes (lerp_, mul_, addcmul_, sqrt, div_, add_, addcdiv_) that stream the whole parameter set
+  through HBM ~18 times instead of 7.
+  - Numerics: verified <b>bitwise identical</b> to <code>torch.optim.Adam</code>&#x27;s foreach path on the six real parameter
+    shapes over 7 consecutive steps (<code>/tmp/adamtest.py</code>: <code>torch.equal</code> on p, exp_avg and exp_avg_sq, 42/42 OK).
+    The two details that mattered: Triton&#x27;s <code>/</code> is <code>div.full.f32</code> (2 ULP) — both divisions must use
+    <code>libdevice.div_rn</code> — and <code>sqrt</code> must use <code>libdevice.sqrt_rn</code>.
+  - Fallbacks: no triton, or a parameter that is not contiguous / not float32 → the parent&#x27;s own
+    implementation (called through the *unwrapped* <code>Adam.step</code>, see below). A non-contiguous gradient is
+    copied (layout only). Parameters without a gradient are skipped, exactly as upstream&#x27;s Adam does — right
+    after a densification the new parameters have no gradient yet and their step is not taken.
+  - <code>create_from_pcd</code>: <code>_xyz</code> is created from a transposed numpy view, so upstream&#x27;s <code>_xyz</code> is a transposed
+    (stride <code>(1, N)</code>) tensor for the first 600 iterations; <code>.contiguous()</code> makes it dense from the start
+    (values unchanged, per-point shape and dtype unchanged).
+- <b>Bug found and fixed while integrating</b> (first attempt was INCORRECT, <code>/tmp/r2b/quick</code>): calling
+  <code>super().step()</code> from inside the overridden <code>step()</code> re-enters the global optimizer-step hooks a <b>second</b>
+  time, because <code>Optimizer._patch_step_function</code> wraps <code>Adam.step</code> itself as soon as any Adam exists in the
+  process (the exposure optimizer does that here). Every fallback therefore counted as an extra
+  Gaussian-optimizer step: 24 densification iterations → 24 extra steps, the camera/SH-degree/LR marks all
+  shifted by one step. Fixed by calling the original <code>Adam.step</code> (<code>__wrapped__</code>) directly.
+  Also fixed: <code>state[&#x27;step&#x27;]</code> is normalised to a Python number (the parent&#x27;s implementation stores a 0-dim
+  CPU tensor), so the fused path can be used after a parent-created state.
+- <b>Result</b>: <code>check --quick</code> <b>PASS</b> (exact items of the first 3000 steps match the reference: 3000 renders,
+  the same camera order, the same LR/SH-degree marks, the same densification steps, the same dtypes).
+  <code>time</code> → 238.698 s, <code>speedup_vs_frozen_reference</code> <b>1.2819</b> (windows 68.5 / 87.8 / 82.3 s vs the
+  reference&#x27;s 84.5 / 112.5 / 109.0 s). Peak allocated memory unchanged (5.31 GiB).
+  Note: the final Gaussian count is not an exact item; it differs from the frozen record by ~0.1 %, which is
+  inside the reference&#x27;s own run-to-run variation (the rasterizer&#x27;s backward accumulates with atomics).</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 — profile the current best, then the next hotspot</span></summary><pre>- <b>Profile of the current tree</b> (see below) — the fused Adam removed ~1.9 ms/step, so the rasterizer is now
+  ~76 % of the GPU time.</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 — apply the densification statistics mask without indexing it</span></summary><pre><code>tensor[bool_mask]</code> (read *and* in-place form) turns the mask into an index list on
+the host first: <code>aten::nonzero</code> → a device→host <b>synchronization</b> in the middle of the
+iteration, then a gather/scatter of only the visible rows. The trace showed 8 of them per
+iteration, each blocking the CPU for ~250 µs and leaving the GPU idle while the CPU
+re-issued the backward. Both consumers of the visibility mask are now elementwise:
+<code>max_radii2D = torch.maximum(max_radii2D, radii)</code> (invisible Gaussians have <code>radii == 0</code>
+and <code>max_radii2D &gt;= 0</code>, so they are untouched) and
+<code>xyz_gradient_accum += norm(grad[:, :2]) * mask</code>, <code>denom += mask</code> (Gaussians outside the
+mask have an all-zero screen-space gradient). All bit for bit the values the indexed form
+produced.
+<code>time</code> 228.949 s → <b>1.3365</b> (was 1.2819); <code>check --quick</code> PASS.</pre></details><details><summary><em class="">1.6 h</em><span>Round 4 — profile + rasterizer micro-optimizations</span></summary><pre>Profiles at 1050 / 2050 / 12050 / 25050 (per step, GPU busy vs CPU span): 3.06 / 4.1 /
+8.56 / 7.98 ms, with the CPU span always just below — <b>the run is GPU-bound everywhere</b>;
+the only remaining recoverable time is GPU work. At N≈2.05 M the GPU work per step is
+8.56 ms: <code>PerGaussianRenderCUDA</code> 2.94, <code>renderCUDA</code> 1.51, backward <code>preprocessCUDA</code> 0.58,
+<code>duplicateWithKeys</code> 0.56, radix sort 0.29, forward <code>preprocessCUDA</code> 0.17, fused Adam 0.86,
+small ATen ops ~0.9.
+
+Changes (all bitwise identical, in the CUDA sources):
+- <code>duplicateWithKeys</code>: the two <code>__frcp_rn</code> in <code>max_contrib_power_rect_gaussian_float</code>
+  depend on the Gaussian&#x27;s conic only → computed once per Gaussian instead of once per
+  overlapped tile.
+- <code>PerGaussianRenderCUDA</code>: pixel coordinates / linear id kept incrementally (the lane&#x27;s
+  pixel advances by one per iteration); the redundant <code>W &lt;= pix.x</code> re-test inside a block
+  already guarded by <code>valid_pixel</code> removed; <code>1/(1-alpha)</code> computed once per pixel instead
+  of once per channel. <code>-T_final / (1 - alpha)</code> stays a division (multiplying by the
+  reciprocal rounds differently).
+
+Two bugs were made and fixed on the way (both caught by <code>time</code>&#x27;s peak memory dropping to
+2.46 GiB — the model stopped growing, while <code>check --quick</code> still PASSED because that gate
+compares the *steps* at which the count changes, not the counts):
+- the pixel advance was placed after the loop&#x27;s <code>continue</code>s, so skipped pixels never
+  advanced the counter;
+- <code>my_warp.thread_rank()</code> is unsigned, so <code>-rank % BLOCK_X</code> wrapped to 16-(rank%16).
+
+<code>time</code> 226.025 s → <b>1.3538</b>; <code>check --quick</code> PASS; the record&#x27;s final count is
+1,094,180 (reference 1,096,177). From now on, any rasterizer change is checked against
+that number as well.</pre></details><details><summary><em class="">1.9 h</em><span>Round 5 — tried to remove the warp shuffles of `PerGaussianRenderCUDA` (failed, reverted)</span></summary><pre>Hypothesis: the 11 <code>shfl_up</code> per iteration (and the 14 single-lane global loads they
+distribute) were the reason the kernel is latency-bound, and since the forward pass saves the
+per-pixel state at every 32-Gaussian boundary, each lane could read its own pixel&#x27;s state
+directly (coalesced) and drop the shuffles. Implemented, built, <code>check --quick</code> <b>PASSED</b>
+(steps at which the count changes are robust) but <code>time</code> showed 289.0 s and a peak memory of
+6.61 GiB with a final count of 2,274,236 instead of ~1.09 M — the training diverged.
+Reason: the shuffled <code>T</code> and <code>ar</code> do not only carry the saved per-pixel state, they carry the
+<b>running accumulation across the gaussians of the same bucket at the same pixel</b>; reading the
+saved state directly drops the contributions of the gaussians before this lane&#x27;s in the bucket.
+Reverted (comment kept). Re-timed the reverted tree: 226.7 s → 1.3495, peak 5.31 GiB.
+Lesson recorded: a rasterizer change must be checked against the record&#x27;s final count
+(~1.09 M at step 3000, ~2.03 M at step 30000, peak ~5.3 GiB), not only against the quick gate.</pre></details><details><summary><em class="">2.1 h</em><span>Round 6 — where the remaining time is</span></summary><pre>The GPU has 132 SMs at 1980 MHz → ~1.05 T instructions/s of issue. <code>PerGaussianRenderCUDA</code>
+(2.97 ms/step, 51071 warps × 287 iterations ≈ 14.65 M warp-iterations) needs ≈ 212 instructions
+per iteration to explain its time, i.e. <b>it runs at ~100 % of the issue rate</b>: it is
+instruction-throughput bound, not latency bound, so the only lever left there is fewer
+instructions. <code>renderCUDA</code> (1.51 ms) is in the same position. The fused Adam (0.855 ms) already
+moves 3.4 GB/step, i.e. ~4 TB/s — at the memory roofline. The remaining items are the backward&#x27;s
+11 <code>torch::zeros</code> gradient buffers (≈0.3 ms of zeroing + launch overhead) and the radix sort over
+the 4.73 M duplicated keys of which only ~1.63 M are valid.</pre></details><details><summary><em class="">2.2 h</em><span>Round 7 — instruction-count attempts on the hot kernels (no gain, reverted)</span></summary><pre>- <code>__launch_bounds__(32, 16)</code> on <code>PerGaussianRenderCUDA</code> (REG 64 → 87): the instruction count
+  was identical (536 total / 451 in the loop, 17 <code>LDC.64</code> reloads of the kernel parameters
+  either way) and the occupancy would drop from 50 % to 36 %. Reverted.
+- <code>#pragma unroll</code> on the channel loops + dropping the <code>uint2 pix</code> wrapper: the generated code
+  was byte-for-byte the same instruction mix (the compiler already fully unrolled C=3).
+  Reverted.
+Both kernels are at ~100 % of the issue rate (132 SMs × 4 × 1.98 GHz ≈ 1.05 T inst/s) and
+neither the loop body nor its scheduling could be shortened without changing the arithmetic.</pre></details><details><summary><em class="">2.4 h</em><span>Round 8 — `renderCUDA`: hoist `1 / depth` out of the pixel loop</span></summary><pre>The forward blending loop evaluated <code>1.f / depths[collected_id[j]]</code> for every pixel of the
+tile, although the value depends only on the gaussian: all 256 threads of a tile issued the
+same division (a <code>MUFU.RCP</code> plus its refinement) and the same global load for the same
+gaussian. It is now computed once per gaussian while the batch is fetched into shared memory
+(<code>collected_invdepth</code>), which removes a division and a load from the inner loop of every
+contributing (pixel, gaussian) pair. The multiplication order is unchanged, so the result is
+bit for bit what it was.
+<code>time</code> 222.47 s → <b>1.3754</b> (was 1.3538); <code>check --quick</code> PASS, final count 1,094,037
+(reference 1,096,177). Committed as <code>6197c8d</code>.
+
+This was found by the same rule as the mask fix: look for work in a per-pixel loop that only
+depends on the gaussian (the backward already hoists its per-gaussian values — <code>invd</code>,
+<code>c[ch]</code>, <code>xy</code>, <code>con_o</code> — the forward did not).</pre></details><details><summary><em class="">3.0 h</em><span>Round 9 — two more attempts at the issue-rate wall (both no gain, reverted)</span></summary><pre>- <code>PerGaussianRenderCUDA</code>: hoisted the loop-invariant <code>valid_splat</code> out of the pixel loop and
+  merged the two guarded blocks (the state load and the work) into one. The generated code was
+  unchanged (536 instructions, 451 in the loop — the compiler had already done both), so the
+  tree was left as it was.
+- <code>preprocessCUDA</code> (backward, 583 µs/step, the only kernel with slack: 84 % of the issue
+  rate): refactored its body into a <code>__device__</code> function and gave each thread two gaussians,
+  hoping the two independent dependency chains would overlap. <code>time</code> 226.7 s → 1.3500
+  (<b>worse</b> than 222.5 s / 1.3754): the register count went *down* (62 → 56), i.e. the
+  compiler kept the loop rolled, so there was no extra ILP, only loop overhead. Reverted.
+- <code>renderCUDA</code>: <code>__launch_bounds__(256, 4)</code> (REG 32 → 43) did not remove the 8 per-iteration
+  <code>LDC.64</code> reloads of the kernel parameters and would halve the occupancy. Reverted.
+
+Measured state of the three big kernels: <code>PerGaussianRenderCUDA</code> 99.5 % and <code>renderCUDA</code>
+100 % of the issue rate (132 SMs × 4 × 1.98 GHz ≈ 1.05 T inst/s), the fused Adam at the memory
+roofline (3.4 GB/step ≈ 4 TB/s). <code>duplicateWithKeys</code> (408 µs) and <code>preprocessCUDA</code> backward
+(583 µs) are the only ones with slack, and neither responded to the ILP attempt.</pre></details><details><summary><em class="">3.1 h</em><span>Round 10 — final full check of the submitted tree</span></summary><pre><code>/tmp/r12/check</code>: <b>status PASS, speedup 1.371, tier N1</b> (candidate 223.191 s vs the frozen
+reference 305.993 s; windows 60.75 / 82.60 / 79.84 s). Endpoints: psnr −0.14σ, ssim −1.05σ,
+lpips +1.29σ, log_count +1.37σ — all within the 3σ bound.
+
+Final submission: HEAD <code>6197c8d</code> (clean), <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {}}</code>,
+no background processes, <code>/tmp</code> output directories removed.</pre></details><details><summary><em class="">4.2 h</em><span>Round 11 — one gradient buffer instead of eleven (kept), and two dead ends</span></summary><pre>Measured state of the run at step 25050 (N≈2.05 M): CPU span 8.00 ms, GPU wall
+8.00 ms, GPU busy 7.79 ms → the GPU is idle only <b>0.205 ms/step</b> (2.5 %), spread
+over 138 kernel launches (median gap 1.1 µs).  So the wall clock is GPU-bound and
+the remaining lever is the number of kernels and the bytes they move.
+
+- <b>Kept</b> (<code>rasterize_points.cu</code>): the backward&#x27;s eleven <code>torch::zeros</code> gradient
+  tensors are now slices of one zeroed block (each field 16-byte aligned, which the
+  fused Adam kernel specializes on).  Ten fewer allocations, fills and launches per
+  step.  Three timings: 222.21 / 222.46 / 221.96 s against 222.47 / 222.99 /
+  223.19 s before.  Full check: <b>PASS, 1.3786, N1</b> (psnr −0.94σ, ssim −0.03σ,
+  lpips +0.89σ, log_count +0.13σ).
+- <b>Dead end — compacting the radix sort&#x27;s input</b> (<code>cub::DeviceSelect::Flagged</code>
+  on a flag byte written by <code>duplicateWithKeys</code>, then sorting only the ~1.63 M
+  real (gaussian, tile) pairs instead of the 4.73 M slots): the profiled
+  sort+select+scan fell from 345 to 225 µs/step, but the wall clock did not move
+  (222.9 s vs 222.5 s).  The extra device→host synchronization needed for the
+  selected count drains the pipeline and costs as much as the sort saves.
+- <b>Dead end — instruction reductions in the hot loops</b>: merging the two
+  early-exit branches of <code>PerGaussianRenderCUDA</code> (536→536 instructions, one
+  branch fewer, NaN path preserved exactly), <code>px/py</code> as selects in
+  <code>duplicateWithKeys</code>, and incremental <code>pixf</code> — all bitwise identical, all below
+  the timing noise (222.4 s vs 222.5 s).</pre></details><details><summary><em class="">4.7 h</em><span>Round 12 — final state</span></summary><pre>Full check <code>/tmp/r22/check</code>: <b>status PASS, speedup 1.3801, tier N1</b> (candidate 221.714 s vs the
+frozen reference 305.993 s; windows 60.03 / 82.13 / 79.56 s). A second statistical sample on the
+same tree (<code>/tmp/r22/n1</code>) also PASSes: psnr −0.31σ, ssim +0.76σ, lpips −2.23σ, log_count +0.80σ —
+so the −2.49σ psnr reading of the first sample was run-to-run noise. Across the seven full
+statistical runs of this tree the means are psnr −0.86σ, ssim −0.48σ, lpips −0.14σ, log_count
++0.31σ with a run-to-run spread of about 1σ (the same tree gave psnr −2.49σ and −0.31σ), i.e. no
+measurable systematic bias.
+
+Final submission: HEAD <code>7ea249e</code>, working tree clean, <code>/submission/switches.json</code> =
+<code>{&quot;environment&quot;: {}}</code>, no background processes.
+
+### Gains by change (vs the frozen reference 305.993 s)
+
+| change | total_s | speedup |
+|---|---|---|
+| reference | 305.993 | 1.000 |
+| no mid-iteration host syncs (bool mask, no <code>loss.item()</code>, no <code>empty_cache</code>) | 291.857 | 1.0484 |
+| + fused bitwise-identical Adam (<code>utils/fast_adam.py</code>, <code>FusedAdam</code>) | 238.698 | 1.2819 |
+| + densification statistics without indexing the mask | 228.949 | 1.3365 |
+| + rasterizer micro-optimizations (hoisted reciprocals, incremental pixel ids) | 226.025 | 1.3538 |
+| + <code>renderCUDA</code>: <code>1/depth</code> once per gaussian per batch | 222.470 | 1.3754 |
+| + one gradient buffer instead of eleven | 221.964 | 1.3786 |
+| + screen-space <code>+0</code> dropped, two DtoD copies made async | 221.714 | 1.3801 |
+
+### What the remaining time is made of (7.74 ms/step of GPU at N≈2.05 M)
+
+<code>PerGaussianRenderCUDA</code> 2.98 ms and <code>renderCUDA</code> 1.39 ms run at ~100 % of the issue rate (132 SMs
+× 4 × 1.98 GHz ≈ 1.05 T inst/s); the fused Adam (0.86 ms) is at the memory roofline; the ATen
+ops (0.75 ms) are the same work the reference does, of which 0.17 ms is the irreducible zeroing
+of the backward&#x27;s gradient buffers. The GPU is idle only 0.205 ms/step over 110 kernel launches.
+
+### Directions that did not work, and why
+
+- removing the warp shuffles of <code>PerGaussianRenderCUDA</code> (they carry the per-bucket accumulation
+  across gaussians — the training diverges);
+- <code>__launch_bounds__</code> tuning, <code>#pragma unroll</code>, merging guarded blocks, <code>px/py</code> as selects,
+  incremental <code>pixf</code>, merging the two early exits (all bitwise identical, all below the timing
+  noise — the kernels are at the issue-rate wall);
+- two gaussians per thread in the backward <code>preprocessCUDA</code> (the compiler keeps the loop rolled:
+  226.7 s vs 222.5 s);
+- compacting the radix sort&#x27;s input with <code>cub::DeviceSelect::Flagged</code> (profiled sort+select+scan
+  345 → 225 µs/step, but the extra device→host synchronization needed for the selected count
+  drains the pipeline and costs as much as the sort saves: 222.9 s vs 222.5 s);
+- fusing the per-gaussian activations (<code>F.normalize</code>) or the L1 loss into Triton kernels: the
+  savings are real (~0.5–2 %) but both need a reduction order reproduced bit for bit
+  (<code>NormTwoOps</code> accumulates <code>((0+x0²)+x1²)+x2²)+x3²</code> sequentially, and the L1 mean reduces 1.6 M
+  elements with a tree), which is where a mistake would silently become N1.</pre></details><details><summary><em class="">5.0 h</em><span>Round 13 — interleave the per-bucket state (kept): 1.39x</span></summary><pre><code>PerGaussianRenderCUDA</code> is instruction-throughput bound (measured at 99.5 % of the issue
+rate), and of its ~212 instructions per iteration about 35 are the address computation and the
+constant-memory reloads for the 14 global loads in the loop.  The forward pass saves the
+per-bucket state in five separate arrays (<code>sampled_T</code>, <code>sampled_ar[3]</code>, <code>sampled_ard</code>), so the
+backward pays five base pointers, five address computations and five parameter reloads per
+pixel.
+
+They are now one array of <code>SAMPLE_STRIDE = 6</code> floats per (bucket, pixel),
+<code>[T, ar.r, ar.g, ar.b, ard]</code>: one base pointer and immediate offsets for all five loads.  That
+removes eight instructions from the loop body and three pointer parameters from the kernel.
+
+<code>time</code>: <b>219.57 s / 1.3936</b> and 220.13 s / 1.3901 on two runs of the same tree, against
+221.71 s / 1.3801 before.  <code>check --quick</code> PASS, final count 1093770 (reference 1096177).
+Committed as <code>b0f1c07</code>-equivalent (see git log).</pre></details><details><summary><em class="">6.2 h</em><span>Round 14 — interleave the image state too: 1.42x</span></summary><pre>Same lever as round 13, applied to what the backward pass loads per pixel of its inner loop.
+Ten of the fifteen loads there had their own base pointer, address computation and
+constant-memory reload: <code>pixel_colors</code> (three planar arrays), <code>pixel_invDepths</code>,
+<code>final_Ts</code>, <code>n_contrib</code>, <code>dL_dpixels</code> (three planar arrays) and <code>dL_invdepths</code>.
+
+They are now:
+- <code>pixels</code>, 8 floats per pixel <code>[colour.r, .g, .b, inverse depth, final transmittance]</code>,
+  written by the render kernel&#x27;s epilogue (the two <code>cudaMemcpyAsync</code> copies of the rendered
+  image into the image state are gone);
+- <code>dpixels</code>, 4 floats per pixel <code>[dL/dcolour.r, .g, .b, dL/dinverse depth]</code>, filled by a
+  small gather kernel at the start of the backward (the loss gradient arrives as two planar
+  arrays).
+
+The backward reads both with one base pointer and immediate offsets: **sixteen instructions
+fewer in the loop body** (528 → 512) and six pointer parameters fewer.
+
+<code>time</code>: <b>215.42 s / 1.4205</b> and 215.28 s / 1.4214 on two runs, against 220.13 s / 1.3901
+before.  <code>check --quick</code> PASS, final count 1090602 (reference 1096177).
+
+<b>Bug made and fixed on the way</b>: the first version crashed with an intermittent
+&quot;illegal memory access&quot; (steps 1266/1404/1424, three different CUDA errors) while
+<code>check --quick</code> on the tree passed for the earlier commits.  `compute-sanitizer --tool
+memcheck` only reported the *pre-existing* out-of-bounds shared write of the upstream
+<code>fusedssimCUDA</code> (769 of them, in the reference too), which was a red herring; the real cause
+was that the patch that adds the render kernel&#x27;s write of the interleaved array had aborted on
+a failed string match, so the array was never written and the backward read uninitialized
+memory.  Reproduced with a small harness that mimics <code>bench/gs_entry.py</code> (render wrapper +
+model wrapper), fixed, re-verified.
+
+### Gains by change (vs the frozen reference 305.993 s)
+
+| change | total_s | speedup |
+|---|---|---|
+| reference | 305.993 | 1.000 |
+| no mid-iteration host syncs | 291.857 | 1.0484 |
+| + fused bitwise-identical Adam | 238.698 | 1.2819 |
+| + densification statistics without indexing the mask | 228.949 | 1.3365 |
+| + rasterizer micro-optimizations | 226.025 | 1.3538 |
+| + <code>renderCUDA</code>: <code>1/depth</code> once per gaussian per batch | 222.470 | 1.3754 |
+| + one gradient buffer instead of eleven | 221.964 | 1.3786 |
+| + screen-space <code>+0</code> dropped, two DtoD copies made async | 221.714 | 1.3801 |
+| + interleaved per-bucket state (round 13) | 220.128 | 1.3901 |
+| + interleaved image state (round 14) | 215.277 | 1.4214 |</pre></details><details><summary><em class="">6.8 h</em><span>Round 15 — interleave the last arrays: 1.42x</span></summary><pre>Two more of the same lever:
+- <code>n_contrib</code> (uint32) moves into the interleaved pixel struct as a float, so the
+  final transmittance and the contributor count come out of one aligned <code>float4</code>
+  next to the colour;
+- the forward&#x27;s four per-gaussian shared arrays (<code>collected_id</code>, <code>collected_xy</code>,
+  <code>collected_conic_opacity</code>, <code>collected_invdepth</code>) become one struct of eight
+  floats read as two aligned <code>float4</code>s, so the inner loop addresses one base
+  instead of four.
+
+<b>A second alignment bug, caught the same way as the first</b>: the first version
+put the conic at offset 3 of the struct, so <code>*(const float4*)(c + 3)</code> was 12-byte
+aligned and the run died with <code>CUDA error: misaligned address</code>.  Fixed by
+reordering the struct into two aligned <code>float4</code>s: <code>[id, mean.x, mean.y, 1/depth]</code>
+and the conic.  Both float4 loads are now 16-byte aligned.
+
+<code>time</code>: 214.56 s / <b>1.4262</b> and 215.55 s / 1.4196 on two runs of the same tree,
+against 215.28 s / 1.4214 before.  <code>check --quick</code> PASS, final count 1095751.</pre></details><details><summary><em class="">7.1 h</em><span>Round 16 — removing the two now-unused kernel parameters (no gain, discarded)</span></summary><pre>After round 15 the backward kernel no longer reads <code>final_Ts</code> or <code>n_contrib</code> (both live in the
+interleaved pixel struct), so I removed them from <code>PerGaussianRenderCUDA</code>&#x27;s signature and from
+<code>BACKWARD::render</code>.  The generated code was byte-for-byte the same instruction mix (520
+instructions, 25 LDG, 20 LDC, 15 IMAD.WIDE.U32) — the compiler had already stopped reloading
+them — so the change was discarded and the tree stays at <code>5bd08ed</code>.
+
+Current state: HEAD <code>5bd08ed</code>, <code>time</code> 215.28 s / 1.4214 and 215.55 s / 1.4196, full check
+<code>/tmp/r36/check</code> PASS at <b>1.4216</b> (tier N1; psnr −1.8σ, ssim −0.77σ, lpips +0.38σ,
+log_count +0.02σ).</pre></details><details><summary><em class="">7.1 h</em><span>Round 17 — where the remaining time is (measured, 7.48 ms/step of GPU at N≈2.05 M)</span></summary><pre>| kernel | µs/step | share | state |
+|---|---|---|---|
+| <code>PerGaussianRenderCUDA</code> (backward) | 2768 | 37 % | at the issue rate; 520 instructions, loop body ~212 |
+| <code>renderCUDA</code> (forward) | 1388 | 19 % | at the issue rate; 146 instructions in the inner loop |
+| fused Adam | 860 | 11 % | at the memory roofline (3.4 GB/step ≈ 4 TB/s) |
+| <code>preprocessCUDA</code> (backward, SH + covariance gradients) | 588 | 8 % | 84 % of the issue rate |
+| <code>duplicateWithKeys</code> | 407 | 5 % | 88 % of the issue rate |
+| ATen (zeroing + per-gaussian activations + loss) | 750 | 10 % | same work as the reference |
+| radix sort over the duplicated keys | 309 | 4 % | 4.73 M keys, 65 % of them padding |
+
+The interleaving lever is now exhausted for the two hot loops: the backward&#x27;s inner loop
+addresses four bases (the per-bucket state, the pixel struct, the loss-gradient struct and
+<code>n_contrib</code>) and the forward&#x27;s one.
+
+The largest remaining single item is the per-gaussian activation <code>F.normalize(_rotation)</code>
+(three kernels forward, six backward, ~176 µs/step ≈ 2.3 %).  Fusing it into a Triton
+autograd Function would need the reduction order of <code>linalg_vector_norm</code>
+(<code>((0+x0²)+x1²)+x2²)+x3²</code>, sequential) <b>and</b> the whole backward chain of
+<code>div → expand → clamp_min → linalg_vector_norm</code> reproduced bit for bit, which is where a
+mistake would silently become N1; it is the next thing to try, not yet done.</pre></details><details><summary><em class="">7.4 h</em><span>Round 18 — fuse the quaternion normalization: 1.48x</span></summary><pre><code>F.normalize(_rotation)</code> is a composite of six kernels on the (N, 4) tensor
+(<code>norm</code>, <code>clamp_min</code>, <code>expand_as</code>, <code>div</code> forward; <code>div</code> + <code>expand</code> + <code>clamp_min</code> +
+<code>linalg_vector_norm</code> backward).  Replaced by one Triton kernel each way
+(<code>utils/quat_norm.py</code>), with the reduction order <code>linalg_vector_norm</code> uses
+(<code>((0+x0²)+x1²)+x2²)+x3²</code>), the clamp and expand backwards folded in and the norm
+saved for the backward.  Anything the kernel cannot handle falls back to
+<code>F.normalize</code>.
+
+This is <b>not</b> bit-for-bit the reference (the difference is ~1e-7 relative in both
+the output and the gradient - I tried and failed to reproduce the composite&#x27;s
+exact backward bit for bit), so it is tier <b>N1</b> and the gates decide:
+<code>check --quick</code> PASS (final count 1100328, reference 1096177) and the full check
+<b>PASS at 1.4822</b> (psnr −1.4σ, ssim −0.38σ, lpips −1.31σ, log_count +0.82σ).
+
+<code>time</code>: 206.41 s / <b>1.4825</b> and 206.45 s / 1.4822, against 215.28 s / 1.4214
+before.  The gain (4.3 %) is much larger than the ~1.5 % I expected from the
+kernel count alone: the backward&#x27;s six kernels and their HBM round trips go away.
+
+### Gains by change (vs the frozen reference 305.993 s)
+
+| change | total_s | speedup |
+|---|---|---|
+| reference | 305.993 | 1.000 |
+| no mid-iteration host syncs | 291.857 | 1.0484 |
+| + fused bitwise-identical Adam | 238.698 | 1.2819 |
+| + densification statistics without indexing the mask | 228.949 | 1.3365 |
+| + rasterizer micro-optimizations | 226.025 | 1.3538 |
+| + <code>renderCUDA</code>: <code>1/depth</code> once per gaussian per batch | 222.470 | 1.3754 |
+| + one gradient buffer instead of eleven | 221.964 | 1.3786 |
+| + screen-space <code>+0</code> dropped, two DtoD copies made async | 221.714 | 1.3801 |
+| + interleaved per-bucket state | 220.128 | 1.3901 |
+| + interleaved image state | 215.277 | 1.4214 |
+| + interleaved the last per-pixel array and the forward&#x27;s batch | 215.546 | 1.4196 |
+| + fused quaternion normalization | 206.448 | 1.4822 |</pre></details><details><summary><em class="">7.5 h</em><span>Round 19 — fuse the L1 loss too (no gain, discarded)</span></summary><pre><code>l1_loss = torch.abs((image - gt)).mean()</code> is the same kind of composite (sub, abs, mean
+forward; div, sgn/mul, add backward).  Fused into one Triton kernel each way
+(<code>utils/l1_mean.py</code>): the backward is bitwise identical to the composite and the forward&#x27;s mean
+matches bitwise at the real shape (3, 546, 979) — only other shapes differ by ~1e-7 (the
+reduction order).
+
+<code>time</code>: 206.41 s / 1.4824 against 206.41 s / 1.4825 before — <b>no measurable gain</b>, because the
+mean reduces 1.6 M contiguous elements (6.4 MB) while the quaternion case reduced 8 M elements
+read with a 16-byte stride (8x the cache lines) plus five intermediates.  Discarded; the tree
+stays at <code>c5eaa8d</code>.
+
+That also explains why round 18 gained 4.3 % where the kernel count alone predicted 1.5 %: the
+win was the avoided HBM traffic (strided reads and intermediates), not the launch count.
+
+<b>Current state</b>: HEAD <code>c5eaa8d</code>, full check <code>/tmp/r39/check</code> <b>PASS at 1.4822</b> (tier N1;
+psnr −1.4σ, ssim −0.38σ, lpips −1.31σ, log_count +0.82σ), <code>time</code> 206.45 s.</pre></details><details><summary><em class="">7.6 h</em><span>Round 20 — where the remaining time is now (7.48 ms/step of GPU at N≈2.05 M, after round 18)</span></summary><pre>| kernel | µs/step | share | state |
+|---|---|---|---|
+| <code>PerGaussianRenderCUDA</code> (backward) | 2768 | 37 % | at the issue rate; loop body ~212 instructions |
+| <code>renderCUDA</code> (forward) | 1388 | 19 % | at the issue rate |
+| fused Adam | 860 | 11 % | at the memory roofline (3.4 GB/step ≈ 4 TB/s) |
+| <code>preprocessCUDA</code> (backward: SH + covariance gradients) | 588 | 8 % | compute bound (1.7x the HBM roofline) |
+| <code>duplicateWithKeys</code> | 407 | 5 % | 88 % of the issue rate |
+| radix sort | 309 | 4 % | 4.73 M keys, 65 % padding |
+| ATen (all of it) | 333 | 4.4 % | of which ~216 µs is autograd&#x27;s own copy of the gradients into <code>param.grad</code> |
+
+Round 18 removed ~420 µs of ATen work by fusing the quaternion normalization; the ATen total
+fell from 750 to 333 µs/step.  What is left there is mostly autograd&#x27;s gradient accumulation
+(the engine copies the gradients instead of stealing them, ~216 µs/step), which is library
+internals and cannot be removed from the tree.</pre></details><details><summary><em class="">7.7 h</em><span>Round 21 — confirmation run</span></summary><pre><code>time</code> of HEAD <code>c5eaa8d</code>: 206.375 s / <b>1.4827</b> (windows 56.12 / 76.46 / 73.80 s), matching the
+two earlier timings of the same tree (206.410 / 206.448 s) and the full check&#x27;s 206.448 s.  The
+submission is stable at <b>1.48x</b> with a passing full check (<code>/tmp/r39/check</code>, PASS, tier N1).
+
+Nothing new was changed in this round: the remaining GPU time is 7.48 ms/step, of which the two
+rasterizer kernels (4.16 ms) are at the hardware issue rate and the fused Adam (0.86 ms) is at the
+memory roofline; the only items left with headroom are <code>preprocessCUDA</code> backward (588 µs, compute
+bound) and <code>duplicateWithKeys</code> (407 µs, 88 % of the issue rate), both of which need custom kernel
+work rather than a layout or fusion change, and the radix sort (309 µs) whose input is 65 %
+padding that cannot be dropped without a second pass of the opacity test.</pre></details><details><summary><em class="">7.7 h</em><span>Round 22 — `duplicateWithKeys` instruction mix (no change)</span></summary><pre>The kernel is 608 instructions with a 183-instruction inner loop: 36 FMUL, 21 FFMA, 20 FADD,
+9 LOP3, 7 int→float conversions, 6 comparisons, 6 saturating multiplies and 10
+BSSY/BSYNC.  The 77 floating-point instructions are the <code>max_contrib_power</code> evaluation
+itself (the closed-form maximum of the quadratic over the tile), which is what decides which
+tiles a gaussian is emitted into — it cannot be simplified without changing which tiles are
+emitted, i.e. without changing the image.  The remaining 12 % of headroom is memory latency
+(the conic and the per-gaussian loads), not instruction count.
+
+No change was made; the tree stays at <code>c5eaa8d</code> (1.4827 by <code>time</code>, full check PASS at 1.4822).</pre></details><details><summary><em class="">8.1 h</em><span>Round 23 — manual 2-way interleave of the backward preprocess (bug, then a numerics</span></summary><pre></pre></details><details><summary><em class="">8.3 h</em><span>Round 24 — allocator configuration (no gain, not adopted)</span></summary><pre>Screened two <code>TORCH_CUDA_ALLOC_CONF</code> settings through <code>time --config</code> (there is no <code>sweep</code>
+subcommand in this bench):
+
+| setting | total_s | speedup | peak reserved |
+|---|---|---|---|
+| (none, current) | 206.375 | 1.4827 | 36.4 GiB |
+| <code>expandable_segments:True</code> | 206.286 | 1.4833 | 36.4 GiB |
+| <code>max_split_size_mb:128</code> | 207.084 | 1.4776 | 37.6 GiB |
+
+Both are inside the run-to-run noise (the three timings of the same tree span 206.38–206.45 s),
+and <code>max_split_size_mb</code> is slightly worse.  The caching allocator is not a bottleneck: the
+reserved/allocated ratio (36 GiB against 5.5 GiB) costs nothing measurable, because the buffers
+are reused across iterations once the size stabilises.  No change adopted; <code>switches.json</code> stays
+<code>{&quot;environment&quot;: {}}</code>.</pre></details><details><summary><em class="">8.3 h</em><span>Round 25 — fuse the densification statistics (numerics differ, abandoned)</span></summary><pre>The last &quot;five kernels into one&quot; candidate: <code>max_radii2D = max(max_radii2D, radii)</code>,
+<code>xyz_gradient_accum += norm(grad[:, :2]) * (radii &gt; 0)</code> and <code>denom += (radii &gt; 0)</code> are five
+kernels over the whole point set, once per iteration inside the densification window.
+
+A Triton kernel that does all three in one pass reproduces <code>denom</code> and <code>max_radii2D</code> bit for
+bit, but not <code>xyz_gradient_accum</code>: <code>linalg_vector_norm</code> does not compute plain
+<code>sqrt(g0² + g1²)</code> — it uses the scaled formulation for overflow/underflow safety, so the
+accumulator differs by ~5e-7 relative.  Combined with a measured gain of only ~0.2 %, that is
+not worth an N1 change; abandoned.  (<code>utils/dens_stats.py</code> was written and validated against
+the composite but not kept.)
+
+<b>Current state</b>: HEAD <code>c5eaa8d</code>, clean, full check PASS at 1.4822 (tier N1), <code>time</code> 206.4 s.</pre></details><details><summary><em class="">8.5 h</em><span>Round 26 — skip the SH coefficients that are provably always zero (no gain, abandoned)</span></summary><pre>The fused Adam moves 7 arrays (3.38 GB/step) and is at 3.93 TB/s, so the only way to move less
+is to touch less: the spherical-harmonic coefficients beyond <code>(active_sh_degree + 1)^2</code> have an
+all-zero gradient (the backward SH kernel only writes the used coefficients) and therefore
+all-zero moments, so their Adam update is provably exactly zero.  A strided variant of the fused
+kernel updates only the first <code>(d+1)² × 3</code> floats of every 45-float row of <code>_features_rest</code>.
+
+Validated bitwise: the strided kernel reproduces the full kernel&#x27;s p/exp_avg/exp_avg_sq for the
+processed coefficients and leaves the tail untouched, and after a 100-step run with no
+densification <code>_features_rest</code> (the one parameter whose gradient is identically zero at degree 0,
+hence deterministic) is bitwise equal to the reference&#x27;s.  The other five parameters differ, but
+so do two runs of the *same* tree — the rasterizer&#x27;s atomics.
+
+<code>time</code>: 206.754 s / 1.4800 against 206.375 s / 1.4827 — <b>no gain</b>: the integer div/mod the
+strided indexing needs costs as much as the traffic it saves.  Abandoned; the tree stays at
+<code>c5eaa8d</code>.
+
+(Also fixed on the way: <code>_features_dc</code> has <code>dim() == 3</code> too, so the &quot;only the SH parameter&quot; test
+has to be <code>shape[1] * shape[2] &gt; sh_coeffs * 3</code>, not <code>dim() == 3</code>.)
+
+<b>Current state</b>: HEAD <code>c5eaa8d</code>, clean, full check PASS at 1.4822 (tier N1), <code>time</code> 206.4 s.</pre></details><details><summary><em class="">8.6 h</em><span>Round 27 — final consolidation</span></summary><pre>Nothing changed.  Final audit of the submission:
+- HEAD <code>c5eaa8d</code>, working tree clean, six commits on <code>opt</code> since the reference <code>0a6e4af</code>.
+- <code>/submission/switches.json</code> = <code>{&quot;environment&quot;: {}}</code> (the two allocator settings screened in
+  round 24 were not adopted).
+- All the files gate 0 requires are present, no background processes, <code>/tmp</code> scratch removed.
+- <code>time</code> of this tree: 206.375 / 206.410 / 206.448 s → <b>1.4827</b>; full check <code>/tmp/r39/check</code>
+  <b>PASS, speedup 1.4822, tier N1</b>.
+
+### What was tried and did not work (for the record)
+
+| direction | why it did not work |
+|---|---|
+| removing the warp shuffles of <code>PerGaussianRenderCUDA</code> | they carry the per-bucket accumulation across gaussians; the training diverges |
+| <code>__launch_bounds__</code>, <code>#pragma unroll</code>, merging the guarded blocks, <code>px/py</code> as selects, incremental <code>pixf</code>, merging the two early exits | all bitwise-identical, all below the timing noise (the kernels are at the issue-rate wall) |
+| two gaussians per thread in the backward <code>preprocessCUDA</code> | a doubled <code>stride</code> skipped half the gaussians (caught by the full check), and with the stride fixed the compiler emits different arithmetic, so the result is not bitwise identical |
+| compacting the radix sort&#x27;s input with <code>cub::DeviceSelect::Flagged</code> | the extra device→host synchronization for the selected count costs as much as the sort saves |
+| fusing the L1 loss | no measurable gain (1.6 M contiguous elements, unlike the strided quaternion case) |
+| fusing the densification statistics | <code>linalg_vector_norm</code> uses a scaled formulation, so the accumulator is not bitwise |
+| skipping the always-zero SH coefficients in Adam | the strided indexing&#x27;s div/mod costs as much as the traffic it saves |
+| <code>TORCH_CUDA_ALLOC_CONF</code> settings | inside the run-to-run noise |</pre></details><details><summary><em class="">8.6 h</em><span>Round 28 — final measurement of the remaining idle</span></summary><pre>A last profile of the steady state (step 25050, N≈2.05 M) to see whether any recoverable
+slack is left:
+
+| quantity | per step |
+|---|---|
+| CPU span | 7.354 ms |
+| GPU wall (first to last kernel) | 7.156 ms |
+| GPU busy (sum of kernel durations) | 6.994 ms |
+| <b>GPU idle</b> | <b>0.162 ms (2.3 %)</b> |
+
+The idle is spread over 1167 kernel launches with a <b>median gap of 1.1 µs</b> (p90 2.1 µs) — i.e.
+it is launch overhead, not a stall: only 31 of the 1167 gaps exceed 8 µs and together they are
+0.04 ms/step.  The CPU is 0.2 ms *ahead* of the GPU, so nothing is waiting on the host.
+
+The run is 97.7 % GPU-busy with the CPU ahead of it, so the only remaining lever is the GPU work
+itself, and every kernel that matters is at a hardware limit: the two rasterizer kernels at the
+issue rate (measured in rounds 13–16 and 22), the fused Adam at 3.93 TB/s, the forward
+<code>preprocessCUDA</code> at ~4 TB/s.  Nothing further was changed.</pre></details><details><summary><em class="">8.7 h</em><span>Round 29 — the exposure optimizer and the fused quaternion kernels (no change)</span></summary><pre>Checked the two remaining Triton kernels in the profile.  The fused quaternion normalization now
+costs 45 µs (forward) + 51 µs (backward) per step, down from ~176 µs for the six-kernel composite —
+the gain round 18 measured.  Its forward is 2.5× off the HBM roofline, which is the price of the
+four strided 4-byte loads that the sequential reduction order requires (<code>linalg_vector_norm</code>
+accumulates <code>((0+x0²)+x1²)+x2²)+x3²</code>), so it cannot be vectorised into one <code>float4</code> load without
+changing the numerics.  The exposure optimizer&#x27;s Adam step does not appear above the profile&#x27;s
+cut-off (it steps 2,628 parameters), so there is nothing to fuse there either.
+
+No change; the tree stays at <code>c5eaa8d</code>.</pre></details><details><summary><em class="">8.6 h</em><span>Final state (unchanged since round 28)</span></summary><pre>HEAD <code>c5eaa8d</code>, clean; <code>switches.json</code> <code>{&quot;environment&quot;: {}}</code>; full check <code>/tmp/r39/check</code> **PASS,
+speedup 1.4822, tier N1<b>; <code>time</code> 206.4 s against the frozen reference 305.993 s (</b>1.48×**);
+97.7 % GPU-busy with the CPU 0.2 ms ahead.</pre></details><details><summary><em class="">9.2 h</em><span>Round 30 — the Triton kernels&#x27; accesses were scalar (N0)</span></summary><pre>A shapes profile of the steady state (steps 7000–7019, N = 1.69 M) re-budgeted the step
+(7.2 ms): <code>PerGaussianRenderCUDA</code> 2.49 ms, <code>renderCUDA</code> 1.48 ms, the fused Adam 0.70 ms,
+forward <code>preprocessCUDA</code> 0.50 ms, <code>duplicateWithKeys</code> 0.34 ms, the radix sort 0.25 ms, and
+~1.2 ms of everything else.  Both rasterizer kernels sit at the issue-rate wall (205 and
+147 SASS instructions per loop iteration, of which 26 are the forward&#x27;s actual FP work), the
+Adam moves 2.1 GB per step at 4.2 TB/s, and the two preprocess kernels are at the issue
+rate too — so the only kernels off their hardware limit were my Triton ones.
+
+The Adam&#x27;s PTX turned out to be 32 scalar <code>ld.global.b32</code> and 24 scalar <code>st.global.b32</code>.
+Triton widens a masked access to 128-bit only when it can prove the mask is constant across
+the vector, which for <code>offs &lt; n</code> needs n known divisible by 16; with <code>do_not_specialize</code> on
+the element count it never is.  The same was true of the quaternion normalisation, whose
+four components were loaded with a 16-byte stride.
+
+- <code>utils/fast_adam.py</code>: the kernel is split per program into a full-block path (no mask →
+  <code>ld.global.v4.b32</code>) and a masked tail path; the branch is uniform, so nothing diverges.
+- <code>utils/quat_norm.py</code>: the four components are loaded and stored as one <code>(BLOCK, 4)</code> tile
+  and peeled off with <code>tl.split</code>/<code>tl.join</code>, which keeps the left-to-right reduction order
+  (<code>((0+x0²)+x1²)+x2²)+x3²</code>) bit for bit.
+
+Both were checked bitwise against the previous kernels (sizes 1, 3, 255, 256, 1000, 4096,
+123457; the Adam also against <code>torch.optim.Adam</code>) and <code>check --quick</code> PASS.
+<code>profile</code>: <code>_qnorm_fwd</code> 38.0 → 16.6 µs/step, <code>_qnorm_bwd</code> 43.5 → 24.7 µs/step,
+<code>_adam_fused_kernel</code> 695 → 656 µs/step (it was already at the HBM roofline, so only the
+issue count fell).  <code>time</code>: <b>204.223 s, speedup 1.4983</b> (was 1.4827), i.e. the 79 µs/step
+the profile predicted.</pre></details><details><summary><em class="">9.9 h</em><span>Round 31 — the backward kernel&#x27;s per-pixel state fetch: 11 loads → 2 (N1)</span></summary><pre>A shapes profile of the steady state re-budgeted the step at 7.2 ms
+(<code>PerGaussianRenderCUDA</code> 2.50, <code>renderCUDA</code> 1.48, the fused Adam 0.70, the
+forward <code>preprocessCUDA</code> 0.50, <code>duplicateWithKeys</code> 0.34, the radix sort 0.25,
+the rest ~1.2).  SASS accounting then separated the two rasterizer kernels:
+the backward&#x27;s 174-instruction loop body × (BLOCK_SIZE+31) iterations × the
+bucket count reproduces its measured 2.50 ms to within a percent, i.e. it is
+*exactly* at the issue-rate wall, while the forward is not (removing 8 of its
+82 inner-loop instructions there changed nothing measurable — that attempt,
+widening the per-gaussian colour to a float4, was reverted).
+
+So the round went at the backward.  The block lane 0 runs every iteration to
+fetch the state of the pixel it works on cost 29 of the 174 instructions,
+eleven of them global loads:
+- the per-bucket state <code>[T, ar.r, ar.g, ar.b, ard]</code> was five strided scalar
+  loads; <code>[T, ar.r, ar.g, ar.b]</code> is now one float4 (<code>SAMPLE_STRIDE</code> 4) and the
+  inverse depth has its own array → two loads.
+- the pixel&#x27;s loss gradient arrived as two planar arrays and was read with
+  three loads of stride <code>H*W</code> plus one; <code>pack_dpixels</code> (present but never
+  called) now interleaves them into one float4 per pixel → one load.
+
+Loop body 174 → 164, <code>LDG.E.CONSTANT</code> 12 → 4, <code>LDG.E.128</code> 1 → 3.
+Validation: the forward&#x27;s image and radii are <b>bitwise identical</b> to the
+previous build; the backward&#x27;s gradients differ from it by *less* than the
+run-to-run spread of the atomic accumulation (means3D 6.1e-5 vs 7.4e-4,
+opacity 6.1e-5 vs 2.1e-4, rotations 1.4e-4 vs 2.2e-4, sh 1.8e-4 vs 2.4e-4),
+and <code>check --quick</code> PASS.
+<code>profile</code>: <code>PerGaussianRenderCUDA</code> 2.500 → 2.269 ms/step.
+<code>time</code>: <b>196.595 s, speedup 1.5565</b> (was 1.4983).</pre></details><details><summary><em class="">10.1 h</em><span>Round 32 — the forward&#x27;s inner loop recomputed three addresses every round (N0)</span></summary><pre>Round 31&#x27;s lesson was that <code>renderCUDA</code> is *not* bound by its instruction count at the
+margin: removing eight instructions from its conditional body there changed nothing
+measurable (that attempt, a float4 per-gaussian colour, was reverted).  It is bound by
+what it executes every round.  Reading its SASS, three addresses were recomputed on each
+of the <code>BLOCK_SIZE</code> rounds: the shared-memory window base (two <code>S2UR</code> special-register
+reads), the gaussian&#x27;s slot in <code>collected</code>, and the per-bucket state slot (which also
+needed the <code>bbm</code> multiply and two 64-bit address computations).
+
+The gaussian&#x27;s slot is now a running pointer advancing by <code>GAUSSIAN_STRIDE</code>, and the
+per-bucket state is written through two running pointers advancing by <code>BLOCK_SIZE</code> pixels
+per bucket.  Kernel 456 → 440 SASS instructions.
+Validation: the forward&#x27;s image and radii are <b>bitwise identical</b>, the backward&#x27;s
+gradients differ by less than the run-to-run atomic spread, <code>check --quick</code> PASS.
+<code>profile</code>: <code>renderCUDA</code> 1.471 → 1.331 ms/step.
+<code>time</code>: <b>194.176 s, speedup 1.5759</b> (was 1.5565).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-3dgs-qwen4.html"><small>← 1.60×</small><strong>Qwen4-Max</strong></a><a class="up" href="3dgs.html">↑ 3DGS</a><a class="next" href="t-3dgs-hy4.html"><small>1.51× →</small><strong>Hy4</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-3dgs-opus.html", "pts": [[0.324, 1.23, 1], [2.034, 2.005, 3], [2.182, 3.02, 4], [3.17, 3.681, 6], [3.56, 3.99, 8], [3.987, 4.124, 9], [4.569, 4.494, 10], [5.265, 4.765, 11], [5.685, 5.212, 12], [6.079, 5.328, 13], [6.336, 5.442, 14], [6.958, 5.442, 15], [8.148, 5.5, 16], [8.279, 5.551, 17], [8.485, 5.607, 18], [8.907, 5.655, 19], [9.973, 5.853, 21]], "end": 10.0, "final": 5.8198, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-3dgs-sonnet.html", "pts": [[0.841, 1.168, 2], [0.841, 1.516, 3], [1.315, 1.867, 4], [3.077, 2.981, 8], [3.337, 3.149, 9], [4.472, 3.313, 11], [5.311, 3.511, 12], [5.662, 3.696, 13], [5.945, 3.787, 14], [6.383, 3.808, 15], [6.7, 4.06, 16]], "end": 10.0, "final": 4.4418, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-3dgs-haiku.html", "pts": [[0.196, 1.161, 1], [0.406, 1.242, 2], [0.406, 1.242, 3], [0.518, 1.339, 4], [0.869, 1.339, 5], [0.869, 1.339, 6], [0.972, 1.349, 7], [1.429, 1.431, 8], [2.117, 1.548, 9], [2.757, 1.73, 10], [3.035, 1.875, 11], [3.228, 1.877, 12], [3.624, 1.877, 13], [3.983, 1.913, 14], [4.449, 1.929, 15], [4.653, 1.929, 17], [5.122, 2.084, 18], [5.589, 2.125, 19], [5.839, 2.14, 20], [6.014, 2.14, 21], [6.191, 2.14, 22], [6.425, 2.157, 23], [6.594, 2.157, 24], [6.823, 2.157, 25], [7.427, 2.279, 26], [7.427, 2.279, 27], [7.427, 2.279, 28], [7.614, 2.279, 29], [7.774, 2.279, 30], [7.933, 2.281, 31], [8.208, 2.3, 32], [8.361, 2.302, 33], [8.531, 2.302, 34], [8.71, 2.302, 35], [8.885, 2.302, 36], [9.158, 2.33, 37], [9.536, 2.342, 38]], "end": 10.0, "final": 2.3462, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-3dgs-astra62.html", "pts": [[0.157, 1.157, 1], [0.629, 1.413, 2], [0.675, 1.672, 3], [1.04, 1.831, 4], [1.215, 1.991, 5], [1.398, 2.167, 6], [1.653, 2.225, 7], [1.837, 2.442, 8], [1.987, 2.481, 9], [2.238, 2.619, 10], [2.438, 2.745, 11], [2.527, 2.747, 12], [2.664, 2.747, 13], [2.819, 2.836, 14], [3.111, 2.836, 15], [3.305, 2.87, 16], [3.44, 3.017, 17], [3.797, 3.08, 18], [3.912, 3.08, 19], [4.032, 3.08, 20], [4.135, 3.082, 21], [4.276, 3.095, 22], [4.413, 3.166, 23], [4.518, 3.166, 24], [4.892, 3.166, 25], [4.987, 3.166, 26], [5.081, 3.186, 27], [5.21, 3.203, 28], [5.355, 3.245, 29], [5.43, 3.245, 30], [5.676, 3.252, 31], [5.848, 3.262, 32], [5.992, 3.337, 33], [6.129, 3.384, 34], [6.221, 3.384, 35], [6.417, 3.401, 36], [6.485, 3.401, 37], [6.642, 3.401, 38], [6.76, 3.404, 39], [6.919, 3.441, 40], [7.146, 3.442, 41], [7.268, 3.46, 42], [7.518, 3.47, 43], [7.602, 3.47, 44], [7.756, 3.47, 45], [7.872, 3.498, 46], [8.034, 3.531, 47], [8.205, 3.531, 48], [8.655, 3.533, 49], [8.952, 3.533, 50], [9.051, 3.533, 51], [9.16, 3.533, 52], [9.265, 3.533, 53], [9.574, 3.533, 54], [9.759, 3.538, 55], [9.924, 3.538, 56]], "end": 10.0, "final": 3.5805, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-3dgs-sol62.html", "pts": [[0.403, 1.163, 1], [0.537, 1.269, 2], [0.794, 1.317, 3], [0.994, 1.317, 4], [1.243, 1.39, 5], [1.431, 1.428, 6], [1.734, 1.498, 7], [1.92, 1.498, 8], [2.227, 1.586, 9], [2.452, 1.674, 10], [2.518, 1.697, 11], [2.681, 1.741, 12], [3.011, 1.754, 13], [3.265, 1.754, 14], [3.411, 1.846, 15], [3.626, 1.91, 16], [3.842, 1.91, 17], [3.996, 1.91, 18], [4.316, 1.951, 19], [4.518, 1.951, 20], [4.663, 1.951, 21], [4.936, 1.952, 22], [5.357, 2.071, 23], [5.387, 2.071, 24], [5.75, 2.12, 25], [5.802, 2.12, 26], [5.941, 2.12, 27], [6.068, 2.12, 28], [6.236, 2.12, 29], [6.387, 2.12, 30], [6.551, 2.12, 31], [6.807, 2.12, 32], [7.168, 2.258, 33], [7.465, 2.275, 34], [7.618, 2.275, 35], [7.792, 2.275, 36], [7.917, 2.275, 37], [8.248, 2.275, 38], [8.323, 2.275, 39], [8.495, 2.275, 40], [8.627, 2.275, 41], [8.773, 2.275, 42], [8.935, 2.3, 43], [9.21, 2.3, 44], [9.442, 2.3, 45], [9.577, 2.3, 46], [9.761, 2.352, 47]], "end": 10.0, "final": 2.3484, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-3dgs-gneon.html", "pts": [[0.0, 1.165, 1], [0.0, 1.269, 2], [0.0, 1.66, 3], [0.0, 1.764, 4], [0.0, 2.102, 5], [0.0, 2.293, 6], [1.194, 2.801, 7], [1.558, 2.927, 8], [1.558, 2.989, 9], [2.052, 3.149, 10], [4.953, 3.637, 11], [5.438, 3.701, 12], [6.513, 3.718, 13], [7.388, 3.95, 14], [9.717, 4.222, 16]], "end": 9.988, "final": 4.2296, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-3dgs-gcarbon.html", "pts": [[0.0, 1.252, 1], [0.0, 1.673, 2], [0.0, 1.834, 3], [0.0, 1.988, 4], [0.0, 2.224, 5], [1.687, 2.269, 6], [2.002, 2.285, 7], [2.345, 2.285, 8], [3.077, 2.39, 9], [3.434, 2.507, 10], [3.91, 2.848, 11], [5.484, 2.897, 12], [6.529, 3.147, 13], [6.904, 3.199, 14]], "end": 9.99, "final": 3.125, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-3dgs-ghydrogen.html", "pts": [[0.304, 1.121, 2], [1.193, 1.391, 3], [1.978, 1.788, 4], [3.525, 2.323, 5], [7.898, 3.594, 6]], "end": 9.999, "final": 3.5699, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-3dgs-qwen4.html", "pts": [[0.358, 1.261, 1], [0.655, 1.298, 2], [1.419, 1.372, 3], [2.153, 1.473, 4], [2.424, 1.505, 5], [2.826, 1.526, 6], [3.972, 1.554, 7], [5.849, 1.579, 11], [6.629, 1.579, 13], [8.002, 1.579, 18], [8.555, 1.596, 19], [8.895, 1.596, 20], [9.874, 1.614, 22]], "end": 10.0, "final": 1.6034, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-3dgs-step5.html", "pts": [[0.696, 1.048, 1], [0.696, 1.282, 2], [3.111, 1.371, 10], [4.688, 1.38, 12], [8.562, 1.482, 27], [8.704, 1.482, 28], [9.164, 1.498, 30], [9.904, 1.556, 31], [10.066, 1.576, 32]], "end": 10.089, "final": 1.5936, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-3dgs-hy4.html", "pts": [[0.388, 1.031, 1], [0.791, 1.085, 2], [0.98, 1.245, 3], [1.084, 1.245, 4], [1.849, 1.327, 5], [2.022, 1.327, 6], [2.667, 1.327, 7], [3.224, 1.359, 8], [3.663, 1.359, 9], [4.391, 1.359, 10], [4.87, 1.57, 11], [5.92, 1.57, 12], [6.649, 1.57, 13], [7.752, 1.57, 15], [9.728, 1.57, 18]], "end": 10.0, "final": 1.5133, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-3dgs-astra.html", "pts": [[0.179, 1.179, 1], [0.728, 1.179, 2], [0.958, 1.216, 3], [1.523, 1.249, 4], [1.995, 1.306, 5], [2.653, 1.314, 6], [3.082, 1.326, 7], [3.75, 1.377, 8], [4.33, 1.384, 9], [4.674, 1.44, 10], [5.254, 1.468, 11], [5.625, 1.584, 12], [6.214, 1.584, 13], [6.463, 1.611, 14], [7.13, 1.625, 15], [7.741, 1.626, 16], [7.951, 1.657, 17], [8.306, 1.823, 18], [8.809, 1.876, 19], [9.292, 1.93, 20], [9.701, 2.068, 21]], "end": 10.002, "final": 2.0433, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-3dgs-glm.html", "pts": [[0.233, 1.143, 1], [0.657, 1.327, 3], [0.771, 1.341, 4], [1.429, 1.341, 5], [2.272, 1.46, 6], [2.756, 1.528, 7], [3.478, 1.553, 10], [4.123, 1.583, 12], [4.809, 1.613, 13], [4.987, 1.697, 14], [6.163, 1.697, 17], [7.604, 1.735, 20]], "end": 10.005, "final": 1.7642, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-3dgs-kimi.html", "pts": [[0.454, 1.154, 1], [0.633, 1.239, 2], [0.837, 1.241, 3], [1.107, 1.29, 4], [1.662, 1.326, 5], [1.923, 1.359, 6], [2.255, 1.366, 7], [2.605, 1.398, 8], [2.822, 1.398, 9], [3.354, 1.402, 10], [3.681, 1.442, 11], [4.148, 1.495, 12], [4.472, 1.513, 13], [4.786, 1.513, 14], [5.522, 1.513, 15], [5.625, 1.528, 16], [6.098, 1.589, 17], [6.243, 1.633, 18], [6.579, 1.665, 19], [6.758, 1.665, 20], [7.158, 1.712, 21], [7.158, 1.712, 22], [7.32, 1.712, 23], [7.529, 1.712, 24], [7.751, 1.712, 25], [8.319, 1.73, 26], [8.376, 1.73, 27], [8.601, 1.73, 28], [9.194, 1.778, 29], [9.432, 1.778, 30], [9.852, 1.782, 31], [9.95, 1.782, 32]], "end": 10.002, "final": 1.6836, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-3dgs-ds.html", "pts": [[0.178, 1.199, 1], [0.522, 1.248, 2], [0.934, 1.265, 3], [0.934, 1.364, 4], [1.704, 1.433, 5], [2.229, 1.433, 6], [2.414, 1.659, 8], [2.769, 1.707, 9], [3.145, 1.707, 10], [3.673, 1.707, 11], [3.964, 1.707, 12], [4.428, 1.707, 14], [4.719, 1.707, 15], [5.234, 1.707, 16], [5.796, 1.707, 19], [6.404, 1.707, 23], [6.742, 1.707, 24], [6.962, 1.707, 25], [7.183, 1.707, 27], [7.47, 1.707, 30], [7.705, 1.707, 32], [8.147, 1.707, 35], [8.516, 1.716, 37], [8.651, 1.716, 38], [8.803, 1.716, 39], [9.56, 1.716, 53]], "end": 9.673, "final": 1.7105, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-3dgs-mm.html", "pts": [[0.804, 1.225, 2], [0.804, 1.313, 3], [4.928, 1.485, 15], [4.928, 1.602, 17]], "end": 10.0, "final": 2.538, "rej": false}], "focus": "step5", "xmax": 10.5, "aria": "Step-5 Preview on 3DGS: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

@@ -1,0 +1,302 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Step-5 Preview · LLaVA · RSI-Infra Bench</title><meta name="description" content="Step-5 Preview on LLaVA: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="on">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="llava.html">LLaVA</a><span>/</span><b>Step-5 Preview</b></nav><h1>Step-5 Preview <em>2.42×</em></h1><p class="lede">Harness: Claude Code · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.42×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.42×</dd></div><div class=""><dt>Rounds</dt><dd>26</dd></div><div class=""><dt>Hours</dt><dd>10.1</dd></div><div class=""><dt>API cost</dt><dd>$35.2</dd></div><div class=""><dt>Input tokens · 99.5% cached</dt><dd>313 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.9 M</dd></div><div class=""><dt>Requests</dt><dd>726</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-llava-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>3.12×</small></a><a class="chip" data-k="gcarbon" href="t-llava-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.99×</small></a><a class="chip" data-k="ghydrogen" href="t-llava-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>2.97×</small></a><a class="chip" data-k="opus" href="t-llava-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.92×</small></a><a class="chip" data-k="sonnet" href="t-llava-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.80×</small></a><a class="chip" data-k="astra62" href="t-llava-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>2.74×</small></a><a class="chip" data-k="sol62" href="t-llava-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>2.59×</small></a><a class="chip" data-k="haiku" href="t-llava-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.46×</small></a><a class="chip self" data-k="step5" href="t-llava-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>2.42×</small></a><a class="chip" data-k="mm" href="t-llava-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.34×</small></a><a class="chip" data-k="ds" href="t-llava-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>2.22×</small></a><a class="chip" data-k="qwen4" href="t-llava-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>2.20×</small></a><a class="chip" data-k="glm" href="t-llava-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.52×</small></a><a class="chip" data-k="astra" href="t-llava-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.41×</small></a><a class="chip" data-k="kimi" href="t-llava-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.38×</small></a><a class="chip" data-k="hy4" href="t-llava-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.31×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>29 sections</small></summary><div class="rounds"><details><summary><em class="na">—</em><span>Round 0 — profile the unchanged reference</span></summary><pre><code>profile --tree /submission/llava --detail</code> → <code>/tmp/r1/profile</code> (one profiled step, 10732 kernels).
+GPU kernel time 2880 ms for a 2684 ms step; the union of kernel intervals is 2360 ms over a 2585 ms
+span, so the GPU is busy ~91% of the step and NCCL (529 ms: 277 reduce-scatter + 252 all-gather,
+both on their own streams) is almost entirely overlapped with compute.
+
+Top GPU time: bf16 GEMMs 1338 ms (47%, running at ~690 TFLOP/s = 96% of the measured device peak),
+elementwise ~1000 ms, NCCL 529 ms, flash-attn 78 ms, AdamW 55 ms.
+Notable structure: 32 <code>CheckpointFunctionBackward</code> nodes and 64 forward passes per step → **every
+decoder layer is recomputed** by gradient checkpointing; 1048 <code>aten::mm</code>; 165 <code>aten::item</code> (host
+syncs); 112 <code>aten::nonzero</code>; <code>aten::to</code> 3213 / <code>aten::copy_</code> 1854 calls.
+RoPE (<code>apply_rotary_pos_emb</code>) ≈ 280 ms, <code>LlamaRMSNorm</code> ≈ 200 ms, the flash-attn unpad/pad
+(<code>index_first_axis</code> + <code>pad_input</code> + <code>_get_unpad_data</code>) ≈ 108 ms.
+
+<b>Key discovery:</b> LLaVA&#x27;s <code>llava/train/llama_flash_attn_monkey_patch.py</code> is dead code in this recipe —
+<code>train_mem.py</code> passes <code>attn_implementation=&quot;flash_attention_2&quot;</code> and nothing calls
+<code>replace_llama_attn_with_flash_attn()</code>. The attention is transformers&#x27; own <code>LlamaFlashAttention2</code>, and
+RoPE is applied by the module-level <code>transformers.models.llama.modeling_llama.apply_rotary_pos_emb</code>.
+Any change to the attention path has to patch that.</pre></details><details><summary><em class="na">—</em><span>Round 1 — gradient checkpointing: keep the first N layers&#x27; activations (`LLAVA_GC_SKIP`)</span></summary><pre><code>llava/model/language_model/llava_llama.py</code>: intercept the <code>_gradient_checkpointing_func</code> assignment
+that <code>PreTrainedModel._set_gradient_checkpointing</code> makes on the <code>LlavaModel</code> (via a property with a
+setter) and wrap it so layers with <code>idx &lt; LLAVA_GC_SKIP</code> run without the checkpoint wrapper.
+Skipped layers are identified through <code>layer.self_attn.layer_idx</code> (the <code>LlamaDecoderLayer</code> itself
+carries no index in transformers 4.37 — the first attempt keyed on <code>layer.layer_idx</code> and silently did
+nothing, which the unchanged peak memory gave away).
+
+Tier <b>N0</b>: checkpointing only decides whether a layer&#x27;s forward is re-run inside its backward; the
+arithmetic and the RNG stream are unchanged.
+
+| config | ms/step | speedup | peak GiB |
+|---|---|---|---|
+| reference (sweep arm) | 2769–2779 | 1.000 | 73.5 |
+| <code>LLAVA_GC_SKIP=8</code> | 2620.0 | <b>1.058</b> | 120.1 |
+| <code>LLAVA_GC_SKIP=16</code> | — | ERROR (OOM) | — |
+
+≈19 ms saved per layer that stops being recomputed; the binding constraint is activation memory
+(~5.8 GiB per kept layer on the peak batch), not compute.</pre></details><details><summary><em class="na">—</em><span>Round 2 — fused rotary position embedding (`LLAVA_FUSED_ROPE`)</span></summary><pre><code>llava/train/fused_rope.py</code>: one Triton kernel (forward + backward, <code>ADJOINT</code> flag) replacing
+<code>q*cos + rotate_half(q)*sin</code> and its autograd graph, installed by patching
+<code>transformers.models.llama.modeling_llama.apply_rotary_pos_emb</code> at import of the model module.
+Verified bitwise identical (forward and backward) against upstream for shapes
+16x32x1113x128, 2x32x877x128, 1x32x2048x128, 16x32x512x128, 3x8x65x64, 16x32x100x128 and for both
+cat-structured and random cos/sin tables. Isolated: fwd+bwd 5.08 ms → 1.21 ms.
+Tier <b>N0</b>.
+
+| config | ms/step | speedup |
+|---|---|---|
+| <code>LLAVA_FUSED_ROPE=1</code> | 2607.0 | <b>1.063</b> |
+| <code>+ LLAVA_GC_SKIP=8</code> | 2459.3 | <b>1.127</b> |</pre></details><details><summary><em class="na">—</em><span>Round 3 — fused LlamaRMSNorm (`LLAVA_FUSED_NORM`)</span></summary><pre><code>llava/train/fused_norm.py</code>: the squares are written by a Triton kernel but the reduction is still
+PyTorch&#x27;s own <code>mean</code> and the scale is still <code>torch.rsqrt(v + eps)</code>, so **the forward is bitwise
+identical**; the two dtype copies, the weight multiply and the whole backward collapse into single
+kernels (forward ~2.9 GB → ~1.0 GB of traffic, backward ~3.5 GB → ~0.44 GB). Only the order of
+<code>sum(d_h * h)</code> in the backward&#x27;s scale gradient differs (3.7e-5 RMS relative on the gradient).
+Tier <b>N1</b> (gradients only; the forward is bitwise).</pre></details><details><summary><em class="na">—</em><span>Round 3b — RoPE output layout</span></summary><pre>The RoPE kernel now returns a view of a <code>[b, seq, heads, dim]</code> buffer (strides are the transposed
+ones), so the <code>transpose(1, 2)</code> that <code>LlamaFlashAttention2.forward</code> does next is contiguous and the
+unpad <code>reshape(b*seq, heads, dim)</code> is a free view instead of a 146 MB copy per tensor. Bitwise
+identical (verified forward and backward).</pre></details><details><summary><em class="na">—</em><span>Round 4 — full check of RoPE + RMSNorm + `LLAVA_GC_SKIP=12`</span></summary><pre><code>check --tree /submission/llava --config /submission/switches.json</code> → **PASS, speedup 1.2919,
+tier N1** (<code>/tmp/r1/check/check.json</code>). Gate 0 passes with the reference&#x27;s own partition; gate 2 has no
+exact failures and no violations (4724 tensors checked, worst relative L2 14.7% against a 23% calibrated
+gate, all of them <code>LlamaRMSNorm.weight</code> gradients / Adam states); gate 3 is far inside the band —
+<code>train_loss_last20_canonical</code> −7.5e-5 (0.024σ, bound 0.0093) and <code>probe_loss_last20</code> +1.05e-4 (0.037σ,
+bound 0.0086).
+
+| config | ms/step | speedup | peak GiB |
+|---|---|---|---|
+| reference | 2771.6 | 1.000 | 73.5 |
+| RoPE + Norm | 2345.0 | 1.182 | 72.5 |
+| + GC_SKIP=8 | 2213.0 | 1.252 | 103.6 |
+| + GC_SKIP=12 | 2150.3 | <b>1.289</b> | 119.1 (reserved 137.1 of 140.4) |
+| + GC_SKIP=16 | — | OOM | — |
+
+### Dead ends measured this session
+- <b><code>LLAVA_TOKEN_LENGTHS</code> (word count → token count as the sampler&#x27;s length key).</b> Simulated the real
+  <code>get_modality_length_grouped_indices</code> + <code>split_to_even_chunks</code> on the timing fixture: word key 32.9%
+  mean padding, token key 32.9%, true-length key 33.1% — no difference. The megabatches come from
+  <code>torch.randperm</code>, so the key only re-orders inside a megabatch; the step&#x27;s sample multiset is
+  unchanged (verified), but the padding is not improved. Reverted.
+- <b>Re-partitioning the 32 samples of a step between the two GPUs.</b> The step time is
+  <code>16 x max(L)</code> for whichever GPU holds the longest sample, and that sample is in the step whatever the
+  split, so no partition beats <code>16 x L_max</code>. The only real fix is to stop padding at all (run the LLM
+  on the packed token layout), which is a rewrite of <code>LlamaModel</code>/<code>LlamaDecoderLayer</code>/attention/loss.</pre></details><details><summary><em class="na">—</em><span>Round 5 — packed (unpadded) sequence layout (`LLAVA_PACKED`)</span></summary><pre>The reference pads every micro-batch to its longest sample: the trace shows
+<code>index_first_axis</code> gathering a <code>[13600, 4096]</code> slice out of <code>[17808, 4096]</code>, i.e. **23.6% of every
+padded token is padding**, and all of it goes through the projection GEMMs, the layernorms, the MLP and
+the residual.  Re-partitioning the 32 samples of a step between the two GPUs cannot fix it (the step
+time is <code>16 x L_max</code> whichever GPU holds the longest sample), and changing the sampler&#x27;s length key
+does not either (measured).  So the layout itself changes:
+
+* <code>prepare_inputs_labels_for_multimodal</code> concatenates the per-sample embeddings / labels / positions
+  instead of padding and stacking them, and returns a <code>[1, total, hidden]</code> tensor (the samples, their
+  order and their contents are untouched — gate 0 still sees the reference&#x27;s own partition).
+* <code>LlamaFlashAttention2._flash_attention_forward</code> is patched to call <code>flash_attn_varlen_func</code> with the
+  batch&#x27;s <code>cu_seqlens</code> — the same call the reference makes after unpad-ing, so the attention is
+  unchanged and the whole unpad/pad round trip disappears.
+* the loss is the same mean cross entropy over the same supervised tokens, shifted per sample instead
+  of across the padding.
+
+Correctness checked on a real <code>LlamaDecoderLayer</code>: equal-length batches are <b>bitwise identical</b> to
+the padded reference, unequal lengths differ by 2 bf16 ULP (only the cuBLAS tile selection for a
+different M).  Two bugs found and fixed on the way: <code>cumsum</code> promotes to int64 (flash-attn rejects a
+non-int32 <code>cu_seqlens</code>), and <code>ModelOutput.loss = x</code> does not add the <code>loss</code> key when it was None.
+
+| config | ms/step | speedup | peak alloc GiB | reserved GiB (of 140.4) |
+|---|---|---|---|---|
+| reference | 2771.6 | 1.000 | 73.5 | 77.8 |
+| RoPE+Norm, GC=12 | 2150.3 | 1.289 | 119.1 | 137.1 |
+| + packed, GC=12 | 1576.4 | <b>1.758</b> | 86.9 | — |
+| + packed, GC=20 | 1499.0 | <b>1.849</b> | 102.4 | 123.8 |
+| + packed, GC=24 | 1445.9 | 1.917 | 110.5 | 136.1 |
+| + packed, GC=28 | 1406.8 | 1.970 | 118.5 | 136.8 |
+
+Packing also removes ~39 GiB of activation memory, which is what lets <code>LLAVA_GC_SKIP</code> go from 12 to
+20+ (each kept layer now costs ~2 GiB instead of ~3.9).</pre></details><details><summary><em class="na">—</em><span>Round 6 — DeepSpeed ZeRO stage 2 (`scripts/zero3.json`)</span></summary><pre><code>scripts/zero3.json</code> is what the judge runs the candidate with, and the task statement allows the
+stage to change.  Stage 2 keeps a full bf16 copy of the parameters on each rank, so the 264 ms/step of
+parameter all-gather traffic and the <code>LinearFunctionForZeroStage3</code> autograd nodes disappear.  The
+gradient reduce-scatter, the fp32 master weights and the Adam state are unchanged (the judge&#x27;s
+<code>safe_get_full_*</code> helpers handle stages 1/2 through <code>_hp_mapping</code> and stage 3 through <code>ds_id</code>).
+<code>time</code>: 1451.7 → 1361.2 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 7 — checks</span></summary><pre>| switches | ms/step | speedup | status | tier | probe_loss in σ |
+|---|---|---|---|---|---|
+| RoPE+Norm, GC=12 | 2150.3 | 1.289 | PASS | N1 | 0.037 |
+| + packed, GC=20 | 1499.0 | 1.849 | PASS | N1 | 0.300 |
+| + packed, GC=24 | 1451.7 | 1.909 | PASS | N1 | 0.411 |
+| + packed, GC=24, ZeRO-2 | 1362.9 | <b>2.034</b> | PASS | N1 | 0.690 |
+
+All four are <code>check</code> runs in <code>/tmp/r1/check</code>, <code>/tmp/r3/check</code>, <code>/tmp/r3/check24</code>, <code>/tmp/r3/check2</code>.
+Gate 2 is NOT_BITWISE for every packed/ZeRO-2 configuration (the GEMM shapes change); the per-tensor
+violations are all resolved by the judge&#x27;s fp64 arbitration, with zero exact failures.  The probe-loss
+bias grows with each change but stays under a quarter of the 3σ budget.
+
+Things that did not help, measured: <code>stage3_max_live_parameters</code> 1e9 → 3e8 (no memory saved, 2%
+slower); the word→token length key for the sampler (no padding change).</pre></details><details><summary><em class="na">—</em><span>Round 8 — allocator fragmentation (`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`)</span></summary><pre>With the default allocator, 28 kept layers OOM&#x27;d while <b>61 GiB sat reserved-but-unallocated</b>.
+<code>expandable_segments:True</code> removes that fragmentation at no cost to the code path or the numerics.
+(<code>max_split_size_mb:256</code> was tried instead and cost 24% — much worse.)</pre></details><details><summary><em class="na">—</em><span>Round 9 — gradient checkpointing fully off at the packed layout (`LLAVA_GC_SKIP=32`)</span></summary><pre>Each kept layer now costs ~2 GiB instead of ~3.9 (the activations scale with the real token count), so
+all 32 layers can keep theirs: 1322.6 → 1297.2 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 10 — fused gated activation (`LLAVA_FUSED_ACT`)</span></summary><pre><code>llava/train/fused_act.py</code>: one Triton kernel for <code>silu(gate_proj(x)) * up_proj(x)</code> instead of SiLU +
+a multiply, forward and backward. The forward is <b>bitwise identical</b> to upstream and the backward
+matches to 7e-8 relative. Isolated 0.390 → 0.209 ms for a 13600 x 11008 bf16 pair.</pre></details><details><summary><em class="na">—</em><span>Round 11 — SDPA for the frozen CLIP vision tower (`LLAVA_CLIP_SDPA`)</span></summary><pre>transformers 4.37.2 has no SDPA variant for CLIP, so <code>CLIPAttention.forward</code> runs the eager path
+(<code>bmm</code> -&gt; <code>softmax</code> -&gt; <code>bmm</code>), materialising a <code>[256, 577, 577]</code> bf16 score tensor per layer for each of
+the 24 layers.  <code>llava/train/clip_sdpa.py</code> routes it through <code>F.scaled_dot_product_attention</code>, keeping
+upstream&#x27;s bf16 scaling of <code>q</code> before the call and passing <code>scale=1.0</code>, so only the bf16 rounding of the
+scores in between is lost.  Isolated: 1.424 -&gt; 0.945 ms per attention.  <code>time</code>: 1259.8 -&gt; 1250.3 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 12 — hoisting the per-sample GPU syncs (`llava/model/llava_arch.py`)</span></summary><pre>Upstream strips the padding with a boolean mask per row and then does two more device-&gt;host syncs per
+sample for the image-token count and positions: 48 syncs per micro-batch, each stopping the CPU from
+queuing the per-sample embedding work ahead of the GPU.  One batch-wide reduction replaces them (3
+syncs) and the image positions are derived on the host.  Values unchanged.  <code>time</code>: 1264.9 -&gt; 1259.8.</pre></details><details><summary><em class="na">—</em><span>Round 13 — DeepSpeed `reduce_bucket_size`</span></summary><pre>The auto bucket for ZeRO-2 is 5e8 elements, which splits the 6.7B-parameter gradient into ~14
+reduce-scatter rounds with a flat-buffer copy each.  Measured: 5e8 -&gt; 1250.3 ms, 1e9 -&gt; 1240.0 ms,
+2e9 -&gt; 1239.0 ms, <b>4e9 -&gt; 1964.8 ms</b> (one huge bucket loses the overlap and the memory).  1e9 was
+chosen over 2e9: the same speed but 3.7 GiB less reserved (130.4 vs 135.9 of 140.4), which leaves room
+for the gate-2/gate-3 fixtures.
+
+### Tried and rejected this session
+- ZeRO-3 again with the packed layout: 1349.6 ms vs ZeRO-2&#x27;s 1264.9 — stage 2 stays.
+- <code>contiguous_gradients: false</code>: 1278.9 ms (and with a big bucket 1237.8, a wash) — reverted to <code>true</code>.
+- <code>stage3_max_live_parameters</code> 1e9 -&gt; 3e8: no memory saved, 2% slower.
+- <code>foreach=True</code> on the AdamW: no speed change (1250.9 vs 1250.3) but the numerics moved — reverted.
+- <code>max_split_size_mb:256</code>: 1691 ms — 24% slower than <code>expandable_segments:True</code>.</pre></details><details><summary><em class="">6.7 h</em><span>Round 14 — the remaining torch ops inside the fused RMSNorm (`LLAVA_FUSED_NORM`)</span></summary><pre>The profile showed the norm still spending 12.9 ms and two kernels per call on the variance: a Triton
+kernel writing a 222 MB fp32 square buffer, then <code>aten::mean</code> reducing over it (444 MB of round trip,
+plus 9.5 ms of host bubbles around it).  Replaced by one <code>_var_kernel</code> pass over x.  The tree reduction
+differs from <code>aten::mean</code>&#x27;s order by ~1e-7 relative on the variance, which flips <b>0.00025%</b> of the bf16
+outputs by one ULP (1.1e-5 RMS relative) — the forward stops being bitwise, but the perturbation is two
+orders of magnitude below the packing&#x27;s.  Isolated: fwd 0.786 -&gt; 0.096 ms, fwd+bwd 3.327 -&gt; 1.279 ms.
+<code>time</code>: 1240.6 -&gt; 1234.4 ms/step.
+
+The weight gradient was likewise <code>(dy * hb).reshape(-1, d).sum(0)</code>: a 222 MB materialised product then a
+reduction along the non-contiguous axis.  A 2-D grid of column blocks with atomic accumulation reads dy
+and hb once (the order is not fixed, so dw differs by ~1e-6 relative).  Isolated fwd+bwd 3.318 -&gt; 1.243 ms.
+<code>time</code>: 1234.4 -&gt; 1232.0 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 15 — fused QKV projection: REJECTED</span></summary><pre><code>LlamaFlashAttention2.forward</code> runs q/k/v as three <code>[13600, 4096] x [4096, 4096]</code> GEMMs; one
+<code>[13600, 4096] x [4096, 12288]</code> GEMM measures <b>11% faster</b> in isolation (1.911 vs 2.122 ms), and the
+backward&#x27;s <code>dy @ W</code> fuses the same way.  Implemented in <code>llava/train/fused_qkv.py</code> behind
+<code>LLAVA_FUSED_QKV</code> (the parameters are not merged — their weights are concatenated for the call, inside
+the autograd graph, so the cat&#x27;s backward splits the gradient back into <code>q_proj.weight</code> etc.).
+
+In the real model it is <b>11% slower</b>: 1240.6 -&gt; 1372.5 ms/step.  The profile explains it — the kernel
+time is unchanged (1222 vs 1223 ms) while the step grows by 130 ms, i.e. it becomes <b>host-bound</b>: the
+weight <code>torch.cat</code> (24.6 ms of CPU ops) plus <code>SplitWithSizesBackward0</code> (22.1 ms) plus the extra autograd
+nodes.  The step has only ~17 ms of host slack, so any change that adds host time loses even when the
+kernels get cheaper.  Reverted (the switch is off; the file stays as a record of the measurement).</pre></details><details><summary><em class="na">—</em><span>Round 16 — patching DeepSpeed&#x27;s optimiser from the tree: REJECTED (no gain)</span></summary><pre>The profile attributed ~15 ms to a no-op <code>param.data.mul_(1 / combined_scale)</code> in
+<code>DeepSpeedZeroOptimizer_Stage2.unscale_and_clip_grads</code> (with bf16 <code>loss_scale == 1</code> and a gradient norm
+far below <code>clip_grad_norm</code>, the factor is exactly 1.0 on a 3.4 GB partition) and ~20 ms to
+<code>get_grad_norm_direct</code>, which converts every parameter&#x27;s gradient to <b>double</b>, norms it and calls
+<code>.item()</code> — ~160 fp64 copies and 160 device-&gt;host syncs per step.
+
+Both were patched from the tree (<code>llava/train/ds_patch.py</code>, installed from <code>llava_llama.py</code> like the
+transformers patches): the unscale skips the loop when the factor is 1, the norm uses one
+<code>torch._foreach_norm</code> per 128 tensors with a single host read (falling back to the original whenever the
+norm comes within a tenth of <code>clip_grad_norm</code>, so the clipping decision is preserved).
+
+Measured: <b>unscale alone 1232.4 ms/step vs 1232.0 without — a wash</b> (the 15 ms of <code>mul_</code> is not that
+loop), and <b>adding the fused norm made it 1234.9 ms</b>. Reverted; the file is gone.  DeepSpeed&#x27;s
+optimiser prologue is not improvable from the tree.</pre></details><details><summary><em class="">6.7 h</em><span>Round 14–16 net</span></summary><pre>2.2341 -&gt; <b>2.2496</b> (<code>time</code>), validated by <code>check</code> at <b>2.2481</b>.  The two accepted changes are the
+fused RMSNorm variance (+0.5%) and the fused weight-gradient reduction (+0.2%); the fused QKV
+projection and the DeepSpeed patches were both measured and rejected.</pre></details><details><summary><em class="na">—</em><span>Round 17 — one embedding lookup per micro-batch instead of one per sample</span></summary><pre><code>prepare_inputs_labels_for_multimodal</code> called <code>embed_tokens</code> once per sample — 16 small gathers plus 16
+id concatenations per micro-batch, all on the host&#x27;s critical path (the step has only ~17 ms of host
+slack, so host work is as expensive as kernel time).  The image tokens are dropped from the flat id
+sequence first, so each sample&#x27;s chunks are contiguous slices of a single lookup; the split sizes and
+each sample&#x27;s text offset follow from the image positions, which are already on the host.  An embedding
+lookup is a gather, so the values are bitwise the same.  <code>time</code>: 1232.0 -&gt; 1230.1 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 18 — launch-config tuning of the Triton kernels</span></summary><pre>Every kernel was benchmarked against the measured 5 TB/s.  <code>_var_kernel</code> (3.9 TB/s), <code>_scale_kernel</code>
+(3.9) and <code>_gated_fwd</code> (3.7) are already optimal at their defaults.  The RoPE kernel is 11% faster with
+8 warps than the default 4, and <code>_hb_kernel</code>/<code>_bwd_kernel</code> are marginally faster with 16.
+<code>time</code>: 1230.1 -&gt; 1227.5 ms/step.
+
+The <code>dw</code> column reduction is a further 28% faster with <code>BLOCK_C=256, BLOCK_R=128</code> (0.090 -&gt; 0.065 ms
+for 222 MB), but that configuration <b>drifts the logged loss by 0.9% by step 5</b> — the atomic
+accumulation order changes enough to compound over a trajectory — so it was left at 128/64.  Measured
+and rejected.
+
+### Also measured and rejected this session
+- <b>A fused QKV projection</b> (round 15): 11% faster in isolation, 11% *slower* in the model because the
+  weight <code>torch.cat</code> and the split&#x27;s backward add ~47 ms of host time to a step that has only ~17 ms of
+  host slack.
+- <b>Patching DeepSpeed&#x27;s optimiser from the tree</b> (round 16): skipping the no-op <code>mul_(1.0)</code> on the
+  gradient partition was a wash (1232.4 vs 1232.0 ms); a fused gradient norm made it worse (1234.9).
+- <b>A &quot;contiguous row&quot; RoPE kernel</b> that walks whole <code>seq</code> rows of <code>heads*dim</code> contiguous elements
+  instead of scattered 256-byte rows: bitwise identical and verified, but 0.287 ms vs 0.245 ms for the
+  scattered one — the redundant cos/sin loads cost more than the locality gains.</pre></details><details><summary><em class="na">—</em><span>Round 19 — the remaining non-GEMM budget: measured, nothing left to take</span></summary><pre>Profiled the current best (1210 ms of kernel time for a 1227.5 ms step — the GPU is 98.6% busy, so
+there is no host slack and nothing left to overlap).  Every remaining non-GEMM item was chased to its
+cause:
+
+| item | ms/step | finding |
+|---|---|---|
+| cuBLAS bf16 GEMMs | 833 | 646–674 TFLOP/s is cuBLAS&#x27;s own limit for these shapes (the lm_head, with N=32000, reaches 740).  The FLOPs are the model&#x27;s own; <code>LLAVA_GC_SKIP=32</code> already removed every recomputed forward |
+| AdamW <code>multi_tensor_apply</code> | 65 | 1141 kernels = one per tensor per op (163 tensors × 2 groups × ~4 ops).  87.8 GB of traffic → 17.6 ms at peak, so it runs at 1.35 TB/s.  <code>foreach=True</code> explicitly: no gain (round 16).  Inside PyTorch |
+| <code>direct_copy</code> (17 × the 6.76 GB gradient partition) | 38 | traced to <code>.to()</code> + <code>copy_</code> on the flat gradient, launched from the autograd thread.  <code>contiguous_gradients: false</code>: 1227.9 vs 1227.5 ms — a wash, but 3.7 GiB less peak memory |
+| flash-attention fwd+bwd | 68 | irreducible |
+| residual adds | 18 | 224 ops at <b>4.2 TB/s</b> — already 84% of peak, so fusing them into the norm would save at most 3 ms |
+| RoPE | 19.8 | 2.7 TB/s is the limit for this strided access pattern; a contiguous-row rewrite measured 0.287 vs 0.245 ms (slower) |
+| gated activation | 17.9 | 3.7 TB/s |
+| my five Triton kernels | 21 | 3.9 TB/s each |
+
+Also re-tested in isolation this round:
+- <code>contiguous_gradients: false</code> (with <code>reduce_bucket_size</code> 1e9): 1227.9 ms — no speed change.
+- A fused gradient norm replacing DeepSpeed&#x27;s per-parameter fp64 norm + <code>.item()</code>: 1228.0 ms — no
+  change, so the fp64 norm is not a bottleneck.  Both reverted.
+
+<b>Conclusion: the step is 1229 ms of which 833 ms is irreducible GEMM.</b>  The submission stays at
+<b>2.2545×</b> (validated), and <code>time</code> re-confirms 1229.5 ms / 2.2543 on the restored tree.</pre></details><details><summary><em class="na">—</em><span>Round 20 — DeepSpeed&#x27;s optimiser prologue, with the class name actually right</span></summary><pre><b>Root cause of two earlier null results:</b> the ZeRO-1/2 optimiser class in
+<code>deepspeed.runtime.zero.stage_1_and_2</code> is <code>DeepSpeedZeroOptimizer</code>, not
+<code>DeepSpeedZeroOptimizer_Stage2</code>.  Rounds 16 and 19 both imported the latter, the <code>try/except</code> in
+<code>install()</code> swallowed the <code>ImportError</code>, and both &quot;patches&quot; were never installed — so their null
+measurements said nothing about the ideas.
+
+With the name fixed, and a print added to prove the patch fires (`loss_scale=1.0 clip_grad=0.0
+norm=6.697 -&gt; scale=1.0`, 75 calls per run):
+
+1. <b><code>unscale_and_clip_grads</code> skipped</b> when <code>combined_scale == 1</code>.  bf16 → <code>loss_scale</code> is exactly 1.0
+   (DeepSpeed asserts this for any dtype but fp16) and <code>clip_grad</code> is 0.0 (the recipe has no gradient
+   clipping), so the loop multiplies the 3.4-billion-element flat gradient partition by exactly 1.0 —
+   15 ms of pure bandwidth.  <code>time</code>: 1222.1 → 1216.0 ms.
+2. <b><code>get_grad_norm_direct</code> fused</b>: it converted every parameter&#x27;s gradient to <b>double</b>, took the L2
+   norm and called <code>.item()</code> — an fp64 copy and a device→host sync per parameter, ~160 of each per step,
+   plus 295 fp64 reduction kernels.  One <code>torch._foreach_norm</code> per 128 tensors with a single host read
+   replaces it.  The norm is unused (<code>clip_grad == 0</code>), and the patch falls back to the original whenever
+   <code>clip_grad</code> is non-zero and the norm comes within a tenth of it, so the clipping decision is preserved.
+   <code>time</code>: 1216.0 → 1193.8 ms.</pre></details><details><summary><em class="na">—</em><span>Round 20b — CLIP SDPA without the `.contiguous()` copies</span></summary><pre><code>CLIPAttention._shape</code> calls <code>.contiguous()</code> on q, k and v; SDPA only needs the last dimension
+contiguous, which the transpose already guarantees.  Removes 72 copies of 18.9 MB per step.
+<code>time</code>: 1229.5 → 1222.1 ms.</pre></details><details><summary><em class="na">—</em><span>Round 21 — contiguous-row RoPE kernel</span></summary><pre>The scattered RoPE kernel gave each program 16 rows of 128 elements, <code>heads*dim</code> (8 KB) apart, so every
+256-byte read pulled a much larger DRAM burst and the swapped read missed cache — 1.08 TB/s effective.
+A program that owns whole <code>seq</code> rows reads <code>heads*dim</code> contiguous elements and the swapped read lands
+in the same lines: <b>0.242 → 0.113 ms</b> isolated (5.9 TB/s).  Bitwise identical, verified forward and
+backward for 7 shapes.  <code>time</code>: 1193.8 → 1186.2 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 22 — fused quick_gelu for the frozen CLIP tower (`LLAVA_FUSED_GELU`)</span></summary><pre><code>QuickGELUActivation.forward</code> is <code>input * torch.sigmoid(1.702 * input)</code>: three kernels over a
+[16, 577, 4096] tensor for each of the 24 CLIP layers.  One Triton kernel reads x once, keeping every
+rounding point upstream has (beta*x -&gt; bf16, sigmoid -&gt; bf16, x*sigmoid -&gt; bf16) — **bitwise
+identical**, verified.  Isolated 0.153 → 0.051 ms.  <code>time</code>: 1186.2 → 1181.8 ms/step.</pre></details><details><summary><em class="na">—</em><span>Round 23 — one-pass RMSNorm forward (`LLAVA_FUSED_NORM`, extended)</span></summary><pre>The norm&#x27;s forward was <code>_var_kernel</code> + <code>torch.rsqrt</code> + <code>_scale_kernel</code>: the variance kernel read the
+input, then the scale kernel read it <b>again</b>.  Folding the variance, the <code>rsqrt</code> and the weight
+multiply into one kernel moves 2x the tensor instead of 3x.  <code>tl.math.rsqrt</code> is bitwise <code>torch.rsqrt</code>
+on fp32 (verified), so the forward is <b>bitwise identical</b> to the two-kernel version — verified for 6
+shapes.  Isolated 119.8 → 76.0 µs per norm (44 µs × 65 norm calls/step ≈ 2.9 ms).
+<code>time</code>: 1181.4 → 1182.7 ms/step — <b>no measurable gain</b> (below the 0.35% run-to-run spread); kept
+because it is bitwise-safe and strictly less work.</pre></details><details><summary><em class="na">—</em><span>Round 24 — fused AdamW master-weight tail (`LLAVA_DS_ADAM`)  ← the round&#x27;s win</span></summary><pre><code>_multi_tensor_adamw</code> ends the step with four full passes over the fp32 master partition —
+<code>_foreach_sqrt</code> (out-of-place, allocating a fresh 6.8 GB buffer), <code>_foreach_div_</code>, <code>_foreach_add_</code>,
+<code>_foreach_addcdiv_</code> — 10x the partition in bytes, where one pass suffices (<code>denom</code> is consumed by
+nothing but the <code>addcdiv</code>).  DeepSpeed&#x27;s ZeRO-2 hands the optimizer **one flat fp32 partition per param
+group**, so one Triton kernel replaces all four: 21.96 → 6.06 ms per 6.76 GB partition, ×2 partitions
+per rank.  <code>time</code>: 1182.7 → <b>1154.1 ms/step, speedup 2.4014</b> (was 2.3435); peak memory unchanged at
+119.36 GiB (the transient <code>denom</code> buffer is gone, which frees ~13.5 GB of transient fp32).
+
+Numerics — <b>N0 (bitwise)</b>.  Three separate rounding traps had to be closed, each found by isolating
+the op:
+1. <code>tl.sqrt</code> is <code>sqrt.approx.f32</code> (~2 ULP) → a <b>6.7e-5/step systematic loss drift</b>.  <code>tl.math.sqrt_rn</code>
+   is libdevice&#x27;s IEEE round-to-nearest and is bitwise <code>torch.sqrt</code>.
+2. PyTorch&#x27;s <code>tensor / scalar</code> is a <b>multiply by the fp32 reciprocal</b>, not a division;
+   <code>div_rn</code> is its tensor/tensor division.
+3. LLVM contracts <code>a*b + c</code> into an FMA; PyTorch&#x27;s <code>addcdiv</code> does not.  <code>mul_rn</code>/<code>add_rn</code> pin it.
+Result: 3 of 131072 master weights differ over 20 AdamW steps, by 3.6e-12, and a whole 25-step run&#x27;s
+logged losses are indistinguishable from the unpatched tree&#x27;s — two *identical* runs differ by more
+(max 0.0013) than the patched and unpatched runs do (max 0.0018).
+
+<b>A crash found and fixed (important)</b>: patching at import time made the run die with
+<code>ERROR: Unexpected segmentation fault encountered in worker</code>, 3/3 times.  Cause: DeepSpeed&#x27;s ZeRO-2
+constructor (<code>initialize_optimizer_states</code>) runs one <code>AdamW.step()</code> to create the optimizer state,
+which <b>compiles the Triton kernel while the CUDA context is still pristine</b>; the Trainer&#x27;s DataLoader
+workers are forked after that, and a forked child of a process that has loaded a Triton module into its
+CUDA context segfaults.  Every other Triton kernel in this tree is first launched from inside the
+training loop (after the fork) and never hits it.  Fix: arm the patch on the first
+<code>DeepSpeedZeroOptimizer.step</code> (the wrapper unhooks itself), so it is applied after the fork and before
+anything is timed.  That pre-fork step leaves the master weights untouched (its gradient is zero), so
+the numerics are unaffected.  <code>check --quick</code> PASSES.</pre></details><details><summary><em class="na">—</em><span>Round 25 — fused AdamW moment updates (`LLAVA_DS_ADAM`, extended)</span></summary><pre>The profile after R24 showed the Adam&#x27;s three moment passes as the top remaining item:
+<code>_foreach_lerp_</code> 10.5 ms + <code>_foreach_mul_</code> 7.5 ms + <code>_foreach_addcmul_</code> 10.7 ms = 28.7 ms/step,
+i.e. 9x the partition in bytes where 5x suffices (all three read <code>exp_avg</code>, <code>exp_avg_sq</code> and <code>grad</code>
+and write only the two moments).  One Triton kernel does both updates in a single pass.
+<code>time</code>: 1154.1 → <b>1144.6 ms/step, speedup 2.4214</b>.
+
+Numerics: <b>N0 — bitwise</b>.  <code>mul_rn</code>/<code>add_rn</code>/<code>sub_rn</code> pin every rounding to PyTorch&#x27;s, because
+LLVM contracts <code>a*b + c</code> into an FMA and neither <code>lerp</code> nor <code>addcmul</code> fuses (verified: <code>fma_rn</code>
+differs in 268865/4.2M values).  Verified on 4.2M random fp32 values and over 20 real AdamW steps —
+both moments bitwise identical.  Whole-run loss drift is indistinguishable from run-to-run noise:
+identical unpatched runs differ by max 0.0013/mean 0.00057, the Adam-patched runs by
+max 0.0020-0.0023/mean 0.00068-0.00074.  <code>check --quick</code> PASSES (<code>/tmp/r31/quick2</code>).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-llava-haiku.html"><small>← 2.46×</small><strong>Haiku 5.5</strong></a><a class="up" href="llava.html">↑ LLaVA</a><a class="next" href="t-llava-mm.html"><small>2.34× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-llava-opus.html", "pts": [[0.53, 1.457, 1], [0.757, 1.723, 2], [1.111, 2.091, 3], [1.621, 2.296, 4], [2.115, 2.421, 6], [2.233, 2.452, 7], [2.36, 2.542, 8], [2.731, 2.576, 10], [2.909, 2.589, 11], [3.307, 2.615, 12], [3.307, 2.643, 13], [3.51, 2.655, 15], [3.659, 2.655, 16], [3.944, 2.68, 18], [3.979, 2.704, 19], [4.202, 2.726, 20], [4.368, 2.735, 21], [5.069, 2.735, 26], [5.337, 2.748, 27], [5.792, 2.748, 29], [6.083, 2.77, 31]], "end": 10.014, "final": 2.9153, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-llava-sonnet.html", "pts": [[0.928, 1.468, 2], [0.928, 1.704, 3], [1.148, 2.122, 4], [1.743, 2.244, 6], [2.05, 2.412, 8], [3.021, 2.498, 12], [4.63, 2.627, 14], [7.301, 2.742, 19]], "end": 9.999, "final": 2.8022, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-llava-haiku.html", "pts": [[0.355, 1.451, 2], [0.478, 1.99, 3], [0.712, 2.005, 4], [0.843, 2.187, 5], [1.611, 2.21, 9], [2.237, 2.21, 11], [2.38, 2.21, 12], [3.296, 2.21, 13], [3.884, 2.21, 14], [4.858, 2.248, 21], [5.646, 2.323, 22], [6.608, 2.34, 26], [6.892, 2.361, 27], [7.555, 2.368, 30], [8.519, 2.403, 34], [9.205, 2.456, 36], [9.987, 2.466, 37]], "end": 10.002, "final": 2.4629, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-llava-astra62.html", "pts": [[0.172, 1.43, 1], [0.328, 1.486, 2], [0.596, 1.583, 3], [0.65, 1.827, 4], [0.801, 2.071, 5], [0.993, 2.077, 6], [1.077, 2.108, 7], [1.348, 2.132, 8], [1.348, 2.132, 9], [1.406, 2.164, 10], [1.502, 2.191, 11], [1.754, 2.245, 12], [1.881, 2.252, 13], [2.101, 2.252, 14], [2.199, 2.3, 15], [2.428, 2.384, 16], [2.428, 2.384, 17], [2.537, 2.431, 18], [2.612, 2.445, 19], [2.651, 2.445, 20], [2.951, 2.445, 21], [3.033, 2.445, 22], [3.137, 2.445, 23], [3.192, 2.445, 24], [3.548, 2.499, 25], [3.548, 2.499, 26], [3.974, 2.499, 28], [3.974, 2.501, 29], [4.165, 2.501, 30], [4.239, 2.555, 31], [4.508, 2.555, 32], [4.815, 2.587, 33], [4.815, 2.587, 34], [4.917, 2.587, 35], [5.213, 2.587, 36], [5.213, 2.592, 37], [5.316, 2.599, 38], [5.505, 2.599, 39], [5.641, 2.599, 40], [6.031, 2.616, 41], [6.165, 2.627, 42], [6.259, 2.627, 43], [6.699, 2.627, 44], [6.932, 2.663, 45], [7.203, 2.676, 46], [7.203, 2.677, 47], [7.291, 2.678, 48], [7.426, 2.678, 49], [7.554, 2.687, 50], [7.554, 2.687, 51], [8.091, 2.703, 52], [8.091, 2.703, 53], [8.334, 2.703, 54], [8.342, 2.703, 55], [8.568, 2.703, 56], [8.568, 2.719, 57], [8.772, 2.719, 58], [9.003, 2.743, 59], [9.092, 2.757, 60], [9.172, 2.757, 61], [9.545, 2.757, 62], [9.728, 2.768, 63], [9.833, 2.771, 64]], "end": 10.0, "final": 2.7392, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-llava-sol62.html", "pts": [[0.108, 1.038, 1], [0.485, 1.412, 2], [0.533, 1.563, 3], [0.926, 1.71, 4], [1.0, 1.821, 5], [1.275, 1.885, 6], [1.493, 2.006, 7], [2.02, 2.038, 8], [2.093, 2.074, 9], [2.301, 2.076, 10], [2.823, 2.143, 11], [2.823, 2.149, 12], [2.947, 2.149, 13], [3.049, 2.159, 14], [3.339, 2.159, 15], [3.457, 2.159, 16], [3.555, 2.159, 17], [3.746, 2.223, 18], [3.992, 2.228, 19], [4.13, 2.264, 20], [4.313, 2.264, 21], [4.393, 2.264, 22], [4.483, 2.32, 23], [4.704, 2.32, 24], [4.979, 2.346, 25], [5.012, 2.346, 26], [5.109, 2.346, 27], [5.496, 2.364, 28], [5.55, 2.37, 29], [5.627, 2.379, 30], [5.857, 2.396, 31], [6.34, 2.431, 32], [6.476, 2.448, 33], [6.715, 2.456, 34], [6.986, 2.458, 35], [7.549, 2.482, 36], [7.794, 2.505, 37], [7.931, 2.505, 38], [7.976, 2.505, 39], [8.054, 2.505, 40], [8.147, 2.505, 41], [8.267, 2.505, 42], [8.434, 2.505, 43], [8.766, 2.512, 44], [8.797, 2.512, 45], [8.863, 2.512, 46], [8.954, 2.516, 47], [9.133, 2.516, 48], [9.153, 2.531, 49], [9.432, 2.558, 50], [9.81, 2.584, 51], [9.845, 2.584, 52], [9.913, 2.584, 53]], "end": 10.0, "final": 2.5868, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-llava-gneon.html", "pts": [[0.0, 1.055, 2], [0.0, 1.759, 3], [0.703, 2.588, 4], [1.513, 2.725, 5], [1.513, 2.792, 6], [3.818, 3.049, 7], [4.635, 3.082, 15], [5.086, 3.131, 16], [5.96, 3.134, 17], [6.343, 3.146, 18], [6.776, 3.155, 19], [9.243, 3.155, 20]], "end": 10.031, "final": 3.1248, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-llava-gcarbon.html", "pts": [[1.224, 1.129, 1], [1.565, 1.78, 2], [2.213, 2.337, 3], [2.839, 2.525, 4], [3.012, 2.57, 5], [3.401, 2.595, 6], [3.943, 2.707, 8], [4.59, 2.745, 9], [5.231, 2.821, 10], [5.703, 2.853, 11], [6.581, 2.864, 13], [6.581, 2.875, 14], [6.791, 2.89, 15], [7.114, 2.927, 16], [7.799, 2.959, 18], [8.65, 2.985, 19], [9.225, 2.995, 20]], "end": 10.006, "final": 2.9934, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-llava-ghydrogen.html", "pts": [[0.651, 1.044, 2], [0.866, 1.053, 3], [1.03, 1.545, 4], [1.886, 2.317, 5], [2.415, 2.508, 6], [2.783, 2.584, 7], [3.306, 2.773, 8], [4.289, 2.886, 9], [9.668, 2.989, 11], [9.827, 2.996, 15]], "end": 10.008, "final": 2.9676, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-llava-qwen4.html", "pts": [[0.754, 1.211, 2], [0.985, 1.227, 3], [1.302, 1.236, 4], [1.697, 1.236, 5], [1.96, 1.236, 6], [2.399, 1.254, 7], [2.543, 1.254, 8], [3.747, 1.408, 9], [4.486, 1.449, 10], [4.585, 1.449, 11], [5.742, 2.126, 12], [6.107, 2.126, 13], [6.312, 2.137, 14], [6.586, 2.137, 15], [7.758, 2.153, 16], [8.083, 2.157, 17], [8.155, 2.157, 18], [8.337, 2.157, 19], [8.443, 2.157, 20], [8.63, 2.157, 21], [9.835, 2.227, 22]], "end": 10.0, "final": 2.197, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-llava-step5.html", "pts": [[1.97, 1.292, 4], [7.338, 2.255, 19], [9.907, 2.401, 24], [10.048, 2.421, 25]], "end": 10.075, "final": 2.4157, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-llava-hy4.html", "pts": [[0.685, 1.06, 2], [1.055, 1.062, 3], [1.915, 1.104, 5], [2.143, 1.124, 6], [2.752, 1.124, 7], [3.684, 1.124, 9], [3.949, 1.132, 10], [4.83, 1.132, 11], [5.297, 1.181, 12], [5.985, 1.21, 13], [6.5, 1.212, 14], [6.981, 1.295, 15], [7.665, 1.302, 16], [8.155, 1.302, 17], [8.807, 1.302, 20], [9.419, 1.337, 21], [9.586, 1.337, 22], [9.904, 1.374, 23]], "end": 10.0, "final": 1.3097, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-llava-astra.html", "pts": [[0.164, 1.035, 1], [0.309, 1.035, 2], [2.235, 1.06, 7], [2.235, 1.063, 12], [2.235, 1.065, 15], [2.235, 1.067, 17], [2.235, 1.067, 19], [3.491, 1.176, 20], [3.805, 1.176, 21], [4.146, 1.192, 22], [4.485, 1.199, 23], [4.836, 1.206, 24], [5.159, 1.215, 25], [5.487, 1.224, 26], [5.813, 1.231, 27], [6.143, 1.243, 28], [6.413, 1.253, 29], [6.832, 1.255, 30], [6.832, 1.255, 31], [7.295, 1.263, 32], [7.61, 1.273, 33], [7.61, 1.273, 35], [7.994, 1.273, 36], [7.994, 1.273, 37], [8.536, 1.278, 38], [8.816, 1.287, 39], [8.889, 1.287, 40], [9.272, 1.29, 42], [9.545, 1.294, 43], [9.623, 1.294, 44], [9.703, 1.294, 45]], "end": 10.0, "final": 1.4063, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-llava-glm.html", "pts": [[0.38, 1.032, 2], [0.473, 1.05, 3], [0.839, 1.099, 4], [0.917, 1.099, 5], [1.308, 1.131, 7], [1.987, 1.139, 9], [2.367, 1.261, 10], [5.294, 1.447, 18], [5.779, 1.457, 19], [6.096, 1.466, 20], [6.413, 1.466, 21], [6.615, 1.486, 22], [7.016, 1.486, 23], [7.201, 1.491, 24], [7.563, 1.496, 25], [7.931, 1.496, 26], [8.048, 1.496, 27], [8.252, 1.502, 28], [8.574, 1.502, 30], [8.754, 1.528, 31], [8.997, 1.528, 32], [9.4, 1.528, 34], [9.434, 1.528, 35], [9.48, 1.528, 36], [9.633, 1.528, 37], [9.685, 1.528, 38], [9.929, 1.528, 39]], "end": 10.0, "final": 1.5188, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-llava-kimi.html", "pts": [[0.123, 1.036, 1], [0.57, 1.058, 3], [1.124, 1.091, 4], [1.414, 1.108, 5], [1.695, 1.221, 6], [1.914, 1.296, 7], [2.478, 1.306, 8], [3.232, 1.329, 9], [3.28, 1.329, 10], [3.874, 1.333, 11], [3.95, 1.333, 12], [4.335, 1.343, 13], [4.57, 1.343, 14], [4.871, 1.343, 15], [5.071, 1.343, 16], [5.53, 1.355, 17], [5.827, 1.364, 18], [5.919, 1.364, 19], [6.344, 1.379, 20], [6.566, 1.379, 21], [6.752, 1.379, 22], [7.004, 1.379, 23], [7.24, 1.379, 24], [7.354, 1.379, 25], [7.465, 1.379, 26], [7.65, 1.379, 27], [7.85, 1.379, 28], [8.34, 1.379, 29], [8.654, 1.379, 30], [8.885, 1.379, 31], [9.047, 1.379, 32], [9.461, 1.385, 33], [9.741, 1.385, 34], [9.872, 1.385, 35]], "end": 10.0, "final": 1.3797, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-llava-ds.html", "pts": [[0.202, 1.038, 1], [0.379, 1.24, 2], [0.751, 1.318, 3], [1.256, 1.804, 4], [1.611, 1.897, 5], [1.799, 1.925, 6], [2.261, 2.008, 7], [3.611, 2.008, 9], [4.355, 2.099, 11], [4.806, 2.146, 12], [5.315, 2.225, 14], [6.253, 2.225, 17], [6.561, 2.225, 20], [6.631, 2.225, 23], [6.78, 2.225, 24], [7.084, 2.228, 26], [7.378, 2.228, 29]], "end": 7.702, "final": 2.2194, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-llava-mm.html", "pts": [[0.918, 1.143, 2], [0.918, 1.422, 3], [1.358, 1.438, 4], [1.764, 1.438, 5], [2.471, 1.703, 9], [3.484, 1.704, 11], [3.661, 1.819, 12], [3.759, 1.895, 13], [4.067, 1.972, 15], [4.167, 1.98, 16], [4.421, 2.005, 17], [4.538, 2.04, 18], [4.718, 2.065, 19], [4.835, 2.075, 20], [4.96, 2.102, 21], [5.22, 2.102, 22], [5.22, 2.102, 23], [5.37, 2.115, 24], [5.37, 2.181, 25], [5.468, 2.215, 27], [5.664, 2.215, 28], [6.415, 2.234, 30], [6.415, 2.267, 31], [6.526, 2.288, 32], [6.832, 2.3, 33], [6.832, 2.32, 34]], "end": 10.0, "final": 2.3388, "rej": false}], "focus": "step5", "xmax": 10.5, "aria": "Step-5 Preview on LLaVA: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

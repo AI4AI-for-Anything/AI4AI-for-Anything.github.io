@@ -1,0 +1,427 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Step-5 Preview · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="Step-5 Preview on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>Step-5 Preview</b></nav><h1>Step-5 Preview <em>1.56×</em></h1><p class="lede">Harness: Claude Code · switches: <code>BAGEL_OPT_VARLEN_ATTN=1</code> <code>BAGEL_OPT_FSDP_FWD_PREFETCH=1</code> <code>BAGEL_OPT_FUSED_ADAMW=1</code> <code>BAGEL_OPT_COARSE_VIT=1</code> <code>BAGEL_OPT_COMPILED_NORM=1</code> <code>BAGEL_OPT_COMPILED_ROPE=1</code> <code>BAGEL_OPT_UND_FIRST=1</code> <code>BAGEL_OPT_CKPT_STRIDE=4</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.56×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.56×</dd></div><div class=""><dt>Rounds</dt><dd>13</dd></div><div class=""><dt>Hours</dt><dd>10.1</dd></div><div class=""><dt>API cost</dt><dd>$23.8</dd></div><div class=""><dt>Input tokens · 99.6% cached</dt><dd>214 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.6 M</dd></div><div class=""><dt>Requests</dt><dd>459</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-bagel_sft-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>2.50×</small></a><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="gcarbon" href="t-bagel_sft-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.14×</small></a><a class="chip" data-k="ghydrogen" href="t-bagel_sft-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.97×</small></a><a class="chip" data-k="sol62" href="t-bagel_sft-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.86×</small></a><a class="chip" data-k="astra62" href="t-bagel_sft-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.84×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip self" data-k="step5" href="t-bagel_sft-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.56×</small></a><a class="chip" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip" data-k="qwen4" href="t-bagel_sft-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.22×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.15×</small></a><a class="chip" data-k="hy4" href="t-bagel_sft-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.06×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>15 sections</small></summary><div class="rounds"><details><summary><em class="">0.8 h</em><span>Round 1 (2026-11-19 05:00-06:00) - profile the unchanged reference</span></summary><pre><code>profile --tree targets/reference</code> over steps 8-9 (interleave data, 2 profiled steps,
+2.807 s/step with the profiler&#x27;s ~20% overhead; the unprofiled steps around it are 2.3-2.6 s).
+
+Per step (self CUDA, 2 steps profiled; the NCCL annotation double counts the NCCL kernels):
+
+| item | ms/step | share |
+|---|---|---|
+| NCCL reduce-scatter (gradients) | 787 | 28% |
+| NCCL all-gather (parameters) | 521 | 19% |
+| GEMM (<code>sm90_xmma_*</code>) | 787 | 28% |
+| fmha (mem-efficient attention with the dense bias) | 564 | 20% |
+| elementwise / copy / index / cat / fill | ~550 | 20% |
+| optimizer + EMA (<code>_foreach_*</code>) | 90 | 3% |
+| NCCL all-reduce (token counts, logging) | 33 | 1% |
+
+Timeline: 5.613 s span for 2 steps, GPU 94% busy, 1155 ms of gaps &gt; 0.2 ms of which 125 ms and
+82 ms are single stalls before an all-gather. About half of the reduce-scatter time overlaps
+compute (BACKWARD_PRE prefetch), so roughly 760 ms/step of NCCL is exposed.
+
+Other findings:
+
+* 4 x Hopper on NVLink4 (18 lanes). A standalone NCCL benchmark reaches ~390-440 GB/s for
+  all-gather/reduce-scatter of 63-500 MB messages, and <code>NCCL_ALGO</code> / <code>NCCL_PROTO</code> /
+  <code>NCCL_NTHREADS</code> / <code>NCCL_MAX_NCHANNELS</code> change nothing measurable (24 channels, P2P, already the
+  best protocol). But when a collective is interleaved with a GEMM on another stream it drops to
+  ~130 GB/s, and FSDP&#x27;s own collectives run at ~10 GB/s (RING_LL protocol, 14 x 54 ms
+  reduce-scatters and 2 x 143 ms all-gathers per step). Not explained yet; a candidate direction
+  is fewer/larger FSDP units, which changes the FSDP layout (gate 2 can then only pass through
+  gates 2b/3).
+* <code>train/pretrain_unified_navit.py</code> calls <code>.item()</code> twice per step (lines 678, 683) for the MFU
+  counters, which forces a device sync before the forward every step.
+* Attention: <code>PackedAttentionMoT.forward_train</code> runs one masked
+  <code>scaled_dot_product_attention</code> <b>per sample</b> with a dense <code>(L, L)</code> bf16 bias, a GQA
+  <code>repeat</code> of k/v to 28 heads, and a <code>cat</code> of the per-sample outputs - for every one of the 28
+  decoder layers. 84 SDPA calls per step.
+* The MoT layers scatter q/k/v through <code>new_zeros</code> + two <code>index_put</code>s each, and the same pattern
+  again for the output, the layernorms and the MLPs: ~15000 elementwise kernels per step.
+
+### Layouts that actually occur (dumped from the judge&#x27;s data with a patched
+<code>prepare_attention_mask_per_sample</code>)
+
+recipe config (<code>data_config.yaml</code>, 10240 tokens/GPU, editing never fits):
+<code>(&#x27;causal&#x27;,&#x27;noise&#x27;)</code> (t2i), <code>(&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;causal&#x27;)</code> (VLM), <code>(&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;causal&#x27;)</code>
+with longer images, <code>(&#x27;noise&#x27;)</code> alone.
+
+interleave config (<code>data_config_interleave.yaml</code>, what timing / gate 2b / gate 3 use):
+<code>(&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;causal&#x27;)</code>, <code>(&#x27;causal&#x27;,&#x27;noise&#x27;)</code>, <code>(&#x27;full&#x27;,&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;noise&#x27;)</code>,
+<code>(&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;noise&#x27;)</code>, <code>(&#x27;full&#x27;,&#x27;full&#x27;,&#x27;noise&#x27;)</code>, <code>(&#x27;noise&#x27;,&#x27;full&#x27;,&#x27;causal&#x27;,&#x27;noise&#x27;)</code>,
+<code>(&#x27;full&#x27;,&#x27;causal&#x27;x6)</code>.</pre></details><details><summary><em class="">0.8 h</em><span>Round 2 (2026-11-19 06:00-...) - attention: varlen kernels instead of per-sample masked SDPA</span></summary><pre><b>Change.</b> New <code>modeling/bagel/attention_plan.py</code> derives, from upstream&#x27;s dense per-sample masks
+alone, the block structure that reproduces them, and <code>modeling/bagel/qwen2_navit.py</code> runs the
+decoder attention with two <code>flash_attn_varlen_func</code> calls instead of the per-sample loop:
+
+* a row that sees a later column starts a bidirectional block; the block runs to the next row that
+  does not, so a block is <code>full</code> or <code>noise</code> and a causal split is never inside one;
+* a block is <code>noise</code> iff its columns are seen by its own rows alone (<code>colsum[start] == length</code>),
+  which is also exactly when a *trailing* full block behaves like a noise block, so the
+  classification is safe;
+* the non-noise tokens of a sample, in order, are one causal run; every causal run&#x27;s keys are its
+  sample&#x27;s non-noise prefix up to the end of the run, so the bottom-right causal alignment makes
+  query <code>i</code> see exactly the prefix tokens up to its own position;
+* a <code>full</code> block&#x27;s keys are its sample&#x27;s non-noise prefix up to the end of the block; a <code>noise</code>
+  block&#x27;s keys are that prefix up to its start followed by the block itself (upstream&#x27;s noise pass
+  hides a noise split&#x27;s *columns* from everyone else but its own queries keep seeing everything
+  before them);
+* keys are gathered (prefixes overlap), queries are <code>perm = [causal tokens..., block tokens...]</code>
+  and the output is scattered back with <code>inv</code>. GQA needs no <code>repeat</code> - flash-attention takes k/v
+  with 4 heads against q with 28.
+
+Behind <code>BAGEL_OPT_VARLEN_ATTN</code> (default 1, <code>=0</code> restores the per-sample path, kept as
+<code>_sample_split_attention</code>). Numerics tier <b>N1</b> (kernel change; masks, order and shapes are
+identical, so gate 2 is no longer bitwise and gates 2b/3 decide).
+
+<b>Verification</b> (all on the submission tree, GPU):
+
+* <code>/tmp/check_plan.py</code> - the plan&#x27;s implied attention mask vs upstream&#x27;s dense mask, on 16
+  hand-written layouts plus 20 random ones (including noise-in-the-middle, adjacent full blocks,
+  single-token samples, 6-sample batches): <b>all exact</b>.
+* <code>/tmp/check_real.py</code> - the same check on 8 real packed batches of *both* data configurations
+  (recipe and interleave), masks up to 120 MB: <b>mismatch 0 on every batch</b>.
+* <code>/tmp/test_attn.py</code> - the varlen attention vs upstream&#x27;s per-sample SDPA loop, same inputs:
+  worst relative error <b>4.7e-3</b> (one bf16 ULP) over 17 layouts + 12 random ones.
+
+<b>Time.</b> pending (see the run log below).</pre></details><details><summary><em class="">0.8 h</em><span>Round 2 result</span></summary><pre>```
+bench.py time --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r2/time
+s_per_step 2.2008 (windows 2.2148 / 2.1867, range 1.28%)
+speedup_vs_frozen_reference 1.1836   beyond_reference_noise true
+peak_memory_allocated_gib 82.14 (unchanged)
+```
+Committed as <code>a317c42</code>.</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 - re-profile</span></summary><pre><code>profile --tree /submission/bagel_sft</code> -&gt; <code>/tmp/r3/profile</code> (pending below).</pre></details><details><summary><em class="">0.9 h</em><span>Round 3 result (re-profile after the attention change)</span></summary><pre>Per step, self CUDA, 2 profiled steps (span 2374 ms/step with the profiler):
+
+| item | ms/step | share |
+|---|---|---|
+| NCCL (reduce-scatter 653 + all-gather 444) | 1098 | 39% |
+| GEMM | 950 | 34% |
+| elementwise + index + cat + reduce | ~460 | 16% |
+| optimizer + EMA (<code>multi_tensor_apply</code>) | 90 | 3% |
+| flash-attention (fwd 69 + bwd 95 + kernels) | ~200 | 7% |
+
+GPU 92% busy (188 ms/step idle). NCCL reduce-scatter: 58 calls/step, 14 of them ~44.5 ms and
+44 ~2.4 ms; all-gather 117 calls/step with one ~200 ms. Effective all-gather bandwidth ~66 GB/s
+and reduce-scatter ~8 GB/s, against ~440 GB/s measured standalone on this NVLink fabric and
+~130 GB/s when a collective shares the GPU with a GEMM. So the collectives are mostly *waiting
+for the peers*, not bandwidth-bound.
+
+Dead ends measured (each a full <code>time</code> run, all with the varlen attention in):
+
+* <code>NCCL_PROTO=Simple</code> (+<code>NCCL_ALGO=Ring NCCL_MAX_NCHANNELS=16</code>): 2.2089 s/step vs 2.2008 -
+  no gain. The protocol is not the problem (a standalone benchmark gives the same numbers for
+  the default, <code>Simple</code>, <code>LL128</code>, <code>NVLS</code>; only <code>LL</code> is 3x worse and it is not what the default
+  picks).
+* FSDP <code>forward_prefetch=True</code>: 2.2001 vs 2.2008 - no gain (the forward all-gathers were
+  already overlapping). Kept anyway: no regression, same peak memory, and it is the documented
+  way to express the overlap.
+* Nothing else of the communication side was touched.</pre></details><details><summary><em class="">1.6 h</em><span>Round 4 - host syncs in the training loop (N0)</span></summary><pre><code>token_window</code> and <code>seqlen_square_window</code> were reduced with <code>.item()</code> on every step, which
+synchronizes the host with the device between the token all-reduce and the forward, so the host
+could not queue the VAE encode and the model forward ahead of the GPU. They now accumulate as
+device tensors and are read once at logging time, next to the <code>torch.cuda.synchronize()</code> that is
+already there. Only the logged MFU numbers move, in their last bits.
+
+```
+time --tree /submission/bagel_sft: 2.1926 s/step, speedup 1.1881 (window range 0.18%)
+```
+Committed as <code>602928f</code>.
+
+Full check started at 06:33 on the 1.188x tree (result below).
+
+### Full check on the 1.188x tree (<code>/tmp/r7/check</code>, started 06:33)
+
+* <b>gate 0 structure</b>: pass.
+* <b>gate 1 benefit</b>: candidate timing 2.1926 s/step, speedup vs the frozen reference
+  <b>1.1881</b> (windows 2.1906 / 2.1946, range 0.18%, peak memory 82.14 GiB unchanged).
+* <b>gate 2 record</b>: not bitwise identical, as expected for a kernel change.  Every *exact* item
+  matches the frozen reference: hyper-parameters of both parameter groups at all three steps, the
+  three batch digests per rank, the names/shapes/dtypes/<code>requires_grad</code> of all 1223 parameters and
+  of the 1223 EMA parameters, the optimizer state dtypes (<code>exp_avg</code>/<code>exp_avg_sq</code>/<code>step</code> fp32), 3
+  steps, no other optimizer steps, exactly two FSDP roots.  The SHA-256 of the parameters and of
+  the EMA parameters are identical after step 0 (lr = 0 there); from step 1 on, the gradients of
+  all 58 model units and everything derived from them differ - which is exactly the intended
+  numerics change.
+* <b>gate 2b conformance</b>: <b>PASS</b>, both in deterministic mode and in production settings.
+  <code>R_N = 0.00730</code>, <code>R_J = 0.00519</code>, <code>R_B = 0.00480</code>; the bound is <code>3 x max(R_B, 0.005) = 0.0150</code>,
+  so the ratios are 1.46 (N) and 1.04 (J).  The three pools move alike, i.e. the interleaved
+  layouts are handled exactly like the simple ones - the masks are right, only the rounding of the
+  attention kernel differs.
+* <b>gate 3 statistical</b>: running at the time of writing (150 steps, seed 1, production settings).
+
+Pending the trajectory gate, the current submission is the tree at commit <code>602928f</code> with
+<code>/submission/switches.json</code> = `{&quot;environment&quot;: {&quot;BAGEL_OPT_VARLEN_ATTN&quot;: &quot;1&quot;,
+&quot;BAGEL_OPT_FSDP_FWD_PREFETCH&quot;: &quot;1&quot;}}`.
+
+### Full check verdict (<code>/tmp/r7/check</code>, finished 07:01)
+
+```
+{&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.1879, &quot;tier&quot;: &quot;N1&quot;}
+correctness.stage = statistical, measured_tier = N1, verdict = &quot;equivalent&quot;
+```
+
+* gate 1: candidate 2.1929 s/step vs the frozen reference 2.60493 -&gt; <b>speedup 1.1879</b>
+  (windows 2.1906 / 2.1946, range 0.18%, peak memory 82.14 GiB).
+* gate 2: NOT_BITWISE (intended); every exact item identical, 3 steps, 1408 shards/step, two FSDP
+  roots, batches identical, parameter list identical.
+* gate 2b: PASS in both modes. R_N 0.00730, R_J 0.00519, R_B 0.00480, bound 0.0150, ratios 1.46 /
+  1.04 (limit 3.0; a wrong interleaved mask gives 15+).
+* gate 3: PASS, all 14 endpoints <code>within</code> 3 sigma. The largest excursion is
+  <code>log_grad_norm_s100_150</code> at -2.32 sigma (d = -0.0609, sigma = 0.0263); everything else is
+  below 1.9 sigma. CE, MSE and the four displacements are all inside 0.6 sigma.
+
+The submission is therefore a validated <b>1.188x</b>.  Everything below is on top of it.</pre></details><details><summary><em class="">2.3 h</em><span>Round 5 - screening two more switchable options</span></summary><pre>Both screened with <code>time --tree /submission/bagel_sft</code> (the varlen attention and the forward
+prefetch on in every run):
+
+| switch | s/step | speedup | peak GiB |
+|---|---|---|---|
+| none (baseline for this round) | 2.1926 | 1.1881 | 82.14 |
+| <code>BAGEL_OPT_COARSE_VIT=1</code> (vision transformer as one FSDP unit instead of 26) | 2.1684 | 1.2013 | 76.58 |
+| <code>BAGEL_OPT_FUSED_ADAMW=1</code> (fused AdamW kernel instead of the foreach chain) | 2.1501 | 1.2115 | 76.58 |
+
+A direct comparison of the two AdamW paths on 58 fp32 tensors of the model&#x27;s size distribution:
+the fused kernel is <b>2.6x faster</b> (44 ms vs 116 ms per step) and <b>not bitwise identical</b>
+(max parameter difference 1.5e-11, and <code>exp_avg</code> / <code>exp_avg_sq</code> differ as well) - so it is a
+genuine N1 change, but one whose rounding noise is ~1e-9 relative, four orders of magnitude below
+what the attention kernel change already contributes.
+
+<code>BAGEL_OPT_COARSE_VIT</code> is the riskier of the two: regrouping the flat parameters changes the
+reduce-scatter chunk boundaries, hence the bf16 summation order of the gradients, which is the
+same order of perturbation as the attention change itself.  With <code>log_grad_norm_s100_150</code> already
+at -2.32 sigma in the validated check, it is held back until the fused AdamW is re-validated.
+
+<code>check --n1</code> (gates 0, 2b, 3) running on the fused-AdamW tree -&gt; <code>/tmp/r9/n1</code>.</pre></details><details><summary><em class="">2.9 h</em><span>Round 6 - where the rest of the time goes, and one more N0 change</span></summary><pre>A second look at the profile (trace, not just the op table) found that the CPU is blocked inside
+<code>aten::to</code> / <code>aten::copy_</code> ~45 times per step, the big ones 35-200 ms each, all of them
+<code>cudaStreamSynchronize</code> from a host-value read (<code>.item()</code>, <code>.tolist()</code>, <code>.max()</code>).  Two of them
+sit inside <code>Bagel.forward</code>, i.e. *after* the VAE encode has been queued.
+
+<code>vit_max_seqlen</code> (the vision encoder&#x27;s <code>max_seqlen</code>) and the packed-attention plan are therefore
+now resolved by the training loop, while the only work queued is the batch copies and the token
+reductions, and passed down through the <code>data</code> dict (which is not part of the batch digest, since
+that is taken in <code>SimpleCustomBatch.cuda</code>).  The model still computes them itself when they are
+absent.  Tier N0.
+
+Measured: 2.1501 -&gt; 2.1495 s/step - inside the noise.  Kept as a hedge (with another data seed the
+VAE encode can be longer, and then the stall is real), and re-validated with <code>check --n1</code> in
+<code>/tmp/r12/n1</code>.
+
+Other things measured and rejected in this round:
+
+* <code>NCCL_PROTO</code> / <code>NCCL_ALGO</code> / <code>NCCL_MAX_NCHANNELS</code>: no effect (see round 3).
+* Passing the vision encoder a host-independent upper bound for <code>max_seqlen</code> instead of the real
+  maximum: rejected on paper - flash-attention&#x27;s varlen grid is sized from <code>max_seqlen_q</code>, so a
+  3-6x too large bound would launch 3-6x as many (mostly empty) query blocks in all 26 encoder
+  layers.
+* Disabling activation checkpointing for the decoder layers: rejected on memory.  The MLP
+  intermediates alone are ~1.5 GB per layer, so 28 layers would need ~70 GB more than the 27 GB
+  of headroom the run has.</pre></details><details><summary><em class="">3.4 h</em><span>Round 7 - re-profile of the current tree</span></summary><pre><code>profile --tree /submission/bagel_sft</code> -&gt; <code>/tmp/r13/profile</code> (2 profiled steps, span 2319 ms/step):
+
+| item | ms/step | share of the span |
+|---|---|---|
+| GEMM | 986 | 43% |
+| elementwise / index / cat / reduce / flash | 742 | 32% |
+| NCCL reduce-scatter | 640 | 28% |
+| NCCL all-gather | 535 | 23% |
+| NCCL all-reduce (scalars) | 18 | 1% |
+
+Kernel busy 2921 ms/step against a 2319 ms/step span, i.e. ~600 ms/step of overlap.  Measured
+against *all* non-NCCL kernels, 458 ms/step of the 1194 ms/step of NCCL is exposed (38%): 261 ms
+of all-gather over 117 calls and 179 ms of reduce-scatter over 58 calls, i.e. 2-3 ms of waiting per
+call.  The fabric itself is fine - 440 GB/s standalone, 130 GB/s while sharing the device with a
+GEMM - so the collectives are waiting for the peers, and the peers are skewed because each rank
+packs a different set of samples (the attention work, the VAE encode and the vision encoder all
+scale with the batch&#x27;s own composition).  Coarsening the FSDP units would not help much: the
+measured <code>BAGEL_OPT_COARSE_VIT</code> gain (24 ms) matches the 26 tiny vision units it removes, while
+the 28 mixture-of-transformers layers that dominate the collectives cannot be regrouped without
+renaming parameters.
+
+### Full check on the current tree (<code>/tmp/r14/check</code>, finished 08:50)
+
+```
+{&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.2082, &quot;tier&quot;: &quot;N1&quot;}
+```
+* gate 1: candidate <b>2.1561 s/step</b> vs the frozen reference 2.60493 -&gt; <b>speedup 1.2082</b>.
+* gate 2: NOT_BITWISE (intended); <code>exact_items_ok = True</code> - hyper-parameters, the three batch
+  digests per rank, all 1223 parameter and 1223 EMA parameter names/shapes/dtypes, the optimizer
+  state dtypes, 3 steps, no other optimizer steps, exactly two FSDP roots.
+* gate 2b: PASS in both modes (ratios 1.46 / 1.03 and 1.47 / 1.03).
+* gate 3: PASS, all 14 endpoints within 3 sigma, the worst <code>disp_vit_s050_100</code> at <b>-1.77 sigma</b>.</pre></details><details><summary><em class="">4.5 h</em><span>Round 8 - coarsen the vision encoder&#x27;s FSDP units (N1)</span></summary><pre><code>BAGEL_OPT_COARSE_VIT=1</code> removes <code>SiglipEncoderLayer</code> from FSDP&#x27;s wrap policy, so the whole vision
+transformer becomes one unit instead of 26.  Upstream wraps each encoder layer on its own, which is
+26 of the ~58 FSDP units for 2.7% of the parameters: 26 extra all-gathers and 26 extra
+reduce-scatters per step that are almost entirely per-call waiting (each one costs 2-3 ms of
+exposed time whether it moves 7 MB or 233 MB).
+
+The flat-parameter grouping changes, so the recorded shards differ - but the parameter *names* do
+not: <code>flat_params()</code> builds them as <code>&lt;FSDP unit name&gt;.&lt;fqn inside the unit&gt;</code>, which reconstructs the
+same path either way.  Verified against the frozen record: <code>parameters</code>, <code>ema_parameters</code>,
+<code>hparams</code>, <code>state_dtypes</code> and <code>batches</code> all identical.
+
+```
+time  : 2.1495 -&gt; 2.1248 s/step, speedup 1.2119 -&gt; 1.2260 (peak memory 76.58 GiB, unchanged)
+check (/tmp/r16/check): {&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.2291, &quot;tier&quot;: &quot;N1&quot;}
+  gate 2b: ratios 1.33 / 0.92 and 1.28 / 0.90 (better than before - R_B is the denominator and the
+           regrouped reduce-scatter moves it up)
+  gate 3 : all 14 endpoints within 3 sigma, the worst disp_other_s100_140 at -0.77 sigma
+```</pre></details><details><summary><em class="">5.4 h</em><span>Round 9 - fuse the RMSNorm with inductor (N1): the biggest single win</span></summary><pre><code>Qwen2RMSNorm</code> is eight kernels per call (fp32 up-cast, square, row mean, epsilon add, rsqrt,
+multiply, down-cast, weight multiply) and the model calls it 226 times per step - four per
+mixture-of-transformers layer plus the two head norms, forward and backward.  Compiling the same
+arithmetic as one function with symbolic shapes (<code>torch.compile(..., dynamic=True)</code>, behind
+<code>BAGEL_OPT_COMPILED_NORM</code>) turns each call into a single fused region:
+
+```
+time: 2.1248 -&gt; 1.9561 s/step   (speedup 1.2119 -&gt; 1.3317)
+check (/tmp/r19/check): {&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.3264, &quot;tier&quot;: &quot;N1&quot;}
+  gate 2b: ratios 1.30 / 1.08 and 1.28 / 1.05 (limit 3.0)
+  gate 3 : all 14 endpoints within 3 sigma, the worst disp_vit_s050_100 at -1.45 sigma
+```
+The output moves by one bf16 ULP (relative 3e-3), the same order of perturbation as the attention
+change.  <code>dynamic=True</code> matters: it makes the very first call symbolic, so the varying token counts
+of a packed batch never recompile the graph (no <code>cache_size_limit</code> hit in the run&#x27;s log).
+
+<code>BAGEL_OPT_COMPILED_ROPE</code> and <code>BAGEL_OPT_COMPILED_SWIGLU</code> do the same for the rotary embedding
+(two concatenations, four multiplications and two additions per tensor) and for the SiLU gate of
+the gated MLP: <b>1.9077 s/step, speedup 1.3655</b> (<code>/tmp/r20/time</code>, no recompilation).  Full check
+running in <code>/tmp/r21/check</code>.
+
+### rope + swiglu fusion validated
+
+```
+time : 1.9561 -&gt; 1.9077 s/step   (speedup 1.3317 -&gt; 1.3655)
+check (/tmp/r21/check): {&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.3598, &quot;tier&quot;: &quot;N1&quot;}
+  gate 2b: ratios 1.26 / 1.01 and 1.25 / 1.04
+  gate 3 : all 14 endpoints within 3 sigma, the worst disp_vit_s050_100 at -2.71 sigma
+```
+<code>check --n1</code> re-run on the same tree in <code>/tmp/r22/n1</code> to see how much of that -2.71 is the
+production-mode run-to-run spread rather than the change itself (earlier, the same code measured
+-2.91 and -0.79 on two runs).</pre></details><details><summary><em class="">6.6 h</em><span>Round 10 - re-profile after the fusions, and the last NCCL attempt</span></summary><pre><code>profile</code> on the current tree (<code>/tmp/r23/profile</code>, span 2190 ms/step):
+
+| item | ms/step | |
+|---|---|---|
+| GEMM | 981 | |
+| NCCL all-gather (65 calls) | 651 | |
+| NCCL reduce-scatter (32 calls) | 570 | |
+| eager elementwise / index / cat / reduce | 532 | (was 748 before the fusions) |
+| inductor regions (<code>triton_*</code>) | 44 | 1296 calls |
+| NCCL all-reduce (scalars) | 28 | |
+
+NCCL is now 1248 ms/step of which <b>606 ms is exposed</b> (28% of the step) - the fusions made the
+compute fast enough that the collectives have less to hide behind.  Two last NCCL attempts, both
+worse than the default:
+
+* <code>NCCL_MAX_NCHANNELS=8</code>: 1.9460 s/step (default 1.9077).
+* <code>NCCL_MAX_NCHANNELS=8 NCCL_NTHREADS=256</code>: 2.0137 s/step.
+
+The remaining way to cut the collectives is fewer, larger FSDP units.  Pairing the
+mixture-of-transformers layers would remove ~37 of the 32 remaining units (~2%), but the merged
+unit&#x27;s all-gather and gradient buffers alone would add ~22 GB to the 76 GiB peak, against 27 GB of
+head-room - an out-of-memory risk in the final evaluation for a 2% gain, so it was not attempted.</pre></details><details><summary><em class="">8.2 h</em><span>Round 11 - und-first order for the decoder stack (N0): the second big win</span></summary><pre>Re-profiling the current tree (<code>/tmp/r27/profile</code>, span 2021 ms/step) attributed the remaining
+eager work precisely:
+
+| item | ms/step | calls/step |
+|---|---|---|
+| <code>index_elementwise_kernel</code> | 152 | 2579 |
+| <code>aten::fill_</code> (inside <code>vectorized_elementwise</code>) | 46 | 1252 |
+| <code>aten::div_</code> / <code>mul</code> / <code>add_</code> | 61 | ~1900 |
+| <code>aten::copy_</code> (inside <code>unrolled_elementwise</code>) | 63 | 1016 |
+| <code>multi_tensor_apply</code> (fused AdamW + EMA) | 53 | 523 |
+| <code>CatArrayBatchedCopy</code> | 35 | 102 |
+
+The index kernels and most of the fills come from one pattern: upstream&#x27;s <code>Qwen2MoTDecoderLayer</code>
+and <code>PackedAttentionMoT</code> allocate a zeroed tensor and scatter each expert&#x27;s result into it by
+index, for every projection, both head norms, the output projection and both MLPs, in all 28
+layers - and each of those <code>index_put_</code>/<code>index_select</code> ops also allocates a zeroed gradient tensor
+in its backward.
+
+<b>Change.</b> The understanding and generation token sets partition the packed sequence, so a single
+permutation that puts each of them in a contiguous half turns every one of those gathers and
+scatters into a slice. <code>Bagel.forward</code> builds that permutation once per step (and re-expresses the
+attention&#x27;s <code>perm</code>/<code>inv</code>/key permutations in those coordinates), and the whole decoder stack - all
+28 layers, the residual stream and the final norm - works in that order: one permutation in, one
+out. Behind <code>BAGEL_OPT_UND_FIRST</code>.
+
+Verified <b>bitwise identical</b> to the per-index form on 14 layouts (the real recipe and interleave
+layouts, adjacent full blocks, noise-in-the-middle, all-generation, 6 random ones) for a complete
+decoder layer, so this is tier N0 - it adds no drift on top of the changes already in the tree.
+
+```
+time --tree /submission/bagel_sft: 1.9077 -&gt; 1.7217 s/step   (speedup 1.3655 -&gt; 1.5130)
+```
+One dead end on the way: the first version built the permutation in the training loop, guarded by
+<code>&#x27;packed_und_token_indexes&#x27; in data</code> - but those two tensors are computed *inside* <code>Bagel.forward</code>,
+so the guard never fired and the measurement was flat (1.9229 s/step). Moving the construction next
+to where the two token sets are known is what unlocked the 10%.
+
+### Full check with und-first (<code>/tmp/r32/check</code>, finished 13:35)
+
+```
+{&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.4942, &quot;tier&quot;: &quot;N1&quot;}
+```
+* gate 1: candidate <b>1.7434 s/step</b> vs the frozen reference 2.60493 -&gt; <b>speedup 1.4942</b>.
+* gate 2: NOT_BITWISE, <code>exact_items_ok = True</code>.  The tree now has 34 FSDP units against the
+  reference&#x27;s 60 (the coarsened vision encoder), so the shard digests cannot match - the judge notes
+  that a different FSDP layout is never bitwise identical.
+* gate 2b: PASS in both modes.  The three R values are **bit-identical to the run before this
+  change** (R_N 0.00813, R_J 0.00652, R_B 0.00644; production 0.00803 / 0.00661 / 0.00577), which is
+  the direct confirmation that the und-first reordering adds no numerics drift of its own.
+* gate 3: PASS, all 14 endpoints within 3 sigma, the worst <code>disp_other_s050_100</code> at -0.89 sigma.</pre></details><details><summary><em class="">9.0 h</em><span>Round 12 - what is left after the und-first reorder</span></summary><pre>Re-profile of the current tree (<code>/tmp/r33/profile</code>, span 1868 ms/step):
+
+| item | ms/step | calls/step | (before und-first) |
+|---|---|---|---|
+| GEMM | 990 | 2602 | 1001 |
+| NCCL reduce-scatter | 491 | 32 | 575 |
+| NCCL all-gather | 388 | 65 | 569 |
+| eager elementwise | 381 | 6548 | 530 |
+| inductor regions | 46 | 1296 | 44 |
+| NCCL all-reduce | 35 | 10 | 27 |
+
+Kernels per step fell from 16230 to 10553, and <code>index_elementwise</code> from 152 ms to
+26 ms.  The GEMM is now 53% of the step at roughly 77% of the measured bf16 peak
+(536 TFLOP of the mixture-of-transformers stack at 990 ms) - the residual gap is
+the small-M understanding GEMMs (17 tokens on text-to-image batches) and the
+vision encoder, not something a switch can remove.  The collectives are at 42 GB/s
+(reduce-scatter, concurrent with the backward) and 143 GB/s (all-gather) against
+440 GB/s standalone; five NCCL settings measurements all came back neutral or
+worse, and regrouping the mixture-of-transformers layers would save only the
+per-call overhead (~1 ms per unit) while adding ~22 GB to the peak.
+
+Two small things measured and rejected this round:
+
+* <code>BAGEL_OPT_COMPILED_SWIGLU</code> was silently inert - transformers&#x27; <code>ACT2FN[&quot;silu&quot;]</code>
+  is <code>nn.SiLU()</code>, not <code>F.silu</code>, so the <code>is</code> test never matched.  Fixed, measured:
+  1.7217 -&gt; 1.7210 s/step, i.e. 0.04%, inside the noise, for a one-ULP rounding
+  change.  Left off by default and out of the switch file.
+* The remaining eager work is <code>aten::zero_</code> 29 ms (632 calls/step), <code>aten::copy_</code>
+  66 ms (1016, the und-first slice copies), <code>multi_tensor_apply</code> 53 ms (the fused
+  AdamW plus the EMA&#x27;s two <code>_foreach_</code> ops), <code>CatArrayBatchedCopy</code> 35 ms (the vision
+  encoder&#x27;s rotary <code>torch.cat</code>).  Replacing the EMA&#x27;s <code>_foreach_mul_</code> +
+  <code>_foreach_add_</code> with one <code>_foreach_lerp_</code> would save ~10 ms (0.6%) for another
+  rounding change - not worth the drift while gate 3&#x27;s own spread is ~2 sigma.</pre></details><details><summary><em class="">9.5 h</em><span>Round 13 - stride the activation-checkpoint policy (N0 intent, N1 measured)</span></summary><pre>The und-first reorder dropped peak memory from 82.1 to 75.5 GiB, which leaves room to trade memory
+for the recompute that activation checkpointing pays.  <code>BAGEL_OPT_CKPT_STRIDE</code> leaves every
+stride-th decoder layer uncheckpointed (the layer index is now recorded on the module so the policy
+can stride over it).  Measured on 28 decoder layers, 140 GiB of device memory:
+
+| stride | layers kept uncheckpointed | s/step | speedup | reserved |
+|---|---|---|---|---|
+| 1 (upstream) | 0 | 1.7217 | 1.513 | 109.1 GiB |
+| 8 | 4 | 1.6938 | 1.538 | 116.7 GiB |
+| 4 | 7 | 1.6636 | 1.566 | 124.0 GiB |
+| 3 | 10 | 1.6263 | 1.602 | 129.9 GiB |
+| 2 | 14 | 1.5818 | 1.647 | 134.4 GiB |
+
+Stride 4 is in the submission: +3.4% for 7.6 GiB, which is still 8 GiB below what upstream itself
+reserves, so the head-room against the final evaluation&#x27;s different data seed stays comfortable.
+Stride 2 is another 5% faster but leaves 6 GiB, which is not worth the out-of-memory risk.
+
+Tier: the recomputed activations are the same arithmetic on the same inputs, so the intent is N0; in
+practice cuBLAS&#x27;s algorithm choice moves with the allocator state, so it lands as N1 like the
+und-first reorder (which measured bit-identical in gate 2b anyway).
+
+Full check running in <code>/tmp/r36/check</code>.
+
+### Full check with stride 4 (<code>/tmp/r36/check</code>, finished 14:56)
+
+```
+{&quot;status&quot;: &quot;PASS&quot;, &quot;speedup&quot;: 1.5651, &quot;tier&quot;: &quot;N1&quot;}
+```
+* gate 1: candidate <b>1.6644 s/step</b> -&gt; <b>speedup 1.5651</b>.
+* gate 2: NOT_BITWISE, <code>exact_items_ok = True</code>.
+* gate 2b: PASS in both modes.  In deterministic mode the three R values are **bit-identical to the run
+  before this change** (R_N 0.00813, R_J 0.00652, R_B 0.00644) - the recompute really is the same
+  arithmetic, so the stride is N0 as intended.  In production mode they move in the fourth decimal
+  (R_B 0.00577 -&gt; 0.00594), which is that mode&#x27;s own nondeterminism.
+* gate 3: PASS, all 14 endpoints within 3 sigma, the worst <code>log_grad_norm_s050_100</code> at +1.80 sigma.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-haiku.html"><small>← 1.60×</small><strong>Haiku 5.5</strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-mm.html"><small>1.49× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-bagel_sft-astra62.html", "pts": [[0.918, 1.142, 1], [0.992, 1.295, 2], [2.29, 1.444, 3], [2.4, 1.603, 4], [3.323, 1.649, 5], [3.664, 1.682, 6], [4.027, 1.725, 7], [4.662, 1.725, 8], [5.094, 1.764, 9], [5.907, 1.814, 10], [6.546, 1.817, 11], [7.089, 1.844, 12], [7.827, 1.856, 13], [8.145, 1.856, 14], [9.325, 1.931, 15], [9.52, 1.931, 16], [9.638, 1.931, 17]], "end": 10.0, "final": 1.8382, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-bagel_sft-sol62.html", "pts": [[0.237, 1.171, 1], [0.963, 1.198, 2], [1.233, 1.399, 3], [2.177, 1.415, 4], [2.473, 1.489, 5], [3.266, 1.685, 6], [3.985, 1.697, 7], [4.19, 1.723, 8], [5.271, 1.751, 9], [5.469, 1.759, 10], [5.797, 1.778, 11], [7.08, 1.821, 12], [7.291, 1.821, 13], [7.67, 1.821, 14], [7.882, 1.821, 15], [8.17, 1.821, 16], [8.453, 1.821, 17], [8.736, 1.822, 18], [9.552, 1.87, 19], [9.745, 1.926, 20]], "end": 10.0, "final": 1.8629, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-bagel_sft-gneon.html", "pts": [[0.549, 1.181, 2], [0.683, 1.278, 3], [0.907, 1.514, 4], [1.825, 1.92, 5], [2.882, 2.104, 6], [3.133, 2.254, 7], [3.441, 2.357, 8], [4.122, 2.464, 9], [6.226, 2.47, 10], [6.226, 2.582, 11], [6.226, 2.602, 12], [8.408, 2.602, 14], [8.408, 2.628, 15], [9.491, 2.628, 16]], "end": 10.0, "final": 2.4972, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-bagel_sft-gcarbon.html", "pts": [[0.793, 1.178, 2], [1.889, 1.499, 3], [2.431, 1.745, 4], [3.533, 1.813, 5], [3.977, 1.827, 6], [4.415, 1.842, 7], [5.078, 1.845, 8], [5.573, 1.868, 9], [6.047, 1.875, 10], [6.566, 1.998, 11], [7.147, 2.067, 12], [8.235, 2.107, 13], [9.741, 2.145, 14], [9.741, 2.145, 15]], "end": 9.998, "final": 2.1405, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-bagel_sft-ghydrogen.html", "pts": [[0.762, 1.235, 2], [1.002, 1.384, 3], [1.641, 1.796, 4], [2.798, 1.93, 5], [3.632, 2.045, 6], [4.744, 2.045, 7], [6.854, 2.136, 8], [9.005, 2.154, 10]], "end": 9.999, "final": 1.9653, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-bagel_sft-qwen4.html", "pts": [[0.798, 1.071, 4], [0.923, 1.12, 5], [1.189, 1.122, 6], [1.773, 1.122, 7], [2.612, 1.174, 8], [3.345, 1.194, 9], [4.38, 1.194, 13], [4.566, 1.194, 14], [5.815, 1.194, 15], [6.191, 1.194, 17], [7.18, 1.194, 18], [8.799, 1.231, 19], [9.692, 1.231, 21]], "end": 10.0, "final": 1.2224, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-bagel_sft-step5.html", "pts": [[0.937, 1.184, 2], [1.607, 1.188, 4], [3.897, 1.208, 7], [4.478, 1.229, 8], [5.374, 1.365, 9], [8.629, 1.494, 11], [9.993, 1.565, 13]], "end": 10.077, "final": 1.5584, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-bagel_sft-hy4.html", "pts": [[0.68, 1.031, 2], [2.875, 1.034, 4], [5.913, 1.057, 6], [8.177, 1.057, 12], [8.311, 1.059, 13], [9.629, 1.064, 15]], "end": 10.0, "final": 1.0608, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[1.344, 1.067, 7], [2.899, 1.227, 10], [7.008, 1.227, 19], [8.229, 1.227, 20], [8.727, 1.227, 22], [9.438, 1.227, 24]], "end": 10.0, "final": 1.1469, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935, "rej": false}], "focus": "step5", "xmax": 10.5, "aria": "Step-5 Preview on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

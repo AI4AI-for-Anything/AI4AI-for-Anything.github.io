@@ -1,0 +1,364 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen4-Max · LLaVA · RSI-Infra Bench</title><meta name="description" content="Qwen4-Max on LLaVA: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="on">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="llava.html">LLaVA</a><span>/</span><b>Qwen4-Max</b></nav><h1>Qwen4-Max <em>2.20×</em></h1><p class="lede">Harness: Qwen Code · switches: none</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.20×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.23×</dd></div><div class=""><dt>Rounds</dt><dd>22</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$11.9</dd></div><div class=""><dt>Input tokens · 95.2% cached</dt><dd>69 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.5 M</dd></div><div class=""><dt>Requests</dt><dd>538</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-llava-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>3.12×</small></a><a class="chip" data-k="gcarbon" href="t-llava-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.99×</small></a><a class="chip" data-k="ghydrogen" href="t-llava-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>2.97×</small></a><a class="chip" data-k="opus" href="t-llava-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.92×</small></a><a class="chip" data-k="sonnet" href="t-llava-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.80×</small></a><a class="chip" data-k="astra62" href="t-llava-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>2.74×</small></a><a class="chip" data-k="sol62" href="t-llava-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>2.59×</small></a><a class="chip" data-k="haiku" href="t-llava-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>2.46×</small></a><a class="chip" data-k="step5" href="t-llava-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>2.42×</small></a><a class="chip" data-k="mm" href="t-llava-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>2.34×</small></a><a class="chip" data-k="ds" href="t-llava-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>2.22×</small></a><a class="chip self" data-k="qwen4" href="t-llava-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>2.20×</small></a><a class="chip" data-k="glm" href="t-llava-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.52×</small></a><a class="chip" data-k="astra" href="t-llava-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.41×</small></a><a class="chip" data-k="kimi" href="t-llava-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.38×</small></a><a class="chip" data-k="hy4" href="t-llava-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.31×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Sequence packing</dt><dd>✓ round 12 <code>LLAVA_OPT_PACK_SEQ</code>: profile measured 23.6–32.0% padding per micro-batch; valid tokens gathered into one sequence at the <code>LlamaModel.forward</code> entry, all 32 layers share one <code>cu_seqlens</code> and call <code>flash_attn_varlen_func</code> directly, then scatter back to the original shape; 1.429 → 1.787× (screen) with 14 layers still recomputed. Same round fixed a bug: the fallback test <code>max_seqlen==seq</code> was always true, so packing had never been active</dd><dt>Recompute / activations</dt><dd>✓ round 9 <code>GC_SKIP_EVERY=2</code> skips recompute on every other layer (full check 1.408×), with <code>expandable_segments</code> cutting reserved memory 137.5 → 121.6 GiB; round 10 <code>GC_SKIP_COUNT=18</code> (1.429×; K=20 left only ~6 GiB margin, not used); round 12, after packing freed ~31 GiB, <code>GC_SKIP_COUNT=32</code>, no layer recomputed (1528 → 1368 ms, screen); final-judge peak 124.52 GiB (reference 73.5)</dd><dt>Optimizer</dt><dd>✓ round 22: torch's own <code>fused=True</code> crashed with a device mismatch because <code>state_steps</code> live on the CPU, so it wrote a single-pass Triton AdamW (<code>LLAVA_OPT_FUSED_ADAM</code>, wrapping <code>torch.optim.adamw.adamw</code>) that reads g/p/m/v once and writes p/m/v once; optimizer tail ~63 → 23 ms, full check 1268.6 → 1226.4 ms (2.1529 → 2.2269×); round 21 <code>sub_group_size=1e10</code> stayed within noise over two screens</dd><dt>Communication &amp; libraries</dt><dd>ZeRO-2 round 1 1.04× (2626 ms) but first loss off by 0.585%, dropped; stayed on ZeRO-3 and tuned it: round 4 prefetch / bucket sizes (full check 1.2339×), round 16 <code>PERSIST_THRESHOLD=5e7</code> keeps decoder projections resident, no per-step all-gather (1289.5 → 1268.6 ms, 2.118 → 2.1529×); <code>NCCL_PROTO=Simple</code> / <code>LL128</code>, larger reduce buckets and persisting all params gave no gain or were slower; no library swap (FA3 not installed in the env, cuBLAS not tried)</dd><dt>Other main levers</dt><dd>round 2 flash-attn's bundled Triton RMSNorm + RoPE (2731.2 → 2256.7 ms, 1.2103×); round 3 fused SwiGLU (→ 2225.5 ms); round 7 <code>LLAVA_OPT_SPARSE_LOSS</code> computes lm_head + CE only at valid-label positions (2209.5 → 2178.8 ms); round 12 added a fused RoPE driven by <code>cu_seqlens</code> after packing (1368 → 1284 ms); tried and not submitted: prenorm, fused CE on full logits, merged gate/up GEMM, CLIP SDPA, <code>torch.compile</code> (crashes in the ZeRO-3 hooks); best full check 1226.4 ms/step, 2.2269×, final judge measured 2.197×</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>22 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 — communication class: ZeRO stage (03:27–03:50)</span></summary><pre>Profile of the unchanged reference (<code>/tmp/r1/profile</code>, <code>--detail</code>, 1 step, rank 0):
+GPU kernel time 2773 ms/step ≈ wall 2731 → GPU nearly saturated (little launch idle).
+
+| hotspot | ms/step | share | kind |
+|---|---|---|---|
+| cuBLAS bf16 GEMMs (5 shapes) | 1310.8 | 47.3% | compute (irreducible w/o GC/precision change) |
+| ncclKernel_AllGather (ZeRO-3 param gather) | 279.7 | 10.1% | communication (mostly overlapped) |
+| ncclKernel_ReduceScatter bf16 (grads) | 182.3 | 6.6% | communication |
+| elementwise bf16 mul/add/copies/cat/neg (RMSNorm, RoPE, casts) | ~450 | ~16% | memory (fusible) |
+| flash fwd+bwd | 69.1 | 2.5% | compute |
+| scatter/gather (embeddings, prepare_inputs) | 53.6 | 1.9% | memory |
+| multi_tensor_apply (DS Adam) | ~49 | 1.8% | optimizer |
+
+CPU-side: <code>aten::nonzero</code> 703 ms inclusive (the <code>torch.where(IMAGE_TOKEN_INDEX)</code> syncs in
+<code>prepare_inputs_labels_for_multimodal</code>); CheckpointFunctionBackward 1612 ms.
+
+Change: <code>llava/train/ds_opt.py</code> (imported from <code>llava_trainer.py</code>) patches
+<code>HfTrainerDeepSpeedConfig.trainer_config_process</code> to apply <code>LLAVA_OPT_*</code> env overrides (ZeRO stage,
+bucket sizes, overlap_comm, contiguous_gradients). Off by default; frozen args untouched.
+
+Result (<code>/tmp/r1/sweep</code>): ZeRO-2 = 2626 ms (1.04x), peak 82.6 GiB (fits). BUT first logged loss
+1.3758 vs 1.3839 = <b>0.585% &gt; 0.5% band → gate 1 ERROR</b>. <code>check --quick</code> (<code>/tmp/r1/quick_zero2</code>):
+all exact items PASS, numerics NOT_BITWISE, precision_changed False (valid N1) — only the loss band
+blocks it. Removing the (mostly overlapped) AllGather saves little wall time. <b>Rejected; no gain.</b>
+Lesson: the ±0.5% first-loss band is a hard gate that even legitimate N1 changes can trip; ZeRO-2
+perturbs every layer&#x27;s GEMM rounding and lands just outside it.</pre></details><details><summary><em class="">0.5 h</em><span>Round 2 — memory class: fused RMSNorm + RoPE (03:51–…)</span></summary><pre>Change: <code>llava/train/fused_ops.py</code> (imported from <code>llava_trainer.py</code>) reuses flash-attn&#x27;s Triton
+kernels — <code>rms_norm_fn</code> for <code>LlamaRMSNorm.forward</code> and a stride-aware <code>apply_rotary</code> autograd
+Function (conjugate backward) for <code>apply_rotary_pos_emb</code>. Switches <code>LLAVA_OPT_FUSED_NORM</code>,
+<code>LLAVA_OPT_FUSED_ROPE</code>, off by default; eager HF path kept as fallback (RoPE guards that
+position_ids are arange, cached per shape). Numerics N1 (fp32 internal accumulation).
+
+Result (<code>/tmp/r2/time_norm_rope</code>, both switches on): <b>2256.7 ms/step, speedup 1.2103</b>,
+window_spread 0.0053 (valid), beyond_reference_noise true, peak 72.5 GiB, <b>no problems</b>.
+First loss 1.3831 vs 1.3839 = <b>0.058%</b> (well inside the 0.5% band). Large, clean win.
+
+<code>check --quick</code> (<code>/tmp/r2/quick_norm_rope</code>): PASS, exact_failures [], numerics NOT_BITWISE but only
+<b>1 tensor</b> beyond tolerance of 4724 (nearly bitwise), precision_changed False.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r2/check_norm_rope</code>): <b>speedup 1.2109, tier N1</b>. Gate 3 trajectory
+verdict &quot;equivalent&quot;: train_loss_last20 diff 5.2e-5 (bound 9.7e-3), probe_loss diff 1.9e-4 (bound
+8.7e-3). Verified passing submission. switches.json set to {FUSED_NORM:1, FUSED_ROPE:1}.</pre></details><details><summary><em class="">0.8 h</em><span>Round 3 — memory class: SwiGLU + residual-add-into-norm (prenorm) (04:11–…)</span></summary><pre>Re-profile pending. Prepared <code>fused_ops.py</code> additions (in /tmp/r3, applied after the full check):
+- <code>LLAVA_OPT_FUSED_SWIGLU</code>: <code>LlamaMLP.forward</code> uses flash-attn <code>swiglu(gate,up)</code> (fused silu*mul).
+- <code>LLAVA_OPT_PRENORM</code>: <code>LlamaDecoderLayer.forward</code> fuses the attention residual add into
+  <code>post_attention_layernorm</code> via <code>rms_norm_fn(..., residual=..., prenorm=True)</code>. The add rounds to
+  bf16 exactly like eager, so this is bitwise-equivalent to the round-2 fused norm (no extra shift).
+Screen (<code>/tmp/r3/sweep</code>, refs 2720.6/2718.3 ms):
+- norm+rope+<b>swiglu</b> = <b>2225.5 ms (1.2272x)</b>, window_spread 0.0036, first loss 1.3838 (≈ref). KEEP.
+- norm+rope+prenorm = 2263.3 ms (1.2067x) — SLOWER than norm+rope alone (2256.7). The fused
+  residual+norm backward costs more than the saved add. <b>DROP (no gain).</b>
+- norm+rope+swiglu+prenorm = 2229.3 ms — prenorm adds nothing. DROP prenorm.
+
+Adopted switches.json = {FUSED_NORM, FUSED_ROPE, FUSED_SWIGLU}. SwiGLU adds ~31 ms (~1.4%) over round 2.</pre></details><details><summary><em class="">1.3 h</em><span>Round 4 — communication class: ZeRO-3 prefetch/bucket tuning (N0) (04:27–04:42)</span></summary><pre>Re-profile of norm+rope+swiglu (<code>/tmp/r4/profile</code>): GPU kernel time 2243 ms ≈ wall 2225 → kernels
+nearly SERIAL, NCCL (AllGather 228 + ReduceScatter 141 = 369 ms, 16.5%) largely EXPOSED. GEMMs now
+61.5% (irreducible without GC/precision change). Remaining memory ops small/scattered:
+scatter/gather+index+fill+cat ~109 ms (prepare_inputs/embeddings), residual add 40 ms, copies 38 ms.
+CPU <code>aten::nonzero</code> still 344 ms inclusive (prepare_inputs syncs) but GPU-bound → limited host gain.
+
+Screen (<code>/tmp/r4/sweep</code>, refs 2727.6/2725.0; base norm+rope+swiglu = 2225.5):
+- prefetch 1e8 + max_live/reuse 2e9 (<b>pf_big</b>) = 2216.7 ms (1.2321x). KEEP.
+- reduce/allgather bucket 1e8 alone (<b>pf_reduce</b>) = 2243.3 ms — slower. DROP alone.
+- prefetch + buckets (<b>pf_both</b>) = <b>2210.5 ms (1.2356x)</b>, spread 0.0014, mem 74.6 GiB. BEST.
+All N0 (ZeRO scheduling only, no numerics change), no loss-band problems. Marginal (~0.7%) but safe.
+
+Adopted switches.json = norm+rope+swiglu + pf_both.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r4/check_best</code>): <b>speedup 1.2339, tier N1</b>, trajectory &quot;equivalent&quot;.
+Verified passing submission at this point.
+
+---</pre></details><details><summary><em class="">1.7 h</em><span>Round 5 — prepare_inputs padding assembly (N0 attempt) (05:00–05:07)</span></summary><pre><code>LLAVA_OPT_PAD_EMBEDS</code> in <code>llava_arch.py</code>: one pre-allocated zero-filled embed batch instead of
+per-row zeros+cat+stack. <code>time</code> (<code>/tmp/r5/time_pad</code>): 2209.8 ms (1.236x) vs best 2210.5 — <b>no gain</b>
+(within noise; the small assembly kernels were already hidden behind compute). First loss unchanged
+(1.3838). Left OFF by default; not adopted. prepare_inputs embedding assembly is model-forward code,
+not checked by gate 0 (which probes input_ids/labels/images only).</pre></details><details><summary><em class="">2.0 h</em><span>Round 6 — compute class: fused cross-entropy (N1 attempt) (05:16–05:23)</span></summary><pre><code>LLAVA_OPT_FUSED_CE</code> in <code>fused_ops.py</code>: replace <code>LlamaForCausalLM.forward</code>&#x27;s loss path with
+flash-attn&#x27;s Triton <code>cross_entropy_loss</code> on the <b>bf16</b> logits — skips the <code>logits.float()</code> fp32
+copy, the shift <code>.contiguous()</code>, and the eager <code>log_softmax</code> intermediate. Same contract: mean CE
+over the batch&#x27;s non-<code>-100</code> tokens (<code>losses.sum() / num_valid</code>), <code>inplace_backward=True</code> on the
+reshaped (copied) shift_logits so the returned logits are untouched. Signature verified against
+transformers 4.37.2 (no <code>cache_position</code>) and the LLaVA <code>super().forward()</code> caller.
+
+Paired <code>time</code>, same session (refs frozen 2731 ms):
+- best, CE <b>off</b> (<code>/tmp/r6/time_base</code>): <b>2209.5 ms (1.2361x)</b>, window_spread 0.0009, peak 74.58 GiB.
+- best + CE <b>on</b> (<code>/tmp/r6/time_ce</code>): 2220.4 ms (1.2301x), window_spread 0.0175, peak 67.73 GiB.
+
+CE is <b>~11 ms slower</b> (no speed benefit); it only frees ~6.8 GiB of fp32 logits/softmax buffers,
+which doesn&#x27;t help because the step is GEMM-bound, not memory-bound (no OOM headroom needed). The CE
+kernel + its backward roughly cost what the eager fp32 path cost. <b>Rejected; no gain.</b> Restored
+<code>fused_ops.py</code> to the verified-best HEAD (<code>git restore</code>); submission tree == <code>/tmp/r4/check_best</code>.</pre></details><details><summary><em class="">2.4 h</em><span>Round 7 — compute class: sparse lm_head + CE loss on valid labels (N1) (05:29–05:47)</span></summary><pre>Insight from the round-4 detail profile: the 62% GEMM time is the <b>decoder projection</b> GEMMs
+(32 layers × checkpoint-recompute + backward) — irreducible within the rules. The <b>lm_head</b> is a
+separate, smaller GEMM (~25.8 TFLOP/step ≈ 1.5%). In LLaVA finetuning many tokens are ignored
+(<code>-100</code>: image patches + prompt), so the loss only depends on the valid-label rows.
+
+<code>LLAVA_OPT_SPARSE_LOSS</code> in <code>fused_ops.py</code>: replace <code>LlamaForCausalLM.forward</code>&#x27;s loss path — gather
+<code>hidden_states[..., :-1, :]</code> at positions where <code>labels[..., 1:] != -100</code> (differentiable boolean
+mask; backward scatters row grads into a zero-filled full tensor), run <code>lm_head</code> + flash-attn fused
+<code>cross_entropy_loss</code> on just those rows, <code>loss = losses.sum() / N_valid</code>. Same mean-over-valid-tokens
+contract and same gradients (ignored rows contribute zero). Returns <code>logits=None</code> (Trainer.compute_loss
+consumes only <code>outputs[&quot;loss&quot;]</code>; verified no label smoother / past_index). Skips the full fp32 logits
+copy and halves the largest output GEMM. Signature checked vs transformers 4.37.2 + LLaVA caller.
+
+Screen (<code>/tmp/r7/time_sparse</code>): <b>2178.8 ms (1.2535x)</b>, window_spread 0.002, peak 67.73 GiB, no
+problems — vs same-session baseline 2209.5 ms (1.2361x): <b>~31 ms / 1.4% faster</b>, well beyond noise.
+<code>check --quick</code> (<code>/tmp/r7/quick_sparse</code>): PASS, N1, precision_changed False, exact_failures [], 4/4724
+diagnostic violations; <code>logits=None</code> is probe-compatible.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r7/check_sparse</code>): <b>speedup 1.254, tier N1</b>, trajectory &quot;equivalent&quot;
+(train_loss_last20 −0.046σ, probe_loss +0.083σ; bound 3σ). Gate 1: first-loss rel diff <b>7e-05</b>
+(1.3838 vs 1.3839, ≪ 0.5% band), max later diff 0.2% (≪ 25%). Data check ok / not repartitioned,
+inputs 13/13, digest stable, peak 67.7 GiB. <b>Adopted.</b> switches.json += SPARSE_LOSS=1; committed
+<code>fa9dbf6</code>. New verified best: <b>1.254x</b> (was 1.2339x).</pre></details><details><summary><em class="">2.5 h</em><span>Round 8 — re-profile + PAD_EMBEDS re-screen (N0, no gain) (05:51–05:58)</span></summary><pre>Re-profile of the new best (<code>/tmp/r8/profile</code>, 2180 ms kernel): GEMMs <b>61.9%</b> (decoder-projection
+floor, irreducible within rules); NCCL down to <b>10.5%</b> (AllGather 156 + ReduceScatter 72, from
+16.5% — sparse-loss removed lm_head grad reduce-scatter and prefetch overlap improved). <code>zero3.json</code>
+already sets <code>overlap_comm:true</code> + <code>contiguous_gradients:true</code>, so those comm levers are maxed.
+A <code>CatArrayBatchedCopy</code> showed 128 ms (5.9%) in this single step — the prepare_inputs embedding cat.
+
+Re-screened <code>LLAVA_OPT_PAD_EMBEDS</code> (round-5 rewrite, already in tree, off) on top of the new best
+(<code>/tmp/r8/time_pad</code>): 2199.6 ms (1.2417x), window_spread 0.0188 (noisy) — <b>no gain</b> vs 2178.8 ms.
+The 128 ms cat was single-step variance (an image-heavy batch); its averaged cost is small/hidden
+behind compute (GPU util 99%). Confirms round 5. Left OFF.
+
+<b>Conclusion — practical ceiling reached.</b> Remaining kernel time is decoder projection GEMMs (62%,
+irreducible without GC/precision/architecture changes that are forbidden or gate-breaking), necessary
+NCCL (10.5%, already overlapped/tuned), flash attention (3.5%), fused Adam (~3%), and already-fused
+elementwise ops. CPU <code>aten::nonzero</code> syncs (795 ms inclusive) are absorbed — GPU is saturated
+(kernel time ≈ wall), so host-side savings don&#x27;t reduce wall time. Finalizing at <b>1.254x</b>.</pre></details><details><summary><em class="">3.7 h</em><span>Round 9 — memory/compute class: selective activation checkpointing (bitwise-neutral) (06:10–07:05)</span></summary><pre>Round-8 profile hotspot: <code>CheckpointFunctionBackward</code> 1243 ms inclusive / <code>CheckpointFunction</code>
+546 ms — gradient-checkpointing <b>recompute</b> re-runs every decoder layer&#x27;s forward GEMMs/flash/
+elementwise a second time (~25% of GEMM work). Peak was only 67.7 GiB of 140.4 GiB Hopper → large
+headroom. Recompute is deterministic and consumes no RNG (dropout=0), so skipping it is
+<b>bitwise-neutral</b>; GC is not among gate 2&#x27;s exact items nor the &quot;semantics must not change&quot; list.
+
+<code>LLAVA_OPT_GC_SKIP_EVERY=N</code> in <code>fused_ops.py</code>: hook <code>PreTrainedModel._set_gradient_checkpointing</code>,
+mark every Nth <code>LlamaDecoderLayer</code> and wrap <code>_gradient_checkpointing_func</code> to call those layers
+directly (no checkpoint) — no forward copy. CPU mechanism test passed (marks, fwd+bwd, grads).
+
+Sweep (<code>/tmp/r9/sweep</code>, refs 2725.7/2725.2): N=4 (skip 25%) = 2060 ms (1.326x), peak 90.1 GiB;
+<b>N=2 (skip 50%) = 1943.6 ms (1.405x)</b>, peak alloc 116 GiB. N=2 <code>check --quick</code> PASS (exact items,
+RNG/cross-rank unchanged; same 4 diagnostic violations as round 7 → bitwise-neutral). N=2 full check
+PASS 1.4083x BUT <b>peak_reserved 137.5 GiB of 140.4 → only ~2.9 GiB OOM margin</b> (too thin to ship).
+
+De-risk: N=3 (skip 11 layers) = 2030 ms (1.345x), alloc 100 GiB (safe) — a fallback. Better:
+<b><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></b> cuts allocator fragmentation: N=2 reserved
+137.5 → <b>121.6 GiB</b> (~19 GiB margin) at the same speed (1940.5 ms). Not a judge-refused var;
+allocator-only, no numerics change.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r9/check_gc2es</code>): <b>speedup 1.408, tier N1</b>, trajectory &quot;equivalent&quot;
+(train_loss_last20 −0.001σ, probe_loss +0.037σ). First-loss rel diff 7e-05, max later 0.21%;
+precision_changed false, exact_failures [], peak alloc 116 / reserved 121.6 GiB, data ok, digest
+stable. <b>Adopted.</b> switches.json += GC_SKIP_EVERY=2 + PYTORCH_CUDA_ALLOC_CONF; committed <code>af3b426</code>.
+New verified best: <b>1.408x</b> (was 1.254x).</pre></details><details><summary><em class="">4.5 h</em><span>Round 10 — refine GC skip count to fill HBM budget (bitwise-neutral) (07:13–07:50)</span></summary><pre>Re-profile of the round-9 best over <b>3 steps</b> (<code>/tmp/r10/profile</code>): GEMMs down to ~59% (recompute
+removed on half the layers); NCCL AllGather rose 156→211 ms (less compute to overlap it with). The
+<code>CatArrayBatchedCopy</code> 131 ms (6.1%) is <b>real</b> (3-step avg, not variance). Traced via
+correlation→cuda_runtime→Python frames: it is <b>DeepSpeed ZeRO-3 coalescing</b> —
+<code>reduce_scatter_coalesced</code> (24.7 ms), param-allgather <code>wait</code>/<code>_all_gather_dtype</code> (30.5 ms),
+<code>_prepare_fp32_grad_for_sub_group</code>/flatten (6 ms). Inherent to ZeRO-3, NOT the LLaVA embedding
+assembly (explains why PAD_EMBEDS never helped). Not pursued (risky to modify DS internals).
+
+Clean lever: fill the HBM budget more fully. Added <code>LLAVA_OPT_GC_SKIP_COUNT=K</code> (skip K of 32 layers
+evenly spaced; finer than every-N). Sweep (<code>/tmp/r10/sweep</code>): <b>K=18 = 1917 ms (1.4246x)</b>, alloc
+122.5 / reserved 128.6 GiB → <b>~12 GiB margin (safe)</b>; K=20 = 1884 ms (1.4493x) but reserved 134.5 →
+<b>~6 GiB margin (too thin, rejected)</b>.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r10/check_gc18</code>): <b>speedup 1.429, tier N1</b>, trajectory &quot;equivalent&quot;
+(0.061σ / 0.068σ). First-loss rel diff 7e-05, max later 0.21%; precision_changed false,
+exact_failures [], peak alloc 122.5 / reserved 128.3 GiB (~12 GiB margin), data ok, digest stable.
+<b>Adopted.</b> switches.json GC_SKIP_EVERY=2 → GC_SKIP_COUNT=18; committed <code>62219be</code>.
+New verified best: <b>1.429x</b> (was 1.408x).</pre></details><details><summary><em class="">4.6 h</em><span>Round 11 — communication class: prefetch re-tune for selective-GC regime (N0, no gain) (07:58–08:00)</span></summary><pre>Hypothesis: selective GC removed recompute that overlapped param AllGather (profile 156→211 ms), so
+a larger prefetch bucket might re-hide it. Screened <code>LLAVA_OPT_PREFETCH_BUCKET=2e8</code> on top of gc18
+(<code>/tmp/r11/time_pf2</code>): <b>1908.8 ms (1.4308x)</b> vs gc18 1911.2 ms (1.429x) — only ~2.4 ms / **0.13%,
+within noise<b> (window_spread 0.0017). peak_alloc unchanged (122.5 GiB). </b>No gain; rejected.** The
+AllGather is already overlapped as far as ZeRO-3 allows; the rest is inherent just-in-time gather.
+Confirms NCCL is near its floor. Kept gc18 (1.429x).</pre></details><details><summary><em class="">5.7 h</em><span>Round 12 — sequence packing: skip padding in ALL decoder GEMMs (N1, big win) (08:13–09:05)</span></summary><pre>The expensive lever the earlier &quot;ceiling&quot; call missed. Re-profile of gc18 over 3 steps
+(<code>/tmp/r12/profile</code>) with shape recording exposed the <b>padding fraction</b>: the collator right-pads
+each micro-batch to its longest sample, and flash-attention already skips padding (varlen), but every
+decoder <b>projection / MLP GEMM still runs on the full padded <code>(16, seq, 4096)</code></b>:
+
+| step | padded bs×seq | valid N (flash-varlen) | padding |
+|---|---|---|---|
+| A | 16×1113=17808 | 13600 | 23.6% |
+| B | 16×1353=21648 | 14724 | 32.0% |
+| C | 16×1134=18144 | 13694 | 24.5% |
+
+So ~27% of the dominant ~59% GEMM work was wasted on padding, plus 138 per-layer unpad/pad <code>gather</code>
+copies. <b><code>LLAVA_OPT_PACK_SEQ</code></b> (off by default) gathers valid tokens once into a packed <code>(1, N, hid)</code>
+batch at <code>LlamaModel.forward</code> input, runs all 32 layers on it with a single shared <code>cu_seqlens</code>
+(<code>LlamaFlashAttention2._flash_attention_forward</code> → direct <code>flash_attn_varlen_func</code>, no per-layer
+unpad), then scatters back to <code>(bs, seq, hid)</code> so the sparse-loss path is untouched. Under causal
+attention + right padding, padding tokens never influence valid tokens, so the valid-token math and
+the loss are unchanged; only GEMM shapes/rounding differ (N1). Reuses the existing layer/MLP/norm/GC
+path verbatim. Bug fixed mid-round: the no-padding fallback first tested <code>max_seqlen==seq</code>, which is
+*always* true (the longest sample defines seq) → switched to <code>min(seqlens)==seq</code>.
+
+Screens (<code>/tmp/r12/time_pack*</code>): pack+gc18 = <b>1528 ms (1.787x)</b>, alloc 122.5→<b>91.45 GiB</b> (freed
+~31 GiB). That headroom lets GC skip ALL layers: pack+<b>gc32</b> (no recompute) = <b>1368 ms (1.996x)</b>,
+reserved 123.25 GiB (~17 GiB margin). The packed RoPE then fell back to eager (non-arange positions),
+showing ~112 ms generic elementwise + ~29 ms BUnary in the profile; added a <b>fused varlen RoPE</b>
+(<code>flash_attn.ops.triton.rotary.apply_rotary</code> with <code>cu_seqlens</code>, conjugate backward; guarded to
+right-padding so packed position == position-within-sequence) → pack+gc32+fused-rope = **1284 ms
+(2.126x)**, reserved 123 GiB.
+
+<b>FULL CHECK PASS</b> (<code>/tmp/r12/check_pack</code>): <b>speedup 2.118, tier N1</b>, trajectory &quot;equivalent&quot;
+(train_loss_last20 0.142σ, probe_loss 0.207σ; 3σ bound). First-loss rel diff <b>0.00043</b> (≪0.5%), max
+later 0.0035 (≪25%); precision_changed false; exact_failures []; peak alloc 115.35 / reserved
+<b>123.21 GiB (~17.2 GiB margin)</b>; data not repartitioned; inputs 13/13; digest stable. <b>Adopted.</b>
+switches.json GC_SKIP_COUNT 18→32, += PACK_SEQ=1; committed (this round).
+New verified best: <b>2.118x</b> (was 1.429x).</pre></details><details><summary><em class="">6.1 h</em><span>Round 13 — eliminate the packed scatter-back via direct packed loss (bitwise-neutral, no gain) (09:10–09:30)</span></summary><pre>Re-profile of the 2.118x best (<code>/tmp/r13/profile</code>, 2 steps): GEMMs ~56%, NCCL AllGather 12.5% +
+ReduceScatter 4.1%, DeepSpeed cat 6.4%, flash 3.1%, fused varlen RoPE now one kernel (~0.9%, was
+~7% eager). Soft target looked like the scatter-back: <code>FillFunctor</code> zeros (~0.8%) + <code>scatter_gather</code>
+index_put fwd/bwd (~2%) + the sparse-loss re-gather. Implemented a <b>direct packed loss</b>: the model
+returns packed <code>(1, N, hid)</code> (no scatter), stashes the index map, and the sparse-loss gathers
+valid-label rows straight from packed (<code>next_label = labels[indices+1]</code>, drop last column of each
+row). Bitwise-neutral vs round 12 (identical rows/labels/grads). Screen (<code>/tmp/r13/time_noscatter</code>):
+<b>1291.9 ms (2.114x)</b> vs 1289.5 ms check — <b>neutral</b> (window_spread 0.0001), peak alloc 115.25
+(−0.1 GiB). The scatter/fill kernels were already <b>overlapped</b> behind the compute-bound GEMMs/NCCL,
+so removing them does not shorten the critical path. <b>Rejected; reverted to <code>a35aada</code>.</b> Confirms
+the GPU is compute-saturated at ~2.12x — residual memory-bound ops hide in the overlap.</pre></details><details><summary><em class="">6.3 h</em><span>Round 14 — communication class: prefetch re-tune for the PACKED regime (N0, no clear gain) (09:33–09:43)</span></summary><pre>Packing changed the NCCL/compute balance (less compute per layer to hide AllGather), so re-screened
+prefetch on the packed best (round 11 had tuned it pre-packing). <code>LLAVA_OPT_PREFETCH_BUCKET</code>:
+1e8 (current) ≈ 1284–1289 ms; 3e8 = 1285.7 ms (2.124x); 5e8 = 1278.0 / 1281.4 ms (2.131–2.137x, two
+screens). The ~0.4–0.9% spread is <b>within the noise band</b> (window_spread up to 2.1%, ref band
+1.36%); peak_alloc unchanged 115.35 GiB. <b>No clear reproducible gain; rejected.</b> AllGather is
+already overlapped as far as ZeRO-3 allows in both regimes. Kept 1e8 (2.118x).
+
+Assessed but not attempted (low expected value / high risk): fused QKV / gate-up projection GEMMs.
+Same FLOPs (GEMMs already at cuBLAS sm90 peak), only a marginal launch/L2-reuse gain, and fusing
+weights collides with ZeRO-3 per-parameter sharding/allgather hooks — risk of breaking partitioning
+for ~1%. The big structural levers (packing, full GC skip, fused elementwise/RoPE) are exhausted and
+the residual memory-bound ops are confirmed overlapped (round 13), so ~2.12x is the practical ceiling.</pre></details><details><summary><em class="">6.6 h</em><span>Round 15 — communication kernels + custom-kernel survey (N0, no gain / unavailable) (09:50–10:00)</span></summary><pre>Three expensive-lever candidates pursued empirically:
+- <b>NCCL protocol</b> (AllGather is <code>RING_LL</code>, 12.5% of kernel time; force a higher-bandwidth protocol):
+  <code>NCCL_PROTO=Simple</code> = 1312 ms (2.08x, window_spread 4.9%); <code>NCCL_PROTO=LL128</code> = 1300 ms (2.10x,
+  clean 0.46%). Both <b>slower</b> than the default auto-selection (~1284–1289 ms). <code>problems:[]</code> confirms
+  the var applied (not refused). NCCL auto-picks protocol per message size; forcing one hurts.
+  <b>Rejected</b> — NCCL is at its floor with the default.
+- <b>FlashAttention-3</b> (Hopper kernel, ~1.5-2x FA2 on Hopper): not installed — only <code>flash_attn 2.5.8</code>
+  (FA2); <code>flash_attn_interface</code>/<code>flashattn_hopper</code> absent. Unavailable without modifying the env.
+- <b>Fused QKV / gate-up GEMM</b>: blocked two ways — merging weights into one parameter changes the
+  trainable-param structure (gate 2 exact item); concatenating weights in forward via
+  <code>GatheredParameters</code> bypasses the ZeRO-3 module hooks that register the backward grad
+  reduce-scatter, risking wrong grads, and exposes the allgather latency that prefetch hides.
+  Same FLOPs at cuBLAS peak → marginal upside, real correctness risk. Not adopted.
+
+Kept the verified 2.118x. The structural levers (packing, full GC skip, fused elementwise/RoPE,
+sparse loss) are exhausted; scatter/prefetch/NCCL-protocol all measured neutral-or-worse; GEMM fusion
+and FA3 blocked/unavailable. ~2.12x is the evidence-backed ceiling.</pre></details><details><summary><em class="">7.8 h</em><span>Round 16 — ZeRO-3 param persistence (N0 lever, adopted) + gate-up fusion measured (10:30–11:08)</span></summary><pre><b>Adopted: <code>LLAVA_OPT_PERSIST_THRESHOLD=50000000</code></b> (ds_opt.py already maps it to
+<code>stage3_param_persistence_threshold</code>; no code change). Params with numel &lt; 5e7 stay permanently
+gathered, skipping their per-step AllGather: all 32 decoder layers&#x27; gate/up/down (45M) and q/k/v/o
+(16.8M) projections persist; embed/lm_head (131M) still gather. Weight values are identical →
+bitwise-neutral lever (N0); the tree stays N1 overall because of packing. ~6.5B of 7B params persist.
+
+- Screens (clean): 1268.3 / 1269.9 / 1269.2 ms = <b>2.15x</b>, three independent runs all ~1269 vs the
+  2.118x baseline ~1289.5 → reproducible <b>~1.5% gain</b> (above the 1% noise band).
+- First full check <code>/tmp/r16/check_pt5e7</code>: PASS but <b>noisy</b> — window_spread 0.1126 (window 1 hit
+  transient interference: 14.214s vs 12.480s), averaging to a misleading 2.0453x. GPU confirmed free
+  afterward (no stray procs). Re-screen clean: 1269.2 ms, spread 0.018.
+- <b>Clean full check <code>/tmp/r16/check_pt5e7_clean</code>: PASS, speedup 2.1529x</b> (1268.6 ms), window_spread
+  <b>0.016</b> (clean), reserved <b>126.12</b> GiB / alloc 124.52 (<b>margin 14.3 GiB</b> ≥ 10, safe), tier N1,
+  trajectory &quot;equivalent&quot; (train_loss_last20 0.046σ, probe 0.188σ; 3σ bound), first-loss rel diff
+  0.00043, precision_changed false, exact_failures [], data not repartitioned, inputs 13/13, digest
+  stable (1e9a61b0…add9e4b), 13 env keys. switches.json updated to match exactly.
+- Memory cost: +~9 GiB alloc vs baseline (115.35→124.52), reserved 123.21→126.12; margin 17.2→14.3
+  GiB — still safe. The persistent bf16 weights (~13 GiB) are the price of skipping AllGather.
+
+<b>Gate-up GEMM fusion — measured (corrects round 15&#x27;s unmeasured dismissal).</b> Round 15 claimed
+forward-concat &quot;breaks ZeRO-3 grad reduce-scatter hooks&quot;; that was <b>wrong</b> — the hook is registered
+ONCE at optimizer setup on the parameter&#x27;s grad accumulator (stage3.py create_reduce_and_remove_grad_hooks
+~line 1100, <code>grad_acc.register_hook(...)</code>), not per-forward, so it persists regardless of weight access.
+Implemented and measured two variants:
+- <code>GatheredParameters</code> inside MLP.forward (import fixed to <code>deepspeed.runtime.zero.stage3</code>): <b>crashes</b>
+  — <code>__exit__</code>→partition→free_param asserts <code>not param.ds_active_sub_modules</code> (partition_parameters.py:285);
+  the module holds its params active during forward. <code>persist=True</code> does NOT bypass the assertion.
+- Direct-weight-access concat (no GatheredParameters; requires persistent weights): <b>runs but slower</b>
+  — 1358.6 ms (9.2% interference) and reserved 131.57 GiB (<b>margin 8.8 &lt; 10</b>, OOM risk). **Rejected
+  with measurements** (not dismissed unmeasured). Same FLOPs at cuBLAS peak; the concat copy + exposed
+  allgather latency outweigh the marginal launch/L2 gain.
+
+Kept gate-up rejected; adopted persistence → <b>verified 2.1529x</b>.</pre></details><details><summary><em class="">8.1 h</em><span>Round 17 — re-profile + reduce-scatter bucket re-tune (N0, rejected: overlapped + memory) (11:13–11:24)</span></summary><pre>Fresh <code>profile --detail</code> of the 2.1529x best (<code>/tmp/r17/profile/profile_tree.md</code>): GPU kernel time
+1443 ms/step (wall 1268.6 → ~175 ms hidden by overlap). GEMMs ≈56% (812 ms, cuBLAS sm90, near peak);
+<b>ReduceScatter_RING_LL bf16 = 251.8 ms (17.4%, largest non-GEMM kernel)</b>; AllGather down to 35.8 ms
+(2.5%, persistence working); Adam multi_tensor_apply ≈63 ms (4.4%); DeepSpeed coalescing
+CatArrayBatchedCopy 31.9 ms (2.2%); packing nonzero/index CPU-inclusive ≈270 ms (sync *waits* on busy
+GPU, not waste); CLIP vision eager attention on cutlass_75 (sm75) bmms + softmax ≈16 ms.
+
+Hypothesis: ReduceScatter moves ~7 GB/rank (7B bf16 grads, 2 ranks) in 251.8 ms ≈ <b>28 GB/s effective</b>,
+far below NVLink → latency-bound from many small buckets (<code>reduce_bucket_size=1e8</code> ≈ 70 calls/step).
+Screened larger buckets on the packed+persistence best:
+- <code>REDUCE_BUCKET=5e8</code>: 1268.5 ms (2.1531x ≈ baseline), reserved <b>132.23 GiB → margin 8.2 &lt; 10</b> (unsafe).
+- <code>REDUCE_BUCKET=1e9</code>: 1266.3 ms (2.1568x, +0.18% = within noise), reserved <b>137.43 GiB → margin 3.0</b>
+  (very unsafe). <code>problems:[]</code> both (vars applied).
+
+<b>Rejected with measurements</b>: bigger buckets give no wall gain (the reduce-scatter is fully overlapped
+by <code>overlap_comm=true</code>, so its 251.8 ms kernel time is hidden behind backward GEMMs) and balloon the
+coalescing buffer&#x27;s reserved memory below the 10 GiB safety margin. Kept <code>REDUCE_BUCKET=1e8</code>. The
+communication class (prefetch round 14, NCCL protocol round 15, reduce bucket round 17) is confirmed
+exhausted on the packed+persistence regime — comm is overlapped, not a wall-time lever.</pre></details><details><summary><em class="">8.2 h</em><span>Round 18 — CLIP vision tower SDPA (N1, rejected: neutral) (11:28–11:33)</span></summary><pre>Profile showed the frozen CLIP vision tower&#x27;s eager attention running on <code>cutlass_75</code> (sm75) bmms +
+<code>softmax_warp_forward</code> ≈16 ms — slow Turing-era kernels on Hopper. transformers 4.37.2 CLIP has <b>no</b>
+SDPA/FA2 attention variant (only eager <code>CLIPAttention</code>), so <code>attn_implementation=&quot;sdpa&quot;</code> is unavailable.
+Implemented <code>LLAVA_OPT_VISION_SDPA</code> (off by default) patching <code>CLIPAttention.forward</code> →
+<code>F.scaled_dot_product_attention</code> for the vision case (bidirectional, no padding/causal mask, dropout 0,
+<code>output_attentions=False</code>), sm90 flash/mem-efficient backend; eager fallback otherwise. N1 (fp32-accum
+rounding); tower is frozen + <code>no_grad</code> so only forward changes.
+
+Screen (<code>/tmp/r18/time_vsdpa</code>): <b>1270.2 ms (2.1502x) vs baseline 1268.6 (2.1529x)</b> — neutral / +0.13%
+slower, within the noise band; reserved 125.95 ≈ baseline 126.12; first-loss 1.3823 (tiny N1 shift);
+<code>problems:[]</code> (flag applied). The ~16 ms of vision kernel time is hidden (overlapped behind the LLM
+forward / data path), so removing it yields no wall gain. <b>Rejected (measured neutral)</b>; reverted the
+code (<code>git restore</code>), tree back to a35aada = verified 2.1529x. Vision tower is not a wall-time lever.</pre></details><details><summary><em class="">8.3 h</em><span>Round 19 — torch.compile decoder fusion (expensive lever, rejected: crashes under ZeRO-3) (11:38–11:42)</span></summary><pre>Attempted the canonical expensive fusion lever: <code>LLAVA_OPT_COMPILE</code> (off by default) wrapping each
+packed decoder layer with <code>torch.compile(layer, dynamic=True)</code> (suppress_errors=True,
+cache_size_limit=128) to fuse epilogues/elementwise and raise GEMM efficiency above the ~56% cuBLAS
+floor. Screen <code>/tmp/r19/time_compile</code> → <b>ERROR (crash)</b>, two concrete causes:
+1. <code>TypeError: &#x27;int&#x27; object is not iterable</code> in DeepSpeed `parameter_offload.py:493
+   pre_sub_module_forward_function`. dynamo logs &quot;nn.Module forward/_pre hooks are only partially
+   supported&quot; — ZeRO-3&#x27;s parameter-offload pre-forward hooks are incompatible with dynamo tracing.
+2. The compiled <code>OptimizedModule</code> has no <code>__self__</code>, so <code>_selective_gc</code> cannot identify the layer →
+   the gc32 skip breaks and <code>CheckpointFunction.apply</code> re-engages (visible in the traceback).
+
+Structural blocker beyond the crash: the dominant GEMM cost lives inside ZeRO-3&#x27;s
+<code>LinearFunctionForZeroStage3</code> (a custom autograd Function → graph break at every projection), so even a
+hook-safe narrow compile could not fuse the GEMMs that matter. **Rejected (measured crash + structural
+incompatibility)**; reverted (<code>git restore</code>), tree back to a35aada = verified 2.1529x. Fixing this would
+require rewriting DeepSpeed ZeRO-3 internals (out of scope, high correctness risk).</pre></details><details><summary><em class="">8.4 h</em><span>Round 20 — extend persistence to ALL params (N0, rejected: slower; pt5e7 confirmed optimal) (11:48–11:50)</span></summary><pre>Cheap N0 lever: <code>PERSIST_THRESHOLD=2e8</code> persists embed_tokens + lm_head (131M each) too, skipping their
+AllGather (the only params pt5e7 leaves to prefetch). Screen <code>/tmp/r20/time_pt2e8</code>: **1279.1 ms
+(2.1353x) vs pt5e7 1268.6 (2.1529x)<b> — a clean ~0.8% </b>regression** (window_spread 0.0064, well below
+noise → real), reserved 126.57 ≈ baseline, alloc 124.52 unchanged, <code>problems:[]</code> (applied). Persisting
+the two large params keeps them resident and removes the prefetch scheduler&#x27;s flexibility; their
+AllGather was already hidden by <code>stage3_prefetch_bucket_size=1e8</code>. <b>Rejected (measured slower).</b>
+Confirms <code>PERSIST_THRESHOLD=5e7</code> (persist decoder projections, leave embed/lm_head to prefetch) is the
+optimum. Config-only experiment; tree unchanged at a35aada = verified 2.1529x.</pre></details><details><summary><em class="">8.6 h</em><span>Round 21 — optimizer subgroup size (N0, rejected: noise) (11:55–12:02)</span></summary><pre>The optimizer step (Adam <code>multi_tensor_apply</code> ≈4.4%) is a serial tail after backward (not overlapped),
+so targeted its chunking: <code>LLAVA_OPT_SUB_GROUP=1e10</code> (one subgroup vs default 1e9 → fewer optimizer
+kernel launches; per-param Adam math identical → N0). Two screens (<code>/tmp/r21/time_sub1e10{,_re}</code>):
+<b>1264.8 / 1269.4 ms</b> (2.1594 / 2.1516x), reserved 126.79 / 126.69 ≈ baseline, <code>problems:[]</code>. The first
+looked ~0.3% fast but the re-screen landed back in the pt5e7 baseline cluster (1268.3–1269.9); the two
+screens straddle it → <b>no reproducible gain, within the noise band</b> (delta &lt; window_spread 1.4%).
+<b>Rejected (measured noise).</b> Kept default <code>sub_group_size=1e9</code>. The optimizer tail is already near its
+floor; config-only experiment, tree unchanged at a35aada = verified 2.1529x.</pre></details><details><summary><em class="">9.8 h</em><span>Round 22 — custom fused Triton AdamW optimizer kernel (N1, ADOPTED, +3.4%) (12:30–13:08)</span></summary><pre><b>Corrects an unmeasured dismissal (and round 21&#x27;s &quot;optimizer tail near floor&quot; claim).</b> Last turn I
+called a custom fused-Adam kernel &quot;disproportionate risk for ~2% uncertain gain&quot; *without measuring it*
+— exactly the assumption error the persistence feedback warns against. The mandate forced measuring it;
+it gave the biggest single gain since packing.
+
+Investigation: the recipe uses <code>optim=&quot;adamw_torch&quot;</code> and <code>zero3.json</code> has <b>no</b> optimizer section, so
+<code>deepspeed_init</code> → <code>trainer.create_optimizer()</code> builds <b>torch.optim.AdamW</b> (not DeepSpeed FusedAdam),
+with <code>zero_allow_untested_optimizer=True</code>. Its CUDA <b>foreach</b> path (<code>_multi_tensor_adamw</code>) is NOT one
+fused kernel but a *sequence* of foreach ops — <code>lerp_</code>/<code>mul_</code>/<code>addcmul_</code>/<code>sqrt</code>/<code>div_</code>/<code>add_</code>/<code>addcdiv_</code> —
+each re-reading and writing the full fp32 master buffers (~60–80 bytes/elem of HBM traffic). The
+optimizer step is a serial tail after backward (not overlapped), so this traffic is exposed wall time.
+
+- First attempt — force torch&#x27;s <code>fused=True</code> (<code>_fused_adamw_</code>, single kernel): <b>crashed</b>,
+  <code>RuntimeError: ... two devices, cuda:1 and cpu ... state_steps</code>. torch fused AdamW requires CUDA
+  state_steps (capturable mode); this optimizer uses CPU state_steps. Incompatible without capturable.
+- <b>Adopted — custom Triton fused AdamW</b>: one kernel streams g/p/m/v once, writes p/m/v once
+  (28 bytes/elem, ~2.7× less traffic). Math matches torch&#x27;s non-capturable foreach path exactly:
+  increment step first, <code>bc1=1-β1^t</code>, <code>bc2=1-β2^t</code>, <code>m=β1·m+(1-β1)·g</code>, <code>v=β2·v+(1-β2)·g²</code>,
+  <code>p-=(lr/bc1)·m/(√v/√bc2+ε)</code> (fp32 accumulation; only op-rounding order differs → N1). Hook: wrap
+  <code>torch.optim.adamw.adamw</code> dispatcher; unsupported cases (amsgrad/maximize/weight-decay/complex/
+  tensor-lr/grad_scale/capturable/differentiable) fall back to the original. <code>LLAVA_OPT_FUSED_ADAM</code>,
+  off by default. BLOCK=2048, num_warps=8.
+- Screens <code>/tmp/r22/time_fadam{,_triton,_re}</code>: <b>1228.5 / 1227.1 ms (2.2233 / 2.2257x)</b>, reserved
+  ~126 GiB, <code>problems:[]</code>, first-loss <b>1.3833 identical</b> to baseline (step2 1.2873 identical).
+- <b>Full check <code>/tmp/r22/check_fadam</code>: PASS, speedup 2.2269x</b> (1226.4 ms), window_spread <b>0.018</b>,
+  reserved <b>125.97</b> GiB / alloc 124.52 (<b>margin 14.4</b>), tier N1, trajectory &quot;equivalent&quot;
+  (train_loss_last20 <b>0.123σ</b>, probe <b>0.201σ</b>; 3σ bound), <b>exact_failures []</b>, precision_changed
+  false, <b>dtype_changes 0</b> (gate 2 fp32 master/Adam dtypes preserved), data not repartitioned, inputs
+  13/13, digest stable, 14 env keys. Optimizer tail cut ~63 → ~23 ms.
+
+<b>Adopted</b>: <code>LLAVA_OPT_FUSED_ADAM=1</code> added to switches.json (14 keys, matches check); committed
+<code>1b96228</code> (fused_ops.py +68). <b>Verified best now 2.2269x</b> (+3.4% over 2.1529x).
+
+---</pre></details></div></details></section><div class="pager"><a class="prev" href="t-llava-ds.html"><small>← 2.22×</small><strong>DeepSeek V4.1 Flash-1017</strong></a><a class="up" href="llava.html">↑ LLaVA</a><a class="next" href="t-llava-glm.html"><small>1.52× →</small><strong>GLM-5.3</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-llava-opus.html", "pts": [[0.53, 1.457, 1], [0.757, 1.723, 2], [1.111, 2.091, 3], [1.621, 2.296, 4], [2.115, 2.421, 6], [2.233, 2.452, 7], [2.36, 2.542, 8], [2.731, 2.576, 10], [2.909, 2.589, 11], [3.307, 2.615, 12], [3.307, 2.643, 13], [3.51, 2.655, 15], [3.659, 2.655, 16], [3.944, 2.68, 18], [3.979, 2.704, 19], [4.202, 2.726, 20], [4.368, 2.735, 21], [5.069, 2.735, 26], [5.337, 2.748, 27], [5.792, 2.748, 29], [6.083, 2.77, 31]], "end": 10.014, "final": 2.9153, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-llava-sonnet.html", "pts": [[0.928, 1.468, 2], [0.928, 1.704, 3], [1.148, 2.122, 4], [1.743, 2.244, 6], [2.05, 2.412, 8], [3.021, 2.498, 12], [4.63, 2.627, 14], [7.301, 2.742, 19]], "end": 9.999, "final": 2.8022, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-llava-haiku.html", "pts": [[0.355, 1.451, 2], [0.478, 1.99, 3], [0.712, 2.005, 4], [0.843, 2.187, 5], [1.611, 2.21, 9], [2.237, 2.21, 11], [2.38, 2.21, 12], [3.296, 2.21, 13], [3.884, 2.21, 14], [4.858, 2.248, 21], [5.646, 2.323, 22], [6.608, 2.34, 26], [6.892, 2.361, 27], [7.555, 2.368, 30], [8.519, 2.403, 34], [9.205, 2.456, 36], [9.987, 2.466, 37]], "end": 10.002, "final": 2.4629, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-llava-astra62.html", "pts": [[0.172, 1.43, 1], [0.328, 1.486, 2], [0.596, 1.583, 3], [0.65, 1.827, 4], [0.801, 2.071, 5], [0.993, 2.077, 6], [1.077, 2.108, 7], [1.348, 2.132, 8], [1.348, 2.132, 9], [1.406, 2.164, 10], [1.502, 2.191, 11], [1.754, 2.245, 12], [1.881, 2.252, 13], [2.101, 2.252, 14], [2.199, 2.3, 15], [2.428, 2.384, 16], [2.428, 2.384, 17], [2.537, 2.431, 18], [2.612, 2.445, 19], [2.651, 2.445, 20], [2.951, 2.445, 21], [3.033, 2.445, 22], [3.137, 2.445, 23], [3.192, 2.445, 24], [3.548, 2.499, 25], [3.548, 2.499, 26], [3.974, 2.499, 28], [3.974, 2.501, 29], [4.165, 2.501, 30], [4.239, 2.555, 31], [4.508, 2.555, 32], [4.815, 2.587, 33], [4.815, 2.587, 34], [4.917, 2.587, 35], [5.213, 2.587, 36], [5.213, 2.592, 37], [5.316, 2.599, 38], [5.505, 2.599, 39], [5.641, 2.599, 40], [6.031, 2.616, 41], [6.165, 2.627, 42], [6.259, 2.627, 43], [6.699, 2.627, 44], [6.932, 2.663, 45], [7.203, 2.676, 46], [7.203, 2.677, 47], [7.291, 2.678, 48], [7.426, 2.678, 49], [7.554, 2.687, 50], [7.554, 2.687, 51], [8.091, 2.703, 52], [8.091, 2.703, 53], [8.334, 2.703, 54], [8.342, 2.703, 55], [8.568, 2.703, 56], [8.568, 2.719, 57], [8.772, 2.719, 58], [9.003, 2.743, 59], [9.092, 2.757, 60], [9.172, 2.757, 61], [9.545, 2.757, 62], [9.728, 2.768, 63], [9.833, 2.771, 64]], "end": 10.0, "final": 2.7392, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-llava-sol62.html", "pts": [[0.108, 1.038, 1], [0.485, 1.412, 2], [0.533, 1.563, 3], [0.926, 1.71, 4], [1.0, 1.821, 5], [1.275, 1.885, 6], [1.493, 2.006, 7], [2.02, 2.038, 8], [2.093, 2.074, 9], [2.301, 2.076, 10], [2.823, 2.143, 11], [2.823, 2.149, 12], [2.947, 2.149, 13], [3.049, 2.159, 14], [3.339, 2.159, 15], [3.457, 2.159, 16], [3.555, 2.159, 17], [3.746, 2.223, 18], [3.992, 2.228, 19], [4.13, 2.264, 20], [4.313, 2.264, 21], [4.393, 2.264, 22], [4.483, 2.32, 23], [4.704, 2.32, 24], [4.979, 2.346, 25], [5.012, 2.346, 26], [5.109, 2.346, 27], [5.496, 2.364, 28], [5.55, 2.37, 29], [5.627, 2.379, 30], [5.857, 2.396, 31], [6.34, 2.431, 32], [6.476, 2.448, 33], [6.715, 2.456, 34], [6.986, 2.458, 35], [7.549, 2.482, 36], [7.794, 2.505, 37], [7.931, 2.505, 38], [7.976, 2.505, 39], [8.054, 2.505, 40], [8.147, 2.505, 41], [8.267, 2.505, 42], [8.434, 2.505, 43], [8.766, 2.512, 44], [8.797, 2.512, 45], [8.863, 2.512, 46], [8.954, 2.516, 47], [9.133, 2.516, 48], [9.153, 2.531, 49], [9.432, 2.558, 50], [9.81, 2.584, 51], [9.845, 2.584, 52], [9.913, 2.584, 53]], "end": 10.0, "final": 2.5868, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-llava-gneon.html", "pts": [[0.0, 1.055, 2], [0.0, 1.759, 3], [0.703, 2.588, 4], [1.513, 2.725, 5], [1.513, 2.792, 6], [3.818, 3.049, 7], [4.635, 3.082, 15], [5.086, 3.131, 16], [5.96, 3.134, 17], [6.343, 3.146, 18], [6.776, 3.155, 19], [9.243, 3.155, 20]], "end": 10.031, "final": 3.1248, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-llava-gcarbon.html", "pts": [[1.224, 1.129, 1], [1.565, 1.78, 2], [2.213, 2.337, 3], [2.839, 2.525, 4], [3.012, 2.57, 5], [3.401, 2.595, 6], [3.943, 2.707, 8], [4.59, 2.745, 9], [5.231, 2.821, 10], [5.703, 2.853, 11], [6.581, 2.864, 13], [6.581, 2.875, 14], [6.791, 2.89, 15], [7.114, 2.927, 16], [7.799, 2.959, 18], [8.65, 2.985, 19], [9.225, 2.995, 20]], "end": 10.006, "final": 2.9934, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-llava-ghydrogen.html", "pts": [[0.651, 1.044, 2], [0.866, 1.053, 3], [1.03, 1.545, 4], [1.886, 2.317, 5], [2.415, 2.508, 6], [2.783, 2.584, 7], [3.306, 2.773, 8], [4.289, 2.886, 9], [9.668, 2.989, 11], [9.827, 2.996, 15]], "end": 10.008, "final": 2.9676, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-llava-qwen4.html", "pts": [[0.754, 1.211, 2], [0.985, 1.227, 3], [1.302, 1.236, 4], [1.697, 1.236, 5], [1.96, 1.236, 6], [2.399, 1.254, 7], [2.543, 1.254, 8], [3.747, 1.408, 9], [4.486, 1.449, 10], [4.585, 1.449, 11], [5.742, 2.126, 12], [6.107, 2.126, 13], [6.312, 2.137, 14], [6.586, 2.137, 15], [7.758, 2.153, 16], [8.083, 2.157, 17], [8.155, 2.157, 18], [8.337, 2.157, 19], [8.443, 2.157, 20], [8.63, 2.157, 21], [9.835, 2.227, 22]], "end": 10.0, "final": 2.197, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-llava-step5.html", "pts": [[1.97, 1.292, 4], [7.338, 2.255, 19], [9.907, 2.401, 24], [10.048, 2.421, 25]], "end": 10.075, "final": 2.4157, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-llava-hy4.html", "pts": [[0.685, 1.06, 2], [1.055, 1.062, 3], [1.915, 1.104, 5], [2.143, 1.124, 6], [2.752, 1.124, 7], [3.684, 1.124, 9], [3.949, 1.132, 10], [4.83, 1.132, 11], [5.297, 1.181, 12], [5.985, 1.21, 13], [6.5, 1.212, 14], [6.981, 1.295, 15], [7.665, 1.302, 16], [8.155, 1.302, 17], [8.807, 1.302, 20], [9.419, 1.337, 21], [9.586, 1.337, 22], [9.904, 1.374, 23]], "end": 10.0, "final": 1.3097, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-llava-astra.html", "pts": [[0.164, 1.035, 1], [0.309, 1.035, 2], [2.235, 1.06, 7], [2.235, 1.063, 12], [2.235, 1.065, 15], [2.235, 1.067, 17], [2.235, 1.067, 19], [3.491, 1.176, 20], [3.805, 1.176, 21], [4.146, 1.192, 22], [4.485, 1.199, 23], [4.836, 1.206, 24], [5.159, 1.215, 25], [5.487, 1.224, 26], [5.813, 1.231, 27], [6.143, 1.243, 28], [6.413, 1.253, 29], [6.832, 1.255, 30], [6.832, 1.255, 31], [7.295, 1.263, 32], [7.61, 1.273, 33], [7.61, 1.273, 35], [7.994, 1.273, 36], [7.994, 1.273, 37], [8.536, 1.278, 38], [8.816, 1.287, 39], [8.889, 1.287, 40], [9.272, 1.29, 42], [9.545, 1.294, 43], [9.623, 1.294, 44], [9.703, 1.294, 45]], "end": 10.0, "final": 1.4063, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-llava-glm.html", "pts": [[0.38, 1.032, 2], [0.473, 1.05, 3], [0.839, 1.099, 4], [0.917, 1.099, 5], [1.308, 1.131, 7], [1.987, 1.139, 9], [2.367, 1.261, 10], [5.294, 1.447, 18], [5.779, 1.457, 19], [6.096, 1.466, 20], [6.413, 1.466, 21], [6.615, 1.486, 22], [7.016, 1.486, 23], [7.201, 1.491, 24], [7.563, 1.496, 25], [7.931, 1.496, 26], [8.048, 1.496, 27], [8.252, 1.502, 28], [8.574, 1.502, 30], [8.754, 1.528, 31], [8.997, 1.528, 32], [9.4, 1.528, 34], [9.434, 1.528, 35], [9.48, 1.528, 36], [9.633, 1.528, 37], [9.685, 1.528, 38], [9.929, 1.528, 39]], "end": 10.0, "final": 1.5188, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-llava-kimi.html", "pts": [[0.123, 1.036, 1], [0.57, 1.058, 3], [1.124, 1.091, 4], [1.414, 1.108, 5], [1.695, 1.221, 6], [1.914, 1.296, 7], [2.478, 1.306, 8], [3.232, 1.329, 9], [3.28, 1.329, 10], [3.874, 1.333, 11], [3.95, 1.333, 12], [4.335, 1.343, 13], [4.57, 1.343, 14], [4.871, 1.343, 15], [5.071, 1.343, 16], [5.53, 1.355, 17], [5.827, 1.364, 18], [5.919, 1.364, 19], [6.344, 1.379, 20], [6.566, 1.379, 21], [6.752, 1.379, 22], [7.004, 1.379, 23], [7.24, 1.379, 24], [7.354, 1.379, 25], [7.465, 1.379, 26], [7.65, 1.379, 27], [7.85, 1.379, 28], [8.34, 1.379, 29], [8.654, 1.379, 30], [8.885, 1.379, 31], [9.047, 1.379, 32], [9.461, 1.385, 33], [9.741, 1.385, 34], [9.872, 1.385, 35]], "end": 10.0, "final": 1.3797, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-llava-ds.html", "pts": [[0.202, 1.038, 1], [0.379, 1.24, 2], [0.751, 1.318, 3], [1.256, 1.804, 4], [1.611, 1.897, 5], [1.799, 1.925, 6], [2.261, 2.008, 7], [3.611, 2.008, 9], [4.355, 2.099, 11], [4.806, 2.146, 12], [5.315, 2.225, 14], [6.253, 2.225, 17], [6.561, 2.225, 20], [6.631, 2.225, 23], [6.78, 2.225, 24], [7.084, 2.228, 26], [7.378, 2.228, 29]], "end": 7.702, "final": 2.2194, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-llava-mm.html", "pts": [[0.918, 1.143, 2], [0.918, 1.422, 3], [1.358, 1.438, 4], [1.764, 1.438, 5], [2.471, 1.703, 9], [3.484, 1.704, 11], [3.661, 1.819, 12], [3.759, 1.895, 13], [4.067, 1.972, 15], [4.167, 1.98, 16], [4.421, 2.005, 17], [4.538, 2.04, 18], [4.718, 2.065, 19], [4.835, 2.075, 20], [4.96, 2.102, 21], [5.22, 2.102, 22], [5.22, 2.102, 23], [5.37, 2.115, 24], [5.37, 2.181, 25], [5.468, 2.215, 27], [5.664, 2.215, 28], [6.415, 2.234, 30], [6.415, 2.267, 31], [6.526, 2.288, 32], [6.832, 2.3, 33], [6.832, 2.32, 34]], "end": 10.0, "final": 2.3388, "rej": false}], "focus": "qwen4", "xmax": 10.5, "aria": "Qwen4-Max on LLaVA: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

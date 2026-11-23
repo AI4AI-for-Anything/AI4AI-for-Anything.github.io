@@ -1,0 +1,413 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen4-Max · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="Qwen4-Max on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>Qwen4-Max</b></nav><h1>Qwen4-Max <em>1.22×</em></h1><p class="lede">Harness: Qwen Code · switches: <code>BAGEL_SAC=2</code> <code>BAGEL_CKPT_LLM_ONLY=1</code> <code>BAGEL_COMPILE_SILU_MUL=1</code> <code>BAGEL_FUSED_ADAMW=1</code> <code>BAGEL_MOT_FUSE_PROJ_NORM=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.22×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.23×</dd></div><div class=""><dt>Rounds</dt><dd>21</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$18.1</dd></div><div class=""><dt>Input tokens · 88.3% cached</dt><dd>67 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.5 M</dd></div><div class=""><dt>Requests</dt><dd>524</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-bagel_sft-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>2.50×</small></a><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="gcarbon" href="t-bagel_sft-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.14×</small></a><a class="chip" data-k="ghydrogen" href="t-bagel_sft-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.97×</small></a><a class="chip" data-k="sol62" href="t-bagel_sft-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.86×</small></a><a class="chip" data-k="astra62" href="t-bagel_sft-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.84×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip" data-k="step5" href="t-bagel_sft-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.56×</small></a><a class="chip" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip self" data-k="qwen4" href="t-bagel_sft-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.22×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.15×</small></a><a class="chip" data-k="hy4" href="t-bagel_sft-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.06×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Attention kernel swap (split by mask structure)</dt><dd>✗ four attempts, none landed; the submission still runs the original dense-mask sm80 memory-efficient SDPA (round 20 profile: backward 623 ms + forward 242 ms per 2 steps, ~15.1%). Round 3 cuDNN SDPA + native GQA was 4–6× slower (~12 s/step); round 12 with length bucketing gave NaN loss from step 1 and was still slow; round 11 FlexAttention needed <code>split_lens</code> / <code>attn_modes</code> added to the batch, which changes the batch SHA gate 2 checks, dropped; round 18 converted the dense masks to a BlockMask inside the model, but SAC recompute raised <code>NotImplementedError</code> for the flex_attention HOP. The log judged the mask not expressible as varlen FlashAttention and never tried it</dd><dt>Drop activation recompute (28 decoder layers)</dt><dd>partial: all 28 layers stay checkpointed, switched to selective checkpointing <code>BAGEL_SAC=2</code>: GEMM (mm / addmm / bmm) and attention outputs saved instead of recomputed, elementwise ops and norms still recomputed. Round 4 GEMMs only, single-run timing 1.0711× (peak 97.44 GiB); round 5 attention too, 1.1201×; round 7 full check 1.1208× (N0, bitwise). Round 8 <code>BAGEL_CKPT_LLM_ONLY</code> drops ViT and connector checkpointing entirely, full check 1.1208 → 1.1739× (N1), peak 101.33 GiB. Removing all 28 layers never measured</dd><dt>Intra-layer MoT fusion (routing / RMSNorm / RoPE / SwiGLU)</dt><dd>partial: round 14 <code>BAGEL_COMPILE_SILU_MUL</code>: SiLU(gate)·up as one <code>torch.compile</code>d pure function (dynamic=True), eager in deterministic mode, full check 1.1739 → 1.1773×; round 19 <code>BAGEL_MOT_FUSE_PROJ_NORM</code>: q/k projections normed directly in und / gen order, saving 2 <code>new_zeros</code>, 4 <code>index_put</code>, 4 <code>index_select</code> per layer, full check 1.1864 → 1.2178×, confirmation check 1.2308×. Compiled RMSNorm gave no gain twice (round 13 single-run 1.1619×, round 17 full check 1.1832×), dropped; whole-model compile errored under FSDP1 (round 10); RoPE not in the submission</dd><dt>Optimizer, EMA, step start / end</dt><dd>only torch's built-in fused AdamW (<code>BAGEL_FUSED_ADAMW</code>). Alone in round 9: full check 1.1936×, but gate 3's <code>disp_vit_s050_100</code> went −1.841σ → −2.483σ, not adopted; stacked on the compiled SiLU in round 15: full check 1.1773 → 1.1864×, <code>disp_vit</code> −0.193σ, adopted. EMA (already foreach mul_ + add_), VAE and the per-step logging syncs untouched</dd><dt>Other main levers</dt><dd>nothing in the submission. Round 2 <code>NCCL_PROTO=Simple</code> 0.9997×; round 6 FSDP <code>forward_prefetch</code> 1.1201 → 1.1216× (within noise, left off); <code>gradient_as_bucket_view</code> is an invalid argument on FSDP1; round 21 attention mask cast to bf16 once (<code>BAGEL_PRECAST_MASK</code>), single-run 1.2162× vs 1.2302×, slower, reverted; FSDP2 migration only assessed, not run</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>22 sections</small></summary><div class="rounds"><details><summary><em class="">0.0 h</em><span>Round 1 — profile the unchanged reference (DONE)</span></summary><pre>- 19:49–19:54. profile --out /tmp/r1/profile (steps 8..9, rank 0). PID 9013, log /tmp/r1/profile.log.
+- Per-step wall ~2.6–3.0 s (profiler-inflated), peak mem 82.1 GiB, startup 195 s.
+- Kernel breakdown (Self CUDA, 2 steps, total 7.10 s):
+  - <b>NCCL comm 2.77 s (39%)</b>: ReduceScatter bf16 RING_LL 1.575 s (116 calls, 13.6 ms avg), AllGather RING_LL 1.126 s
+    (234 calls, 4.8 ms avg), AllReduce u64 65 ms (6 calls, 10.9 ms — tiny token-count reductions, straggler-bound).
+  - GEMM aten::mm 1.52 s (21%) + addmm 0.10 s; sm90_xmma_gemm bf16 kernels ~1.6 s.
+  - <b>Attention mem-efficient (sm80 cutlass!)</b>: _efficient_attention_backward 0.64 s (9%) + forward 0.48 s (6.8%) = 15.7%.
+    3 samples/packed batch; 28 LLM layers; fwd called 2× (recompute). fmha_cutlassF/B_bf16 sm80 kernels on Hopper.
+  - Elementwise/layout: copy_ 0.31 s, mul 0.25 s, index_put 0.14 s, index 0.13 s, cat 0.10 s, fill 0.08 s, add 0.06 s,
+    div 0.05 s, sum 0.04 s → ~17%. MoT gather/scatter (index+index_put) ~138 ms/step.
+  - AdamW.step 71.7 ms/step (foreach). EMA foreach_mul 15.8 + foreach_add 19 ms/step. VAE conv+groupnorm ~35 ms/step.
+- <b>Overlap analysis (trace)</b>: NCCL union 1385 ms/step, compute union 2099 ms/step, all union 2674 ms/step.
+  NCCL overlapped 810 ms/step, <b>NCCL EXPOSED ~575 ms/step (~20% of wall)</b>.
+- Topology: NV18 full NVLink mesh, 18×26.56 = 478 GB/s/direction. RS effective ~56 GB/s → 8× below NVLink.
+  RING_LL protocol on ~500 MB/unit messages is the suspect (LL is for small msgs; Simple has higher BW).
+- Hotspot kinds: comm = configuration/backend (NCCL proto); attention = missed fast path (flash varlen vs mem-eff sm80);
+  elementwise = fusion opportunity; recompute = config (checkpointing).</pre></details><details><summary><em class="">0.2 h</em><span>Round 2 — communication class: NCCL protocol (L0 switch, N0)</span></summary><pre>- Hypothesis: RING_LL caps RS/AG bandwidth; NCCL_PROTO=Simple raises it. Ring reduction order is protocol-independent → N0.
+- Switch: /submission/switches.json {&quot;environment&quot;:{&quot;NCCL_PROTO&quot;:&quot;Simple&quot;}}. Tree unchanged (== reference).
+- Command: time --out /tmp/r2/time. PID 10172. RESULT: 2.6282 s/step, speedup_vs_frozen 0.9997, windows [2.6204, 2.636]
+  (spread 0.6%, clean). <b>NO GAIN.</b> NCCL protocol is not the bottleneck; profiler NCCL durations were CUPTI-inflated.
+  Comm overlaps well in reality. Reverted switch. Lesson: don&#x27;t chase comm from profiler kernel durations.
+  Also: external GPU load (100% util reading) does NOT affect timing — candidate matches frozen reference exactly.</pre></details><details><summary><em class="">0.4 h</em><span>Round 3 — attention class: cuDNN fused SDPA + native GQA (L1 library, N1 production / N0 det)</span></summary><pre>- Profile: LLM attention uses EFFICIENT_ATTENTION (fmha_cutlassF/B_bf16 <b>sm80</b> kernels) on Hopper, with a 7x KV head
+  repeat (4-&gt;28 heads) and a per-sample dense bf16 mask. ~560 ms/step (fwd 240 incl. recompute + bwd 320).
+- Diagnosis (GPU, torch 2.5.1): cuDNN SDPA accepts the dense mask AND enable_gqa=True (native GQA, no repeat);
+  flash rejects masks; efficient rejects GQA. cuDNN fwd+bwd OK in production; cuDNN is NON-deterministic (raises under
+  torch.use_deterministic_algorithms(True)) -&gt; fall back to the reference efficient path in det mode (sanctioned).
+- Change: modeling/bagel/qwen2_navit.py PackedAttentionMoT.forward_train List-mask branch: when BAGEL_CUDNN_SDPA=1 and
+  not deterministic, use sdpa_kernel(CUDNN_ATTENTION) + enable_gqa=True, skipping the KV repeat. Det path unchanged.
+- Switch: {&quot;BAGEL_CUDNN_SDPA&quot;:&quot;1&quot;}. Gate 2 (det) structurally bitwise (efficient path). Need gate 2b prod conformance + gate 3.
+- Command: time --out /tmp/r3/time (PID 11558): ERROR — cuDNN needs a 4D mask [1,1,L,L]; reference passes 3D [1,L,L].
+  Fixed (unsqueeze twice). Re-time --out /tmp/r3b/time (PID 12820): <b>cuDNN 4-6x SLOWER (~12 s/step, MFU 2-7%)</b>.
+  torch 2.5.1 cuDNN SDPA rebuilds execution plans for every varying sample shape -&gt; huge CPU overhead. DEAD END.
+  Killed run, reverted qwen2_navit.py (git checkout). Lesson: cuDNN SDPA unusable here with per-sample varying shapes.
+- Attention fast-path inventory: flash rejects dense masks; efficient rejects GQA (needs 7x repeat); cuDNN accepts both
+  but is catastrophically slow on torch 2.5.1 with varying shapes. FlexAttention (block-sparse) remains untried.</pre></details><details><summary><em class="">0.6 h</em><span>Round 4 — recompute class: selective activation checkpointing (L3, N0 claim)</span></summary><pre>- Profile: recompute (checkpoint NO_REENTRANT) re-runs every layer&#x27;s forward in backward: ~190 ms/step GEMM +
+  120 ms attention + ~150 ms elementwise. Saving GEMM outputs (SAC) avoids the GEMM recompute (~190 ms, 7%).
+- Change: train/pretrain_unified_navit.py behind BAGEL_SAC=1: checkpoint context_fn =
+  create_selective_checkpoint_contexts([aten.mm, aten.addmm, aten.bmm]) -&gt; MUST_SAVE GEMM outputs, recompute rest.
+  Est. extra memory ~33 GB (peak ~115 GiB &lt; 141). Det path: SAC recompute is identical -&gt; should stay bitwise.
+- Test config /tmp/sac.json {&quot;BAGEL_SAC&quot;:&quot;1&quot;} (submission switches.json kept empty = safe baseline).
+- Command: time --config /tmp/sac.json --out /tmp/r4/time. PID 13957. **RESULT: 2.453 s/step, speedup 1.0711,
+  windows [2.4524, 2.4536] (0.05% spread), peak 97.44 GiB (+15.3), no OOM/mutation. beyond_reference_noise true.**
+- check --quick --out /tmp/r4q/quick (PID 15057): <b>PASS, tier N0</b> (bitwise identical in det mode). CONFIRMED.
+- Committed 32da9e7. Submission switches.json = {&quot;BAGEL_SAC&quot;:&quot;1&quot;} (best verified: 1.0711, N0).</pre></details><details><summary><em class="">0.8 h</em><span>Round 5 — recompute class: also save attention (SAC level 2)</span></summary><pre>- 43 GiB headroom remains after SAC=1. Save _scaled_dot_product_efficient_attention too -&gt; skip attention recompute
+  (~120 ms/step, ~5% more). Est. +~10 GiB (expanded q/k/v + mask + out). BAGEL_SAC=2.
+- Test config /tmp/sac2.json. Command: time --out /tmp/r5/time. PID 16330. **RESULT: 2.3457 s/step, speedup 1.1201,
+  windows [2.3554, 2.336] (0.8%), peak 99.54 GiB (+2 over SAC=1). No errors.** Saving attention added ~5%.
+- Also added FSDP flags forward_prefetch (BAGEL_FWD_PREFETCH) + gradient_as_bucket_view (BAGEL_GRAD_BUCKET_VIEW),
+  gated off by default, in train/fsdp_utils.py (next round).
+- Submission switches.json = {&quot;BAGEL_SAC&quot;:&quot;2&quot;}. check --quick: first attempt ERROR (my gradient_as_bucket_view kwarg
+  is invalid in FSDP1/torch2.5.1 — removed it; forward_prefetch is valid). Re-run /tmp/r5q2/quick (PID 18366):
+  <b>PASS, tier N0</b> (bitwise). Committed 08e8bc2.</pre></details><details><summary><em class="">1.2 h</em><span>Round 6 — communication overlap: FSDP forward_prefetch (L0, N0)</span></summary><pre>- BAGEL_FWD_PREFETCH=1 on SAC=2. time --out /tmp/r6/time (PID 19632): 2.3424 s/step, speedup 1.1216 vs SAC=2&#x27;s 1.1201.
+  Gain 0.15% &lt; noise (~1%). <b>NO meaningful gain</b> (AG already overlaps). Dropped (kept off). peak 100.06 GiB.
+- Best verified: SAC=2 alone, speedup 1.1201, N0, peak 99.5 GiB.</pre></details><details><summary><em class="">1.2 h</em><span>Round 7 — full check on SAC=2 (the verdict) — PASS N0, speedup 1.1208</span></summary><pre>- Submission: tree @ 08e8bc2, switches.json {&quot;BAGEL_SAC&quot;:&quot;2&quot;}.
+- Command: check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r7/check (PID 20737).
+- <b>RESULT: status PASS, measured_tier N0, speedup 1.1208</b> (cand 2.3442 s/step vs frozen 2.62733, spread 0.0023).
+  - gate2 numerics: bitwise=true, 1223 params / 1408 shards × 3 steps identical, peak 99.02 GiB. PASS.
+  - gate2b conformance: det r.n=r.j=r.b=0 (bitwise); prod ratio.n=0.804, ratio.j=0.934 (≤3 cap). PASS both.
+  - gate3 trajectory: verdict &quot;equivalent&quot;, all 14 endpoints &quot;within&quot; (max |mean_in_sigma|=1.31 disp_vit_s100_140),
+    seeds=[1] only (bitwise → no seed2 needed). PASS.
+  - peak mem 99.54 GiB alloc / 133.75 GiB reserved; startup 193.5 s.
+- <b>BEST VERIFIED: SAC=2, speedup 1.1208, tier N0, full check PASS.</b> Submission locked at this version.</pre></details><details><summary><em class="">1.8 h</em><span>Round 8 — recompute class: skip ViT/connector checkpointing (BAGEL_CKPT_LLM_ONLY, N0 claim)</span></summary><pre>- ViT is TRAINED (recipe sets no freeze_vit → default False; freeze_vae=True only). SiglipEncoderLayer + MLPconnector
+  are checkpointed → their forward is recomputed in backward. Removing their checkpoint stores activations instead.
+- Det-mode argument: NO_REENTRANT recompute is bitwise-identical to the original forward → gradients unchanged → N0
+  (same argument as SAC, which passed N0). Prod: only non-deterministic-level differences (within R_B noise).
+- Change: train/fsdp_utils.py grad_checkpoint_check_fn behind BAGEL_CKPT_LLM_ONLY=1 → module_options drops
+  SiglipEncoderLayer + MLPconnector (LLM layers keep SAC). Gated OFF by default (submission unaffected until switched).
+- Memory: SAC=2 peak 99.5 GiB, ~41 GiB headroom; ViT activations est. +5–15 GiB. Watch peak.
+- Test config /tmp/sac2llm.json {&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;}. time --out /tmp/r8/time (PID 26231).
+- <b>RESULT: speedup 1.1528, 2.279 s/step</b> (vs SAC=2 1.1208 → +2.9%). windows [2.2403, 2.3176] range 3.4% (&lt;6%, valid),
+  peak 102.36 GiB alloc (+2.8 over SAC=2) / 133.54 reserved, no OOM, other_optimizer_steps=[0], inputs 1054/1054 match.
+  ViT recompute was bigger than estimated. beyond_reference_noise true.
+- check --quick --out /tmp/r8/quick (PID 27327): <b>NOT_BITWISE</b> (not N0 as assumed). exact_items_ok=true,
+  layout_differs=false, first_differing_step=1 (step 0 identical — warmup lr~1e-8 makes step0 update negligible),
+  step1 159 shards / step2 226 shards differ (model params). Signature of a tiny recomputation-order gradient diff
+  (ViT flash-attn recomputed-vs-original), NOT a semantic error. &quot;recomputation&quot; is an explicitly allowed change → N1 path.
+- Decision: 2.9% gain worth verifying. Full check --config /tmp/sac2llm.json --out /tmp/r8/check (PID 28581).
+- <b>FULL CHECK RESULT: status PASS, tier N1, speedup 1.1739</b> (cand 2.2382 s/step vs frozen 2.62733).
+  - gate2: exact_items_ok=true, bitwise=false (N1 path), peak 101.33 GiB.
+  - gate2b: det conform PASS (r≈0), prod conform PASS (ratio.n=0.797, ratio.j=0.940 — same as SAC=2, ViT adds ~0 noise).
+  - gate3: trajectory &quot;equivalent&quot;, seeds=[1] only (passed first seed), all 14 endpoints &quot;within&quot;;
+    worst disp_vit_s050_100 mean_in_sigma=-1.841 (stable systematic ViT-recompute shift, well inside ±3σ).
+- <b>ADOPTED. Committed 300e25f. switches.json={&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;}. BEST VERIFIED: N1 1.1739.</b>
+- Also prepared BAGEL_FUSED_ADAMW switch (gated off) in pretrain_unified_navit.py optimizer (fused=True) as Round 9 N1 cand.</pre></details><details><summary><em class="">2.6 h</em><span>Round 9 — optimizer class: fused AdamW (BAGEL_FUSED_ADAMW, N1)</span></summary><pre>- AdamW.step ~71.7 ms/step (foreach). fused=True uses one fused kernel/group → est. ~1% gain. Same fp32 precision/math,
+  different rounding → stays N1 (already N1 from CKPT_LLM_ONLY). Stacks on SAC=2 + CKPT_LLM_ONLY.
+- Change: pretrain_unified_navit.py optimizer fused=os.environ.get(&quot;BAGEL_FUSED_ADAMW&quot;,&quot;0&quot;)==&quot;1&quot; (gated off; uncommitted).
+- Test config /tmp/sac2llmfused.json {&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;,&quot;BAGEL_FUSED_ADAMW&quot;:&quot;1&quot;}.
+- time --out /tmp/r9/time (PID 34033): <b>speedup 1.1855, 2.2163 s/step</b>, windows [2.189, 2.2436] range 2.5%, peak 102.35 GiB,
+  beyond_noise true. ~1% over adopted 1.1739 (time-run variance inflates raw 1.1855-vs-1.1528 comparison).
+- Full check --out /tmp/r9/check (PID 35115): <b>PASS N1, speedup 1.1936</b> (cand 2.2011 s/step). gate2b det+prod PASS
+  (prod ratio.n=0.794, ratio.j=0.915). gate3 traj &quot;equivalent&quot; seed[1], all 14 within. BUT worst disp_vit_s050_100
+  worsened <b>-1.841σ → -2.483σ</b> (fused AdamW adds ViT displacement bias on top of ViT-recompute bias).
+- <b>DECISION: NOT adopted.</b> -2.48σ leaves only ~0.5σ margin to the ±3σ bound; prod run-to-run noise on disp_vit is ~0.8σ
+  (N0 SAC=2 check showed disp_vit -0.845σ from pure prod noise). The +1.7% gain is not worth the higher gate-3 tail risk
+  (reward→0 on failure; the systematic bias reproduces on seed 2 too, so the two-seed retry doesn&#x27;t rescue it).
+  Committed 1a7d50a as a gated-OFF option (BAGEL_FUSED_ADAMW default 0); switches.json does NOT enable it.
+- Lesson: each extra N1 arithmetic change erodes the gate-3 trajectory margin. disp_vit is the sensitive endpoint
+  (ViT recompute + optimizer rounding). Stop stacking N1 changes near the margin; prefer robust N0 / comfortable N1.</pre></details><details><summary><em class="">3.5 h</em><span>Round 10 — elementwise/layout class: torch.compile fusion (BAGEL_COMPILE, N0 claim)</span></summary><pre>- Profiled current best (SAC=2 + CKPT_LLM_ONLY), profile --out /tmp/r10/profile (PID 40614). Self CUDA 6.1s/2steps:
+  - comm record_param_comms 40% (RS 1.234s/116, AG 1.145s/234, RING_LL; overlaps compute, exposed ~20%).
+  - GEMM aten::mm 19.15% (sm90_xmma_gemm — already optimal sm90 kernels).
+  - <b>attention bwd 618ms (10.14%, fmha_cutlassB_bf16 sm80!) + fwd 244ms (4%, fmha_cutlassF sm80)</b> on Hopper — missed
+    sm90 fast path, but flash rejects dense masks / cuDNN slow / flex needs BlockMask+compile (N1, margin risk).
+  - <b>elementwise/layout tail ~33%</b>: copy_ 302ms(6591 calls), mul 248ms(8311), index_put 145ms(2880, MoT scatter),
+    index 130ms(2266, MoT gather), unrolled_elementwise 231ms, cat 99ms, fill_ 76ms, add_ 73ms. Biggest soft target.
+  - AdamW.step 136ms/2 (68ms/step), EMA foreach 22ms/2, VAE conv+groupnorm ~64ms/2.
+- Lever: N0 elementwise fusion via torch.compile (margin-safe: bitwise → no disp_vit erosion; skill confirms N0 stacks
+  freely). Risk: SAC TorchDispatchMode poisoning, FSDP1 hooks, MoT per-sample loop graph breaks, varying-shape recompiles.
+- Change: pretrain_unified_navit.py <code>if BAGEL_COMPILE==1: model=torch.compile(model)</code> before fsdp_wrapper (gated off).
+- Test config /tmp/sac2llmcompile.json {SAC=2,CKPT_LLM_ONLY=1,COMPILE=1}. time --out /tmp/r10/time (PID 41697).
+- <b>RESULT: ERROR during build (~3.5min).</b> dynamo traceback fails at bagel.py:151 embed_tokens, tracing the
+  <code>_fsdp_wrapped_module._checkpoint_wrapped_module._flat_param</code> structure. **torch.compile is incompatible with
+  FSDP1 + CheckpointWrapper + SAC in torch 2.5.1** (compile-before-FSDP-wrap still traces through the FSDP wrappers).
+  Definitive negative result. Reverted the BAGEL_COMPILE edit (errored); tree back to 1a7d50a. Compile direction CLOSED.
+- Next: evaluate flex attention path (existing impl) — first check create_sparse_mask vs nested-mask semantics (gate 2b).</pre></details><details><summary><em class="">3.7 h</em><span>Round 11 — attention class: FlexAttention training path (BAGEL_USE_FLEX, N0 det / N1 prod)</span></summary><pre>- Verified create_sparse_mask (flex) ≡ prepare_attention_mask_per_sample (nested) semantically: global causal + full
+  within full/noise splits + noise hidden from other splits + same-sample. So gate-2b mask correctness should PASS.
+- Existing flex path: Bagel.forward nested_attention_masks=None → create_block_mask + compiled flex_attention; the
+  qwen2_navit else-branch pads by pad_size=sum(sample_lens)-seq_len=0 (aligned), enable_gqa=True (no 7× KV repeat),
+  one block-sparse call for the whole packed batch (sm90 kernel vs sm80 cutlass efficient). Attention is 14% of step.
+- Change: bagel.py import os + <code>_use_flex = BAGEL_USE_FLEX==1 and not torch.are_deterministic_algorithms_enabled()</code>;
+  if nested is None or _use_flex → block_mask path. DET MODE FALLS BACK to nested reference path → gate2 bitwise N0.
+  Prod uses flex (N1 numerics → gate3 disp_vit margin is the decisive risk). Gated off by default.
+- Risks: varying-seqlen recompiles (invalid_run / compile overhead in timed windows); gate3 disp_vit margin erosion.
+- Test config /tmp/sac2llmflex.json {SAC=2,CKPT_LLM_ONLY=1,USE_FLEX=1}. time --out /tmp/r11/time (PID 42780, prod=flex).
+- <b>RESULT: ERROR.</b> create_sparse_mask(sample_lens, split_lens=None, attn_modes=None) → &#x27;NoneType&#x27; not iterable.
+  ROOT CAUSE: training batches set use_flex=False (nested_attention_masks present) → SimpleCustomBatch stores ONLY
+  nested_attention_masks; split_lens/attn_modes are absent (dataset_base.py __init__/to_dict). Enabling flex requires
+  adding split_lens/attn_modes to the batch → <b>changes the gate-2 batch-SHA exact item → INCORRECT</b>. Deriving them
+  from the dense nested masks is complex/fragile (gate-2b risk), and flex is N1 in prod (disp_vit margin risk) anyway.
+  <b>Flex direction CLOSED</b> (batch-SHA exact-item blocker). Reverted bagel.py edits; tree back to 1a7d50a.
+- Round 10+11 conclusion: the two big expensive levers (torch.compile fusion, FlexAttention) are both blocked by the
+  FSDP1/compile incompatibility and the gate-2 batch-SHA exact item respectively. N0 elementwise fusion would need a
+  hand-written bitwise Triton kernel + autograd (very expensive, modest ~2-3% ceiling, correctness risk). The robust
+  1.1739 N1 (disp_vit -1.84σ) remains the best verified submission.
+- Also analyzed (R11, no run): removing the MoT new_zeros fill_ (76ms/2steps) via new_empty. UNSAFE — the batch pads to
+  expected_num_tokens (split_lens+[pad_len]); pad positions are gaps not covered by und/gen scatter. new_zeros zeroes
+  them (finite softmax); new_empty leaves garbage → NaN risk propagating to real-token grads. fill_ is NOT wasted. Kept.</pre></details><details><summary><em class="">4.2 h</em><span>Round 12 — attention class: cuDNN SDPA + LENGTH BUCKETING (BAGEL_CUDNN_BUCKET, N1 prod / N0 det)</span></summary><pre>- Hypothesis: round-3 cuDNN slowness (4-6×, MFU 2-7%) was CPU plan-rebuild dominated (a new cuDNN execution plan per
+  varying sample length). Bucketing sample lengths to a few fixed sizes (round up to 512) should build each plan once
+  and reuse it across the 28 layers (identical head shapes) → plans cached after step 0 → cuDNN sm90 kernel speed wins.
+- Change: qwen2_navit.py PackedAttentionMoT.forward_train List-mask branch, gated BAGEL_CUDNN_BUCKET=1 AND not
+  torch.are_deterministic_algorithms_enabled() (det falls back to the reference efficient path → gate2 bitwise N0).
+  Skip the 7× KV repeat (enable_gqa=True, k/v stay 4 heads). Per sample: pad q/k/v along L to bucket_len (F.pad zeros),
+  pad mask [L,L]→[B,B] with -inf, real region=orig mask, pad diagonal=0 (pad rows attend only to themselves → finite
+  discarded output; real rows&#x27; pad cols=-inf so they never attend pad keys). sdpa_kernel(CUDNN_ATTENTION) + 4D mask
+  [1,1,B,B] + enable_gqa=True; slice output [:, :L, :]. Default OFF → reference path unchanged.
+- Test config /tmp/sac2llmcudnn.json {SAC=2,CKPT_LLM_ONLY=1,CUDNN_BUCKET=1}. time --out /tmp/bench_r12_cudnn (bg_10495f59).
+- <b>RESULT: DEFINITIVE DEAD END — both SLOW and INCORRECT.</b> timing_tree.log: step0 loss finite (mse 0.3911, ce 1.0504)
+  but <b>step1 onward mse=nan, ce=nan</b> → cuDNN backward through the padded dense -inf mask produces NaN grads → params
+  NaN. AND <b>MFU still 3.2/5.4/12.4/11.0/7.0/12.1%</b>, Steps/Sec 0.06-0.25 (~4-16 s/step) — the SAME 4-6× slowdown as
+  round 3. <b>Bucketing did NOT fix the slowness</b> → it is the cuDNN dense-bias-mask attention kernel itself on torch
+  2.5.1 (slow path for arbitrary dense masks), not merely plan rebuilding. Killed the run; the 4 rank processes
+  orphaned (own session leaders, PPID=dead launcher) → killed PIDs 44057-44060 explicitly; GPU back to 1143 MiB baseline.
+- Reverted qwen2_navit.py (git checkout); tree clean @ 1a7d50a. No commit (broken+slow, not a gated-off option like
+  fused AdamW which at least PASSed). <b>cuDNN attention direction now FULLY CLOSED</b> (R3 no-bucket slow; R12 bucket
+  slow+NaN). The sm80→sm90 attention upgrade has no viable backend here: flash rejects dense masks, efficient rejects
+  GQA, cuDNN accepts both but is slow+NaN, flex needs split_lens/attn_modes absent from training batches (gate-2 SHA).</pre></details><details><summary><em class="">4.4 h</em><span>Round 13 — elementwise class: compile pure-function RMSNorm fusion (BAGEL_COMPILE_NORM, N1 prod / N0 det)</span></summary><pre>- Target: elementwise/layout tail ~33% of step (copy_ 6%, mul 5%, unrolled_elementwise 4.5%). Qwen2RMSNorm casts bf16→fp32,
+  pow(2).mean(-1), rsqrt, mul, cast→bf16, mul weight — materializes several fp32 [n_tokens,3584] intermediates per call
+  (112 layernorms + 112 q/k_norms per fwd, ×2 for LLM recompute). Fusing removes those intermediate copies.
+- Why this might be margin-safe N1: the fp32 reduction-order drift is QUANTIZED by the bf16 cast each step (unlike fused
+  AdamW whose fp32 master-weight drift persists/accumulates) → expected tiny grad drift. Compile a PURE FUNCTION
+  _rms_norm_fn(x, weight, eps) (the reference&#x27;s proven flex_attention pattern) → avoids the R10 FSDP1 whole-model dynamo
+  failure (weight passed as a plain tensor arg, not traced as a module attribute). dynamic=True avoids per-token-count
+  recompiles. Gated BAGEL_COMPILE_NORM=1 AND not det (det falls back to eager → gate2 bitwise N0). Default OFF.
+- Change: modeling/qwen2/modeling_qwen2.py import os + _rms_norm_fn + _rms_norm_fn_compiled=torch.compile(...,dynamic=True);
+  Qwen2RMSNorm.forward uses it when gated on. Test config /tmp/sac2llmnorm.json {SAC=2,CKPT_LLM_ONLY=1,COMPILE_NORM=1}.
+- time --out /tmp/bench_r13_norm (bg_af629d2f): <b>status ok, VALID run</b> — finite loss (no NaN), NO dynamo/SAC error,
+  NO recompiles (steps smooth ~2.0-2.4s, MFU 21-23%), peak 102.36 GiB alloc/133.7 reserved, other_optimizer_steps=[0],
+  inputs 1054/1054 match. <b>The compile-pure-function pattern WORKS mechanically under FSDP1+SAC</b> (positive finding).
+- <b>BUT s_per_step 2.2612 → speedup_vs_frozen 1.1619</b>, windows [2.2841, 2.2383] (range 0.9%). This is SLOWER than the
+  adopted best&#x27;s full-check 2.2382 (1.1739); vs the R8 CKPT_LLM_ONLY *time* run (2.279) it is only ~0.8% faster — WITHIN
+  the ~1% noise band, BELOW the 2×-noise benefit bar. The RMSNorm-fusion ceiling is negligible (the fp32 intermediates
+  are a small slice of the GEMM/attention/comm-dominated step). N1 margin risk is not justified for ~0 gain.
+- Decision: NOT adopted, no full check (a within-noise ~0.8% N1 gain would be rejected on margin anyway, per R9 lesson).
+  Reverted modeling_qwen2.py (git checkout); tree clean @ 1a7d50a. **Compile-pure-function elementwise direction CLOSED
+  with a MEASURED below-noise ceiling** (mechanically viable, but RMSNorm fusion ≈0.8% &lt; 2×noise; skill: don&#x27;t do it).</pre></details><details><summary><em class="">4.6 h</em><span>Round 14 — elementwise class: compile pure-function SiLU*up MLP fusion (BAGEL_COMPILE_SILU_MUL, N1 prod / N0 det)</span></summary><pre>- Target: the MLP SiLU(gate)*up chain — the WIDEST elementwise op (intermediate_size 18944 = 5.3× hidden), runs in both
+  forward and SAC recompute (LLM checkpointed). Fusing removes the sigmoid + mul intermediates ([n_tokens,18944] each).
+  Estimated ceiling ~2% (≈2.6× the RMSNorm traffic of R13). Same proven compile-pure-function pattern (R13 showed it
+  works under FSDP1+SAC). Gated BAGEL_COMPILE_SILU_MUL=1 AND not det AND isinstance(act_fn, nn.SiLU); det/non-silu →
+  eager reference path (gate2 bitwise N0). Default OFF. _silu_mul_fn(gate,up)=F.silu(gate)*up, torch.compile(dynamic=True).
+- Change: modeling/qwen2/modeling_qwen2.py import os + helper + Qwen2MLP.forward gated branch. Config /tmp/sac2llmsilu.json.
+- time --out /tmp/bench_r14_silu (bg_517b03b5): <b>status ok, VALID, clean</b> — finite loss, no dynamo/SAC error, no
+  recompiles, <b>s_per_step 2.2159, windows [2.22, 2.2118] (range 0.17%, very tight), speedup_vs_frozen 1.1857</b>,
+  beyond_noise true, peak 102.36 GiB alloc/133.78 reserved, other_optimizer_steps=[0], inputs match. Faster than R13
+  compile-norm (2.2612) and the adopted best&#x27;s full-check (2.2382); time runs read higher than full checks (R8: time
+  2.279 → check 2.2382), so full-check speedup could be ~1.19-1.21. First candidate in several rounds with a real gain.
+- N1 risk: SiLU transcendental (exp/sigmoid) Triton-vs-aten rounding, but quantized by bf16 cast → expected tiny drift
+  (like R13 norm, unlike fused AdamW&#x27;s persistent fp32 drift). DECISIVE question = gate-3 disp_vit margin (base -1.84σ).
+- <b>FULL CHECK --out /tmp/bench_r14_check (bg_25e0c6a5): status PASS, tier N1, speedup 1.1773</b> (cand 2.2316 s/step vs
+  frozen 2.62733; full-check timing ran under GPU contention — MFU 19-20% vs the clean time screen&#x27;s 22% — compressing
+  the raw gain; clean time screen was 1.1857). peak 102.36 GiB alloc/133.78 reserved, other_optimizer_steps=[0].
+  - gate2 numerics: exact_items_ok=true, NOT_BITWISE (N1 prod path), det record bitwise. gate2b det conform PASS (r=0);
+    prod conform PASS (ratio.n=0.797, ratio.j=0.928 — IDENTICAL to adopted best 0.797/0.940 → SiLU adds ~0 prod noise).
+  - **gate3 trajectory: verdict &quot;equivalent&quot;, seeds=[1] only, ALL 14 endpoints &quot;within&quot;. Worst |mean_in_sigma|=1.136
+    (disp_other_s050_100). The sensitive disp_vit_s050_100 = +0.746σ (vs adopted best -1.841σ, fused AdamW -2.483σ)!**
+    The bf16-quantized SiLU drift shifted disp_vit TOWARD zero (partially cancels the ViT-recompute bias) → margin much
+    SAFER than the adopted best, not eroded. disp_vit_s100_140 +0.39σ, disp_lm_s050_100 -0.96σ, log_grad_norm ±0.83σ.
+- <b>DECISION: ADOPTED.</b> Strict improvement over the prior best: speedup ≥ 1.1739 (1.1773 here, 1.1857 clean screen)
+  AND a far better gate-3 margin (worst 1.14σ vs 1.84σ; disp_vit +0.75σ vs -1.84σ) → lower gate-3 failure risk at final
+  eval (different gate-2b seed, re-timing, contention) → higher expected reward at same-or-better speed. Unlike fused
+  AdamW (which eroded the margin), this N1 change IMPROVES it. Committed a105c73 (gated off by default);
+  switches.json={&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;,&quot;BAGEL_COMPILE_SILU_MUL&quot;:&quot;1&quot;}. <b>BEST VERIFIED: N1 1.1773.</b></pre></details><details><summary><em class="">5.2 h</em><span>Round 15 — optimizer class: stack fused AdamW on the improved margin (BAGEL_FUSED_ADAMW + COMPILE_SILU_MUL, N1)</span></summary><pre>- Insight: R14&#x27;s compile-SiLU IMPROVED the gate-3 margin (disp_vit -1.84σ → +0.75σ, worst endpoint 1.84σ → 1.14σ).
+  Fused AdamW was rejected in R9 because its ~-0.64σ systematic disp_vit bias took the -1.84σ base to -2.48σ (too close
+  to -3σ). From the NEW +0.75σ base, the same bias would land ~+0.1σ (comfortable). The margin improvement UNLOCKS the
+  previously-rejected ~1.7% fused-AdamW gain. The two switches are mechanically independent (optimizer fp32 update vs
+  forward MLP compute), both separately full-check PASSed (R9, R14).
+- Config /tmp/sac2llmsilufused.json {SAC=2,CKPT_LLM_ONLY=1,COMPILE_SILU_MUL=1,FUSED_ADAMW=1}. Tree @ a105c73 (both
+  switches already committed, gated off). <b>FULL CHECK in flight</b> --out /tmp/bench_r15_check (bg_2f5a89fe).
+- <b>FULL CHECK --out /tmp/bench_r15_check (bg_2f5a89fe): status PASS, tier N1, speedup 1.1864</b> (cand 2.2145 s/step vs
+  frozen 2.62733, beyond_noise true). peak 102.36 GiB alloc/133.39 reserved, other_optimizer_steps=[0]. gate2
+  exact_items_ok=true (N1 prod); gate2b det PASS + prod PASS (ratio.n=0.798, ratio.j=0.944 ≈ original base 0.797/0.940).
+  - **gate3 trajectory: verdict &quot;equivalent&quot;, seeds=[1], ALL 14 within. Worst |mean_in_sigma|=0.695 (log_grad_norm_s100_150)
+    — BEST margin yet. disp_vit_s050_100 = -0.193σ** (R14 +0.746σ → fused AdamW&#x27;s ~-0.94σ bias lands it near ZERO;
+    disp_vit_s100_140 +0.16σ, disp_lm_s050_100 -0.22σ, disp_other_s050_100 -0.38σ). The SiLU favorable shift and the
+    AdamW negative shift approximately cancel the original ViT-recompute bias → huge headroom (~2.3σ to bound vs ~0.8σ noise).
+- <b>DECISION: ADOPTED.</b> Strict improvement over R14: faster (1.1864 &gt; 1.1773, +0.8%) AND better margin (worst 0.695σ &lt;
+  1.14σ; disp_vit -0.19σ vs +0.75σ). The R14 margin improvement unlocked the R9-rejected fused AdamW. Both switches already
+  committed gated-off (1a7d50a fused AdamW, a105c73 SiLU); enabling via switches.json (no new code). **BEST VERIFIED: N1
+  1.1864**, switches.json={&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;,&quot;BAGEL_COMPILE_SILU_MUL&quot;:&quot;1&quot;,&quot;BAGEL_FUSED_ADAMW&quot;:&quot;1&quot;}.</pre></details><details><summary><em class="">6.2 h</em><span>Round 16 — profile the current best (SAC=2 + CKPT_LLM_ONLY + COMPILE_SILU_MUL + FUSED_ADAMW)</span></summary><pre>- profile --out /tmp/r16/profile --config /submission/switches.json --from 8 --iters 2 (bg_dc249d73). Self CUDA 6.19s/2steps:
+  - comm record_param_comms 42.3% (AllGather RING_LL 21.2%/234, ReduceScatter bf16 RING_LL 20.1%/116, AllReduce u64 1%/6)
+    — overlaps compute (R2 showed proto/prefetch give nothing).
+  - GEMM aten::mm 18.6% (sm90_xmma_gemm, optimal) + addmm 0.77%.
+  - <b>attention bwd 10.0% (618ms, fmha_cutlassB_bf16 sm80) + fwd 4.0% (248ms, fmha_cutlassF sm80)</b> — backends closed
+    (R3/R12 cuDNN slow+NaN, flash masks, efficient GQA, flex batch-SHA). Per-sample occupancy already good (batching low ceiling).
+  - elementwise tail ~21%: copy_ 4.9% (302ms/6475), mul 4.0% (248ms/8322), MoT index_put 2.35% + index 2.12% +
+    index_elementwise 1.76% + indexing_backward 0.34% (~6.6%, pure data movement, launch-bound), unrolled_elementwise 3.8%,
+    cat 1.6%, fill_ 1.2% (72ms/3004), add_ 1.0%, div_ 0.73%, sum 0.68%. AdamW now _fused_adamw_ 1.07% (67ms). silu 0.36%
+    (compiled). EMA _foreach_add_ 0.36%. VAE conv 0.56% + group_norm 0.47%.
+- Hotspot verdict: comm/GEMM optimal-or-overlapped; attention closed; the diffuse elementwise tail is the only soft target.
+  RMSNorm (mul/pow/reduce, ~448 calls/step) is the next fusible piece (R13 proved compile-pure-function works, ~0.8%).</pre></details><details><summary><em class="">6.2 h</em><span>Round 17 — elementwise class: stack compile-norm on the adopted best (BAGEL_COMPILE_NORM, N1)</span></summary><pre>- Re-add R13&#x27;s gated compile-norm (_rms_norm_fn pure function, torch.compile dynamic=True, det→eager) on top of the
+  adopted stack. R13 rejected it as ~0.8% below-noise AND N1 margin risk; the margin is now comfortable (worst 0.695σ,
+  disp_vit -0.19σ) and RMSNorm drift is bf16-quantized (tiny) → worth re-testing as a stack. Targets mul/pow/reduce tail.
+- Change: modeling/qwen2/modeling_qwen2.py import os (already present) + _rms_norm_fn + Qwen2RMSNorm.forward gated branch.
+  Config /tmp/stack_norm.json {SAC=2,CKPT_LLM_ONLY=1,COMPILE_SILU_MUL=1,FUSED_ADAMW=1,COMPILE_NORM=1}.
+- Pre-declared adoption bar: PASS + speedup &gt; 1.1864 (clean gain) AND worst endpoint stays comfortable (≲1.5σ). Else revert.
+- <b>FULL CHECK --out /tmp/bench_r17_check (bg_0b412f09): status PASS, tier N1, speedup 1.1832</b> (cand 2.2205 s/step vs
+  frozen 2.62733, beyond_noise true). peak 102.36 GiB alloc, other_optimizer_steps=[0]. gate2b det PASS + prod PASS
+  (ratio.n=0.782, ratio.j=0.923). gate3 verdict &quot;equivalent&quot;, seeds=[1], ALL 14 within; worst |mean_in_sigma|=0.818
+  (log_grad_norm_s100_150), disp_vit_s050_100 -0.211σ, disp_lm_s050_100 -0.172σ, disp_other_s050_100 -0.358σ.
+- <b>DECISION: REJECTED — no gain.</b> speedup 1.1832 &lt; adopted 1.1864 (cand 2.2205 &gt; 2.2145, ~0.3% SLOWER, within noise)
+  AND margin slightly worse (worst 0.818σ vs 0.695σ; disp_vit -0.211σ vs -0.193σ). Stacking compile-norm adds NO speed
+  and tiny N1 drift. Confirms R13: the RMSNorm-fusion ceiling is negligible — aten&#x27;s vectorized fp32 norm kernels are
+  already efficient, the compiled dynamic kernel is not faster for these shapes. Reverted modeling_qwen2.py
+  (git checkout → a105c73, compile-SiLU retained, compile-norm removed); switches.json unchanged (4-switch R15 best).
+  <b>Elementwise-compile direction CLOSED (both SiLU above-noise ADOPTED, norm below-noise REJECTED twice).</b></pre></details><details><summary><em class="">7.1 h</em><span>Round 18 — attention class (EXPENSIVE lever): internal dense→FlexAttention conversion (BAGEL_FLEX_ATTN, N1)</span></summary><pre>- Hotspot: R16 profile attention 14% of self-CUDA on <b>sm80</b> fmha_cutlassF/B (Hopper is sm90) + 7× KV repeat + per-sample
+  Python loop (28 layers × N samples). All SDPA backends closed (R3/R12 cuDNN slow+NaN, flash rejects dense masks,
+  efficient rejects GQA). R11 closed flex via the BATCH route (use_flex=True adds split_lens/attn_modes + pads sample_lens
+  → gate-2 batch-SHA INCORRECT). NEW angle R11 never tested: keep the batch UNCHANGED (nested_attention_masks, SHA intact)
+  and convert the dense per-sample masks to a flex BlockMask INSIDE the model — an arithmetic change judged by gate-3, not
+  a batch change. Mask is block-structured (per-split causal/full + noise-column masking), NOT varlen-flash-expressible
+  (single causal flag can&#x27;t mix causal/full splits; cross-split attention rules out per-split varlen decomposition), so
+  flex (sm90, enable_gqa=True, no dense-mask kernel, no 7× repeat, no per-sample loop) is the only sm90 option.
+- Change (gated BAGEL_FLEX_ATTN, off by default; det→eager List branch for gate-2b-det bitwise):
+  - bagel.py: import os + _FLEX_ATTN switch + _block_mask_from_dense() builds a 128-aligned block-diagonal bool mask from
+    the per-sample dense masks (attend where mask==0; pad rows/cols isolated), create_block_mask(B=1,H=None,BLOCK_SIZE=128,
+    _compile=True). forward() ma&lt;key&gt;: nested masks → BlockMask when switch on &amp; not deterministic.
+  - qwen2_navit.py: both flex else-branches derive pad_size from attention_mask.shape[-1] (BlockMask padded KV len) instead
+    of sum(sample_lens) — equivalent in the existing use_flex path, correct for the internal 128-aligned padding.
+- Risks (why this is the expensive/high-risk lever): (a) flex_attention + create_block_mask are compile-heavy → dynamo may
+  ERROR under FSDP1+SAC (R10 whole-model compile failed; pure-function compile R14 worked, flex is more complex);
+  (b) block-diagonal dense mask materializes padded² bool (~135 MB at 11648) once/step + create_block_mask eval;
+  (c) sm90 flex kernel = different reduction order → N1 drift could erode the comfortable 0.695σ margin.
+- <b>SCREEN --out /tmp/bench_r18_time --config /tmp/stack_flex.json (bg_4e283e32): status ERROR, steps=0.</b> All 4 ranks:
+  `NotImplementedError: There was no rule registered for HOP flex_attention and mode
+  &lt;torch.utils.checkpoint._CachingTorchDispatchMode object&gt;`. The dense→BlockMask conversion AND create_block_mask(_compile=True)
+  worked, flex_attention forward traced — but during SAC recompute the **flex_attention Higher-Order Op has NO rule for
+  SAC&#x27;s _CachingTorchDispatchMode** (torch 2.5.1). flex cannot run inside the selective-activation-checkpointing region, and
+  SAC is essential to the adopted speedup (1.12 alone) + memory budget. Disabling SAC for attention would OOM / lose the gain.
+- <b>DECISION: REJECTED (fundamental ERROR), reverted</b> (git checkout bagel.py + qwen2_navit.py → a105c73 clean; switches.json
+  unchanged 4-switch best). <b>NEW deeper closure than R11</b>: even with the batch SHA intact and the mask correctly converted,
+  flex_attention HOP × SAC _CachingTorchDispatchMode is incompatible in torch 2.5.1. The attention sm80→sm90 upgrade is now
+  FULLY closed: cuDNN slow+NaN (R3/R12), flash rejects dense masks, efficient rejects GQA, flex blocked by BOTH the gate-2
+  batch-SHA (R11, use_flex=True route) AND the flex-HOP×SAC recompute incompatibility (R18, internal-conversion route).
+  <b>BEST VERIFIED stays N1 1.1864.</b></pre></details><details><summary><em class="">7.3 h</em><span>Round 19 — elementwise/data-movement class (REWRITE, N0 bitwise): fuse MoT projection+norm prologue (BAGEL_MOT_FUSE_PROJ_NORM)</span></summary><pre>- Hotspot: R16 MoT index_put 2.35% + index 2.12% + fill_ 1.2% (~5.7%, launch-bound data movement). Reading PackedAttentionMoT
+  .forward_train: packed_query_states / packed_key_states buffers are new_zeros&#x27;d, scattered with q_proj/k_proj (und/gen),
+  viewed, then RE-GATHERED ([und]/[gen]) ONLY to feed the per-expert q_norm/k_norm → scattered into packed_query_states_/key_.
+  The scatter→gather round-trip is identity (RMSNorm is per-row, order-independent). Norming the projection outputs directly
+  in und/gen order removes, per layer: 2 new_zeros (q/k buffers) + 4 index_put (q/k scatters) + 4 index_select (q/k norm gathers).
+- Change (gated BAGEL_MOT_FUSE_PROJ_NORM, off by default; bitwise-identical so valid in det mode too — no det fallback needed):
+  qwen2_navit.py import os + switch; MoT prologue if/else — fused branch norms q_proj(und).view()/q_proj_moe_gen(gen).view()
+  directly into packed_query_states_ (v buffer unchanged, needed in packed order for attention); else = original. MoT flex
+  else-branch pad_size now uses packed_value_states.shape[0] (==L, valid in both paths since fused has no packed_query_states).
+- <b>N0 claim</b>: scatter→gather round-trip is identity; q_norm input bitwise identical (contiguous (n_und,heads,dim) either way);
+  freeze_und detach semantics preserved (freeze_und=False in training). Expect gate-2b-det BITWISE, gate-3 N0 (zero margin risk).
+- Ceiling estimate: removes ~1/3 of the big L×3584 index movers + q/k fills ≈ 1.5–2% of self-CUDA (borderline at the 2×-noise
+  bar; launch-bound CPU dispatch may add more). Low risk (N0), tractable rewrite → worth a round even if gain is modest.
+- <b>SCREEN --out /tmp/bench_r19_time --config /tmp/stack_mot.json (bg_73b2ba3b): status ok, speedup 1.2302</b> (s/step 2.1357,
+  window_s_per_step [2.1442, 2.1271], window_range 0.008 — tight/stable; beyond_noise true). peak 102.35 GiB alloc/133.47
+  reserved, other_optimizer_steps=[0], all 4 ranks ok, 65 steps, finite losses, no NaN/error. **~3.6% faster than adopted
+  1.1864 (2.2145→2.1357 s/step)** — far above the ~1.5–2% estimate → the index ops were CPU-launch-bound (removing 10 ops/layer
+  × 28 layers × fwd+recompute cuts CPU dispatch substantially). N0 bitwise → adds ZERO drift to the SiLU/AdamW N1 margin.
+- <b>FULL CHECK --out /tmp/bench_r19_check (bg_c81dba24): status PASS, tier N1, speedup 1.2178</b> (cand 2.1575 s/step vs ref
+  2.62733). gate2 exact_items_ok=true (batch SHA intact); gate2b det PASS (ratio.n=0.783/j=0.910) + prod PASS (0.780/0.934).
+  gate3 verdict &quot;equivalent&quot;, seeds=[1], ALL 14 within. <b>Worst disp_vit_s050_100 = -1.639σ</b> (R15 was -0.193σ);
+  disp_vit_s100_140 +1.168σ, log_grad_norm_s100_150 +1.023σ, disp_other_s100_140 -0.666σ. Committed 77f9fc7 (gated off).
+- <b>Margin analysis</b>: speedup +2.65% over 1.1864 (real, beyond noise) BUT worst endpoint 1.64σ marginally exceeds the
+  pre-declared ≲1.5σ bar (R15 was 0.695σ). The refactor is FORWARD-BITWISE and REMOVES non-deterministic index_put_ backward
+  atomicAdd ops → it should not add systematic drift (if anything reduces noise). The -1.64σ disp_vit swing vs R15 -0.19σ is
+  likely contention-amplified run-to-run noise (this ran under external tenant 100% util; atomicAdd order depends on warp
+  scheduling). 1.64σ still has 1.36σ headroom to the 3σ bound. Confirmation full check for a second noise realization.
+- <b>CONFIRMATION --out /tmp/bench_r19_confirm (bg_3c39ac1c): status PASS, tier N1, speedup 1.2308</b> (cand 2.1347 s/step).
+  gate2b det PASS (ratio.n=0.783/j=0.910, IDENTICAL to first check → det record bitwise-reproducible) + prod PASS (0.789/0.900).
+  gate3 verdict &quot;equivalent&quot;, seeds=[1], ALL 14 within. **Worst log_grad_norm_s100_150 = -0.854σ; disp_vit_s050_100 = +0.0435σ
+  (NEAR ZERO), disp_vit_s100_140 -0.527σ.** This CONFIRMS the first check&#x27;s disp_vit -1.64σ was contention-amplified NOISE,
+  not systematic drift — the forward-bitwise refactor has the SAME comfortable margin as R15 (disp_vit ~0σ). Worst 0.854σ
+  satisfies the ≲1.5σ bar with ~2.1σ headroom to bound.
+- <b>DECISION: ADOPTED.</b> Two full checks PASS N1 (1.2178, 1.2308), both verdict equivalent. Strict improvement over R15:
+  +2.65–3.75% faster (2.2145 → 2.13–2.16 s/step) AND comfortable margin (confirmation worst 0.854σ ≈ R15&#x27;s 0.695σ; disp_vit
+  +0.04σ ≈ R15&#x27;s -0.19σ). The refactor is bitwise N0 in isolation (removes non-deterministic index_put_ backward atomicAdd),
+  so it adds no systematic drift — the gain is pure launch/dispatch reduction. Code committed 77f9fc7 (gated off);
+  switches.json={&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;,&quot;BAGEL_COMPILE_SILU_MUL&quot;:&quot;1&quot;,&quot;BAGEL_FUSED_ADAMW&quot;:&quot;1&quot;,&quot;BAGEL_MOT_FUSE_PROJ_NORM&quot;:&quot;1&quot;}.
+  <b>BEST VERIFIED: N1 1.2308</b> (confirmation; first check 1.2178).</pre></details><details><summary><em class="">9.1 h</em><span>Round 20 — profile the R19 best (5 switches) + assess remaining expensive levers</span></summary><pre>- profile --out /tmp/r20/profile --config /submission/switches.json --from 8 --iters 2 (bg_fa270c90). Self CUDA 5.735s/2steps:
+  - comm record_param_comms 39.4% (ReduceScatter bf16 RING_LL 20.84%/116, AllGather RING_LL 17.44%/234, AllReduce u64 1.15%)
+    — overlaps compute (R2: proto/prefetch give nothing). GEMM aten::mm 19.63% (sm90_xmma, optimal) + addmm 0.81%.
+  - attention bwd 10.87% (623ms fmha_cutlassB_bf16 sm80) + fwd 4.23% (242ms fmha_cutlassF sm80) = ~15.1% — FULLY CLOSED (R18).
+  - <b>R19 effect confirmed</b>: index_put 2.35→1.93% (110ms/2096), index 2.12→1.78% (101ms/1592), fill_ 1.2→1.13% (65ms/2444).
+  - remaining elementwise tail: <b>copy_ 5.35% (306ms/6363 — FSDP fp32↔bf16 param/grad casts, inherent to FSDP1 mixed precision)</b>,
+    mul 4.37% (250ms/8088 — RMSNorm/rotary; compile-norm rejected R13/R17), unrolled_elementwise 4.16%, index_elementwise 3.25%
+    (necessary MoT packed_sequence gathers + v scatter + epilogue o_proj scatter — no redundant round-trip left to fuse),
+    cat 1.74% (per-sample attn output concat, necessary), add_ 1.01%, div_ 0.79%, sum 0.74%. _fused_adamw_ 1.16%, EMA 0.39%,
+    VAE conv 0.61% + group_norm 0.51%, silu 0.38% (compiled).
+- Hotspot verdict: comm/GEMM optimal-or-overlapped; attention closed; the fusible elementwise pieces are done (SiLU adopted)
+  or rejected (norm below noise); copy_ is FSDP1-inherent (fp32 master required by the precision rule — cannot drop to bf16 params).
+- <b>Last expensive lever assessed — FSDP2 migration</b>: would change per-param sharding + comm layout. REJECTED without run:
+  (a) comm already overlaps (39.4%, R2 proto/prefetch gave nothing) → better overlap ceiling ~0; (b) FSDP2 changes the shard
+  layout → gate-2b numerics compares shards (R19 layout_differs=false); a different sharding risks layout_differs=true →
+  INCORRECT (same class of fundamental blocker as flex batch-SHA R11); (c) different reduction order → large N1 drift risking
+  the comfortable 0.854σ margin; (d) large rewrite of fsdp_utils.py + training wrap + checkpoint compat, high gate risk.
+  Uncertain/below-noise ceiling + high risk of destabilizing the verified best → not worth it.
+- <b>CONCLUSION: practical optimum reached at N1 1.2308.</b> Cheap levers exhausted; expensive attention lever fully closed (R18);
+  MoT rewrite win adopted (R19); remaining levers (FSDP2, custom Triton attention) are below-noise/overlapped or blocked by
+  gate-2b shard-layout / SAC-HOP incompatibility. Submission stays at the best verified version (5 switches, two PASSes).</pre></details><details><summary><em class="">9.7 h</em><span>Round 21 — copy_ tail deep-dive (profile-grounded) + mask pre-cast (N0, REJECTED below noise)</span></summary><pre>- Investigated the biggest elementwise item from R20: <b>copy_ 5.35% (306.6ms/2steps, 6363 calls)</b>. Profiler-trace
+  parent-breakdown of copy_ CUDA cost (link kernels via External id, group by enclosing cpu_op):
+  - <b>aten::_to_copy 189.32ms (61.7%, 4190 calls)</b> — the <code>.to(dtype)</code> casts. Parent = aten::to (4190) / nested _to_copy (1792).
+  - AddBackward0 31.64ms (n=104, residual-add gradient accumulation, inherent); (root/FSDP flat_param) 25.58ms (n=120, FSDP
+    fp32↔bf16 param/grad casts, inherent); clone 17.05ms (n=469, contiguous()); **repeat 14.47ms (n=224 = 7× KV repeat for GQA,
+    necessary for EFFICIENT_ATTENTION)**; constant_pad_nd 10.43ms (n=232); pow 10.27ms (n=454, RMSNorm); slice_backward 7.05ms
+    (n=560, rotate_half backward).
+- <b>dtype-flow verification</b> (the open R20 question): Qwen2RotaryEmbedding.forward returns <code>cos.to(x.dtype), sin.to(x.dtype)</code>
+  with x=packed_sequence (bf16 under FSDP mixed precision) → cos/sin bf16 → q/k after apply_rotary_pos_emb bf16; v bf16 (v_proj).
+  So the MoT attention per-sample <code>.to(torch.bfloat16)</code> on q/k/v (qwen2_navit.py:289-291/494-496) are <b>NO-OPS</b>. The 4190
+  _to_copy are dominated by <b>RMSNorm&#x27;s inherent bf16→fp32→bf16 casts</b> (2/norm; compile-norm fusion rejected R13/R17 — aten&#x27;s
+  vectorized fp32 norm already efficient) plus the <b>fp32 dense attention-mask cast</b> (the only real per-sample cast).
+- <b>Lever attempted — BAGEL_PRECAST_MASK (N0 bitwise)</b>: the fp32 per-sample mask is cast to bf16 redundantly in EVERY layer
+  (28×) AND recomputed under SAC (×2). Pre-cast the mask List to bf16 ONCE in bagel.forward (outside the layer checkpoint) →
+  each layer&#x27;s <code>.to(bf16)</code> becomes a no-op; same bf16 values → bitwise N0 (valid in det mode). Verified no fp32 mask consumer
+  (both List branches cast to bf16 before SDPA; flex branch uses a separate block_mask; ViT uses varlen cu_seqlens).
+  - Screen: time --config /tmp/stack_precast.json (5 adopted + BAGEL_PRECAST_MASK=1) --out /tmp/bench_r21_time.
+    <b>RESULT: speedup 1.2162, s_per_step 2.1602, beyond_reference_noise=true, peak reserved 133GiB (no OOM).</b>
+    vs R19 best screen 1.2302 (s_per_step ≈2.136) → <b>~1.1% SLOWER, NO GAIN.</b> Estimate was ~0.4% (below the 0.92% = 2×noise bar);
+    the redundant mask casts are bandwidth-bound (not CPU-launch-bound like R19&#x27;s scatter/gather), SAC already recomputes them
+    cheaply, and holding the extra saved bf16 mask offsets the saving. <b>REJECTED, reverted</b> (git checkout bagel.py; tree clean
+    @ 77f9fc7). Confirms the R19 lesson&#x27;s boundary: redundancy removal only beats noise when the ops are CPU-launch-bound.
+- <b>copy_ verdict: inherent or below-noise.</b> _to_copy = RMSNorm fp32 casts (compile rejected) + mask cast (pre-cast no gain);
+  repeat/pow/slice_backward/AddBackward/FSDP casts all necessary. No above-noise lever in the copy_ tail. Rotary-compile alone
+  estimated ~0.15–0.3% (below noise). The R20 &quot;practical optimum&quot; conclusion holds after this deeper profile-grounded check.</pre></details><details><summary><em class="">9.7 h</em><span>CURRENT SUMMARY (after Round 21; adopted best = R19, 5 switches)</span></summary><pre>- <b>SUBMISSION: tree @ 77f9fc7 (git clean), switches.json {&quot;BAGEL_SAC&quot;:&quot;2&quot;,&quot;BAGEL_CKPT_LLM_ONLY&quot;:&quot;1&quot;,&quot;BAGEL_COMPILE_SILU_MUL&quot;:&quot;1&quot;,&quot;BAGEL_FUSED_ADAMW&quot;:&quot;1&quot;,&quot;BAGEL_MOT_FUSE_PROJ_NORM&quot;:&quot;1&quot;}.</b>
+- <b>BEST VERIFIED &amp; ADOPTED: full check PASS, tier N1, speedup 1.2308</b> (/tmp/bench_r19_confirm/check.json; cand 2.1347
+  s/step vs frozen 2.62733). First R19 check also PASS N1 1.2178 (/tmp/bench_r19_check; cand 2.1575). **Robust: confirmation
+  gate3 worst endpoint |mean_in_sigma|=0.854 (log_grad_norm_s100_150); sensitive disp_vit_s050_100 = +0.04σ (near zero).**
+  All 14 endpoints within, verdict equivalent, seeds=[1]. gate2 exact_items_ok; gate2b det PASS (ratio.n=0.783/j=0.910,
+  bitwise-reproducible across both checks) + prod PASS (0.789/0.900). Peak 102.4 GiB alloc / ~133.5 reserved.
+  NOTE: first R19 check showed disp_vit -1.64σ (contention-amplified NOISE); confirmation +0.04σ confirms the forward-bitwise
+  MoT refactor adds no systematic drift (same comfortable margin as R15). Two independent PASSes de-risk the adoption.
+- Gain breakdown vs upstream 2.6273 s/step:
+  - BAGEL_SAC=2 — selective activation checkpointing, MUST_SAVE GEMM (mm/addmm/bmm) + efficient-attention fwd,
+    recompute the rest. Bitwise N0. ~1.12 alone. Peak ~99.5 GiB.
+  - BAGEL_CKPT_LLM_ONLY=1 — skip ViT(SiglipEncoderLayer)+MLPconnector checkpointing, store their activations.
+    N1 (tiny ViT grad recompute drift, disp_vit -1.84σ). +~2.9% → 1.1739 combined.
+  - BAGEL_COMPILE_SILU_MUL=1 — compile the MLP SiLU(gate)*up chain (widest elementwise, 18944-dim) into one fused
+    kernel (pure-function torch.compile, dynamic=True; det/non-SiLU → eager). N1 (bf16-quantized SiLU drift). Removes
+    sigmoid/mul intermediates in fwd + SAC recompute. → 1.1773 AND shifts disp_vit -1.84σ → +0.75σ (favorable).
+  - BAGEL_FUSED_ADAMW=1 — fused AdamW kernel (fp32 master/state, same math, different rounding). N1. +~0.8% → 1.1864.
+    Its ~-0.94σ disp_vit bias takes +0.75σ → -0.19σ (near zero); worst endpoint 0.695σ. Peak 102.4 GiB (~40 GiB headroom).
+    NOTE: rejected in R9 on the OLD base (disp_vit -2.48σ); the R14 SiLU margin improvement UNLOCKED it (R15).
+  - BAGEL_MOT_FUSE_PROJ_NORM=1 — norm the per-expert q/k projections directly in und/gen order, dropping the packed q/k
+    buffers&#x27; redundant scatter→gather round-trip (RMSNorm per-row → identity). <b>Bitwise N0 in isolation</b> (valid in det
+    mode); removes 2 new_zeros + 4 index_put + 4 index_select per layer (CPU-launch-bound) AND non-deterministic index_put_
+    backward atomicAdd ops. +~2.65–3.75% → 1.2178/1.2308. Adds NO systematic drift (confirmation disp_vit +0.04σ ≈ R15 -0.19σ).
+- Available but NOT enabled (gated off): BAGEL_FWD_PREFETCH (0.15% &lt; noise). compile-norm reverted TWICE (R13 ~0.8% &lt; noise
+  alone; R17 stacked on the adopted best 1.1832 &lt; 1.1864, no gain + tiny drift) — RMSNorm-fusion ceiling negligible.
+- Directions that DID NOT work / rejected (measured, not assumed):
+  - NCCL_PROTO=Simple (comm overlaps, no gain); FSDP forward_prefetch (0.15% &lt; noise); gradient_as_bucket_view (invalid FSDP1).
+  - cuDNN SDPA (R3: 4-6× slower on varying shapes; R12: length bucketing did NOT fix it — still MFU 3-12% AND NaN loss
+    from step1 via the padded dense-mask backward → the cuDNN dense-bias kernel itself is slow+incorrect on torch 2.5.1).
+  - fused AdamW alone on the CKPT_LLM_ONLY base (R9: N1 1.1936 PASS but disp_vit -2.48σ → margin too thin, rejected;
+    later ADOPTED in R15 stacked on compile-SiLU, whose favorable margin shift absorbs the AdamW bias → disp_vit -0.19σ).
+  - <b>torch.compile fusion (R10): ERROR — dynamo can&#x27;t trace FSDP1+CheckpointWrapper+SAC (_flat_param) in torch 2.5.1.</b>
+  - **FlexAttention (R11 batch route): ERROR — training batches lack split_lens/attn_modes (use_flex=False); adding them
+    changes the gate-2 batch-SHA exact item → INCORRECT. Mask semantics verified correct, but the batch-SHA blocker is fundamental.**
+  - **FlexAttention (R18 internal-conversion route): ERROR — kept the batch UNCHANGED (SHA intact), converted the dense
+    per-sample masks to a 128-aligned block-diagonal BlockMask inside the model (create_block_mask worked, flex forward traced),
+    but <code>NotImplementedError: no rule registered for HOP flex_attention and mode _CachingTorchDispatchMode</code> during SAC recompute.
+    flex_attention HOP × SAC selective-checkpoint TorchDispatchMode is incompatible in torch 2.5.1; SAC is essential to the
+    speedup+memory. Attention sm80→sm90 upgrade FULLY closed (cuDNN/flash/efficient/flex all blocked).**
+  - compile pure-function RMSNorm fusion (R13 alone ~0.8% &lt; noise; R17 stacked on adopted best: PASS N1 1.1832 &lt; 1.1864,
+    ~0.3% slower + worst endpoint 0.818σ vs 0.695σ): mechanically VALID under FSDP1+SAC (no error/NaN/recompile) but NO
+    speed gain — aten&#x27;s vectorized fp32 norm kernels already efficient, compiled dynamic kernel not faster. Elementwise-compile CLOSED.
+  - mask pre-cast to bf16 once (R21, BAGEL_PRECAST_MASK, N0 bitwise): screen 1.2162 &lt; R19 best 1.2302 (~1.1% slower, NO gain).
+    The redundant per-layer fp32→bf16 mask casts are bandwidth-bound (not CPU-launch-bound), SAC recomputes them cheaply, and the
+    extra saved bf16 mask offsets the saving. copy_ tail confirmed inherent (RMSNorm fp32 casts + FSDP casts) or below-noise. REJECTED.
+- Why this is the practical optimum: N0 recompute levers are memory-exhausted (saving LLM elementwise/MLP-intermediate
+  activations would OOM &gt;141 GB; SAC=2 is near the memory-optimal save set). N0 comm overlaps (no gain). Whole-model
+  compile fusion is blocked by FSDP1 dynamo; FlexAttention by the gate-2 batch-SHA exact item (R11) AND the flex-HOP×SAC
+  _CachingTorchDispatchMode recompute incompatibility (R18, even with the batch unchanged); cuDNN attention is
+  slow+NaN; RMSNorm compile fusion is below noise (R13/R17). The MLP SiLU*up compile fusion (R14) is one elementwise lever
+  above noise, and it IMPROVES the gate-3 margin (bf16-quantized drift cancels the ViT-recompute bias), which unlocked
+  stacking fused AdamW (R15). The MoT projection+norm prologue rewrite (R19) is the OTHER above-noise lever — a bitwise-N0
+  removal of redundant CPU-launch-bound scatter/gather (and their non-deterministic backward atomicAdd), giving +2.65–3.75%
+  with NO margin cost. The robust 1.2308 N1 (confirmation worst endpoint 0.854σ, disp_vit +0.04σ; two independent PASSes)
+  maximizes expected reward: faster than the N0 1.1208 and prior N1 1.1739/1.1773/1.1864, with a comfortable trajectory
+  margin. Remaining levers (EMA lerp, custom Triton attention kernels, FSDP2 migration) have modest ceilings or high gate
+  risk; attention sm80→sm90 is fully closed (R18), so further gains are likely below noise or blocked.
+- Judge mechanics: fresh tmp+inductor/triton caches each run (cold compile); time~6min, quick~5min, full check~30min;
+  GPU lock /tmp/bagel_gpu.lock; wait_idle checks mem&lt;2048MiB (external tenant 100% util/~1143MiB doesn&#x27;t block, but can
+  slow trajectory runs). Final eval re-times reference→candidate→reference and uses another gate-2b data seed.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-kimi.html"><small>← 1.42×</small><strong>Kimi k3.1</strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-ds.html"><small>1.15× →</small><strong>DeepSeek V4.1 Flash-1017</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-bagel_sft-astra62.html", "pts": [[0.918, 1.142, 1], [0.992, 1.295, 2], [2.29, 1.444, 3], [2.4, 1.603, 4], [3.323, 1.649, 5], [3.664, 1.682, 6], [4.027, 1.725, 7], [4.662, 1.725, 8], [5.094, 1.764, 9], [5.907, 1.814, 10], [6.546, 1.817, 11], [7.089, 1.844, 12], [7.827, 1.856, 13], [8.145, 1.856, 14], [9.325, 1.931, 15], [9.52, 1.931, 16], [9.638, 1.931, 17]], "end": 10.0, "final": 1.8382, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-bagel_sft-sol62.html", "pts": [[0.237, 1.171, 1], [0.963, 1.198, 2], [1.233, 1.399, 3], [2.177, 1.415, 4], [2.473, 1.489, 5], [3.266, 1.685, 6], [3.985, 1.697, 7], [4.19, 1.723, 8], [5.271, 1.751, 9], [5.469, 1.759, 10], [5.797, 1.778, 11], [7.08, 1.821, 12], [7.291, 1.821, 13], [7.67, 1.821, 14], [7.882, 1.821, 15], [8.17, 1.821, 16], [8.453, 1.821, 17], [8.736, 1.822, 18], [9.552, 1.87, 19], [9.745, 1.926, 20]], "end": 10.0, "final": 1.8629, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-bagel_sft-gneon.html", "pts": [[0.549, 1.181, 2], [0.683, 1.278, 3], [0.907, 1.514, 4], [1.825, 1.92, 5], [2.882, 2.104, 6], [3.133, 2.254, 7], [3.441, 2.357, 8], [4.122, 2.464, 9], [6.226, 2.47, 10], [6.226, 2.582, 11], [6.226, 2.602, 12], [8.408, 2.602, 14], [8.408, 2.628, 15], [9.491, 2.628, 16]], "end": 10.0, "final": 2.4972, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-bagel_sft-gcarbon.html", "pts": [[0.793, 1.178, 2], [1.889, 1.499, 3], [2.431, 1.745, 4], [3.533, 1.813, 5], [3.977, 1.827, 6], [4.415, 1.842, 7], [5.078, 1.845, 8], [5.573, 1.868, 9], [6.047, 1.875, 10], [6.566, 1.998, 11], [7.147, 2.067, 12], [8.235, 2.107, 13], [9.741, 2.145, 14], [9.741, 2.145, 15]], "end": 9.998, "final": 2.1405, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-bagel_sft-ghydrogen.html", "pts": [[0.762, 1.235, 2], [1.002, 1.384, 3], [1.641, 1.796, 4], [2.798, 1.93, 5], [3.632, 2.045, 6], [4.744, 2.045, 7], [6.854, 2.136, 8], [9.005, 2.154, 10]], "end": 9.999, "final": 1.9653, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-bagel_sft-qwen4.html", "pts": [[0.798, 1.071, 4], [0.923, 1.12, 5], [1.189, 1.122, 6], [1.773, 1.122, 7], [2.612, 1.174, 8], [3.345, 1.194, 9], [4.38, 1.194, 13], [4.566, 1.194, 14], [5.815, 1.194, 15], [6.191, 1.194, 17], [7.18, 1.194, 18], [8.799, 1.231, 19], [9.692, 1.231, 21]], "end": 10.0, "final": 1.2224, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-bagel_sft-step5.html", "pts": [[0.937, 1.184, 2], [1.607, 1.188, 4], [3.897, 1.208, 7], [4.478, 1.229, 8], [5.374, 1.365, 9], [8.629, 1.494, 11], [9.993, 1.565, 13]], "end": 10.077, "final": 1.5584, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-bagel_sft-hy4.html", "pts": [[0.68, 1.031, 2], [2.875, 1.034, 4], [5.913, 1.057, 6], [8.177, 1.057, 12], [8.311, 1.059, 13], [9.629, 1.064, 15]], "end": 10.0, "final": 1.0608, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[1.344, 1.067, 7], [2.899, 1.227, 10], [7.008, 1.227, 19], [8.229, 1.227, 20], [8.727, 1.227, 22], [9.438, 1.227, 24]], "end": 10.0, "final": 1.1469, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935, "rej": false}], "focus": "qwen4", "xmax": 10.5, "aria": "Qwen4-Max on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

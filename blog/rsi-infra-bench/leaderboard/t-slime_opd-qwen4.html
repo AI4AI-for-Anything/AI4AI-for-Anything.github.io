@@ -1,0 +1,630 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen4-Max · Slime OPD · RSI-Infra Bench</title><meta name="description" content="Qwen4-Max on Slime OPD: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="on">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_opd.html">Slime OPD</a><span>/</span><b>Qwen4-Max</b></nav><h1>Qwen4-Max <em>1.40×</em></h1><p class="lede">Harness: Qwen Code · switches: <code>OPD_SKIP_DEAD_REF=1</code> <code>OPD_SKIP_DEAD_ENTROPY=1</code> <code>OPD_FUSE_LOGPROB_PASS=1</code> <code>OPD_TRAIN_CPU_THREADS=24</code> <code>OPD_RECOMPUTE=none</code> <code>OPD_GC_FREEZE=1</code> <code>OPD_MAX_TOKENS_PER_GPU=8400</code> <code>OPD_GDN_TP_HEADS=1</code> </p><p class="lede">The first final judge failed with CUDA OOM in all three full runs (each short by 0.12–0.41 GiB; an ops keepalive held 1.1 GiB on every GPU at the time). After the keepalive was removed on 11-20, the same submission (same source digest) was judged again: PASS, N1, 1.4004×.</p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.40×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.38×</dd></div><div class=""><dt>Rounds</dt><dd>12</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$15.8</dd></div><div class=""><dt>Input tokens · 94.2% cached</dt><dd>89 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.4 M</dd></div><div class=""><dt>Requests</dt><dd>663</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-slime_opd-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>1.95×</small></a><a class="chip" data-k="sonnet" href="t-slime_opd-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.76×</small></a><a class="chip" data-k="opus" href="t-slime_opd-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.64×</small></a><a class="chip" data-k="kimi" href="t-slime_opd-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.59×</small></a><a class="chip" data-k="gcarbon" href="t-slime_opd-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>1.50×</small></a><a class="chip" data-k="astra62" href="t-slime_opd-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.46×</small></a><a class="chip" data-k="glm" href="t-slime_opd-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.46×</small></a><a class="chip" data-k="ds" href="t-slime_opd-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.43×</small></a><a class="chip self" data-k="qwen4" href="t-slime_opd-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.40×</small></a><a class="chip" data-k="mm" href="t-slime_opd-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.40×</small></a><a class="chip" data-k="sol62" href="t-slime_opd-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.37×</small></a><a class="chip" data-k="step5" href="t-slime_opd-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.33×</small></a><a class="chip" data-k="astra" href="t-slime_opd-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.30×</small></a><a class="chip" data-k="haiku" href="t-slime_opd-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.23×</small></a><a class="chip" data-k="ghydrogen" href="t-slime_opd-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.10×</small></a><a class="chip" data-k="hy4" href="t-slime_opd-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.07×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>114.2 / 113.9 / 116.1</dd><dt>Rollout side</dt><dd>≈1.0×</dd><dt>Teacher side</dt><dd>≈1.0×</dd><dt>Train side</dt><dd>2.29×</dd><dt>Per-step sampler sync</dt><dd>✗ not in the log; round 5 looked at rollout: it attributed the ~1.9 ms of GPU idle per decode step to the scheduler's Python frames (<code>load_batch</code>, <code>process_batch_result_decode</code>, etc.) and counted the sampler by kernel time only (~0.19 ms of 4.54 ms per step), concluding what remains is weight-bandwidth-bound GEMMs that are hard to improve; rollout unchanged (its own full checks 0.9912–0.9969×)</dd><dt>Train-side main levers</dt><dd>✓ skip zero-coefficient reference forward and entropy, OPD advantages formed in the loss from training-forward logprobs (round 2, 1.3362×, check PASS N1); CPU Adam 24 threads (round 5, optimizer tail ~11.5→5.5 s) plus full recompute off (round 4), the two together 1.8036× in round 7; GC freeze (round 9, each <code>gc.collect</code> 0.605–0.788→0.060–0.076 s); 8400 tokens per GPU so each microbatch holds two samples, microbatches 63→32 (round 11, train-only timing 2.0397×); <b>GDN split by head over TP, the split heads all-gathered back before a full <code>out_proj</code>, forward bitwise identical by design</b> (round 12, three-side check PASS N1 1.3749×, train side 2.2943×; <code>update_direction_cos</code> 0.96142, floor 0.95660)<br><span class=cap>Round 4's CP head split also split <code>out_proj</code> and all-reduced two bf16 partial sums: INCORRECT (<code>grad_norm_first</code> off by 0.0219, tolerance 0.00165) and only 0.4% faster; the FlashQLA kernel was slower (1.8237× vs 1.8781×); packing caps 16384 and 12288 both OOM; comm groups still destroyed and rebuilt every step (~1.7 s), left alone for fear of a hang</span></dd><dt>Teacher-side changes</dt><dd>✗ teacher logprob algorithm unchanged; round 3 tried raising the all-reduce fusion cap to 4096 (teacher 0.9728×, reverted), chunked prefill 8192 (1.0296×, ~+0.3% on the step; not adopted to avoid touching teacher numerics that were bitwise identical at the time) and 2048 (0.9098×); in the re-judge the teacher is bitwise identical to the reference (<code>mean_abs</code> 0.0)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>13 sections</small></summary><div class="rounds"><details><summary><em class="">0.5 h</em><span>Round 1 — profile the unchanged reference (23:49 → 00:15)</span></summary><pre>Commands (detached, sequential, one GPU lock each):
+<code>bench.py profile --tree /submission/slime_opd --out /tmp/r1/prof_&lt;side&gt; --side &lt;side&gt;</code> for
+rollout, teacher, train. Logs <code>/tmp/r1/prof_*.log</code>, driver PID 420893.
+
+### rollout (<code>/tmp/r1/prof_rollout/kernel_report.md</code>, 200 decode steps, TP-0 of engine 0)
+- window 2230 ms, GPU busy 40.7 % (profiler inflates CPU); kernel time 4.9 ms/step vs ~6.6 ms/step real
+  (engine log: 32 running requests, 4858 tok/s per engine).
+- GEMMs (nvjet) 53 % of kernel time; <code>fused_recurrent_gated_delta_rule_packed_decode</code> 9.9 %;
+  flashinfer oneshot-lamport allreduce fusion 8.2 %; one 3-block splitK GEMM (GDN b/a projection)
+  6.1 % at SM coverage 0.02.
+- largest gaps sit between the eager sampling / logprob elementwise kernels (outside the decode CUDA graph).
+
+### teacher (<code>/tmp/r1/prof_teacher/kernel_report.md</code>, 64 prefill steps of replayed rollout 1)
+- window 9247 ms, GPU busy 92.2 %.
+- GEMM 42.5 % + 7.7 %; <b>ncclDevKernel_AllReduce_Sum_bf16_RING_LL 22.5 %</b> (8256 calls, median 228 us,
+  24 blocks, SM cov 0.18) — exposed TP4 allreduce, LL protocol;
+  AllGather 3.7 %; big elementwise copies 4.1 %; GDN prefill kernels ~5 %.
+- cause: <code>FUSE_ALLREDUCE_MAX_BATCH_SIZE = 2048</code> in sglang <code>layers/layer_boundary/residual/add_norm.py</code>,
+  so the teacher&#x27;s 4096-token prefill chunks never take the flashinfer fused allreduce path the student&#x27;s
+  decode uses.
+
+### train (<code>/tmp/r1/prof_train/profile_train/train.log</code>, slime timers, steady state)
+- <code>ref_log_probs</code> 11.8 s + <code>log_probs</code> 10.4 s + <code>actor_train</code> 51.9 s = <code>train</code> 74.9 s (judge window ~80 s).
+- 64 micro-batches per step (one ~8250-token sample each: <code>max_tokens_per_gpu 4096 × cp 2</code> = 8192 cap).
+- <b><code>ref_log_probs</code> is dead work</b>: <code>--kl-loss-coef 0.00</code> and <code>kl_coef 0</code>, yet <code>with_ref</code> is
+  <code>kl_coef != 0 or use_kl_loss</code> (placement_group.py) so a whole reference forward runs every step.
+- <b><code>log_probs</code> repeats the training forward</b>: with <code>use_opd</code>, <code>can_reuse_log_probs_in_loss</code> is forced
+  False, but its only consumers are the ratio&#x27;s old policy (same weights → ratio 1) and the student side
+  of the per-token reverse KL. Advantages are per token (<code>normalize_advantages</code> default False, GRPO task
+  rewards broadcast per sample), so the loss can form them from its own detached log-probs.
+- GDN linear attention runs through <code>slime_plugins/models/qwen3_5.py</code>&#x27;s *replicated* wrapper:
+  <code>HuggingfaceAttention.forward</code> all-gathers the sequence over CP and every TP rank computes all 32 heads
+  on the full sequence → 4× redundant, ~48 % of train FLOPs. Megatron&#x27;s TP/CP-sharded GDN
+  (<code>--qwen-gdn-implementation megatron</code>) exists but renames/reshapes parameters, and the judge&#x27;s train
+  record gate compares parameter names/shapes exactly → not usable as-is.</pre></details><details><summary><em class="">0.5 h</em><span>Round 2 — dead and redundant forward passes in the train step (00:10 → …)</span></summary><pre>Changes (all in the <code>train</code> side), each behind its own switch, off by default:
+- <code>OPD_SKIP_DEAD_REF</code>: <code>loss.dead_ref_kl_terms()</code>; <code>actor.py</code> skips loading the reference checkpoint when
+  both KL coefficients are 0 (so <code>&quot;ref&quot; not in backup_tags</code> and the ref forward is skipped by the existing
+  guard), <code>policy_loss_function</code> skips the <code>kl_loss</code> term.
+- <code>OPD_SKIP_DEAD_ENTROPY</code>: <code>loss.dead_entropy_term()</code>; <code>with_entropy=False</code> in the policy loss when
+  <code>entropy_coef == 0</code> (the term is multiplied by 0), <code>entropy_loss</code> reported as 0.
+- <code>OPD_FUSE_LOGPROB_PASS</code>: <code>loss.opd_advantages_in_loss()</code>; <code>actor.py</code> treats the actor log-prob pass as
+  reusable, and <code>policy_loss_function</code> builds the OPD advantage from its own detached log-probs and
+  <code>batch[&quot;teacher_log_probs&quot;]</code>, reporting <code>opd_reverse_kl</code> as before.
+
+Expected from the timers: −11.8 s (ref) −10.4 s (actor log-probs) of 74.9 s → train ≈ 1.4×.
+Numerics tier: N1 (the ratio becomes exactly 1 and the advantage uses the training forward&#x27;s log-probs).
+
+Result (<code>bench.py check --side train --config /submission/switches.json --out /tmp/r2/check</code>,
+finished 01:08:40): <b>PASS, tier N1</b>.
+<code>/tmp/r2/check/check.json</code>: train windows 63.269 / 58.242 / 57.660 s vs reference
+80.010 / 79.953 / 79.061 → <b>side speedup 1.3362</b>, projected full-loop <b>1.1431</b>
+(bar 1.0208). <code>exact: ok</code> (parameter/optimizer names, shapes, dtypes unchanged),
+<code>bitwise: false</code>, 6338 tensors differ. Statistical endpoints all inside tolerance:
+update_norm d −9.6e-5 (tol 1.2e-3), exp_avg_sq_norm d 1.0e-4 (tol 4.4e-4),
+loss_mean d 5.6e-6 (tol 3.8e-5), grad_norm_first d −9.4e-6 (tol 1.7e-3),
+update_direction_cos 0.9941 (min 0.9566, reference noise 0.9913). Mismatch ratio 1.0.
+The <code>ref_log_probs</code> and <code>log_probs</code> timers disappear from <code>train.log</code>; slime&#x27;s own
+<code>Timer train end</code> drops to 52.6 / 52.1 / 57.5 s. Cost 1.80 GPU-hours.
+
+Note on process hygiene: the Round-1 <code>profile --side train</code> run never finished — kineto&#x27;s
+<code>export_chrome_trace</code> grew past 1 GB gz <b>per rank</b> and was still writing after 20 min with the
+GPUs idle. It was terminated (PID 438666 and its driver) so the queued Round-2 check could take
+the lock; the partial traces were deleted. Lesson: do not re-run <code>profile --side train</code> on this
+recipe; slime&#x27;s own timers plus the rollout/teacher kernel reports are enough.</pre></details><details><summary><em class="">1.2 h</em><span>Round 3 — teacher all-reduce fusion ceiling (00:18 → …)</span></summary><pre><code>sglang/python/sglang/srt/layers/layer_boundary/residual/add_norm.py</code>:
+<code>FUSE_ALLREDUCE_MAX_BATCH_SIZE</code> is now <code>int(os.environ.get(&quot;OPD_AR_FUSION_MAX_TOKENS&quot;, &quot;2048&quot;))</code>.
+Default unchanged. The teacher prefills in 4096-token chunks, i.e. exactly above the stock
+ceiling, so it never takes the flashinfer fused allreduce+add+norm path and pays an exposed
+<code>ncclDevKernel_AllReduce_Sum_bf16_RING_LL</code> (22.5 % of its kernel time).
+
+Screening configs: <code>/tmp/r3/sw_fusion4096.json</code> (<code>OPD_AR_FUSION_MAX_TOKENS=4096</code>),
+<code>/tmp/r3/sw_chunk2048.json</code> (<code>OPD_TEACHER_SERVER_ARGS=--chunked-prefill-size 2048</code>, the other way
+to get under the ceiling), <code>/tmp/r3/sw_chunk8192.json</code>, <code>/tmp/r3/sw_fusion8192.json</code>.
+
+### Result: <code>OPD_AR_FUSION_MAX_TOKENS=4096</code> REJECTED (02:32:28 → 02:35:47, <code>/tmp/r6/t_fusion4096</code>)
+
+<code>time --side teacher</code>, status ok, layout clean, but <b>slower</b>: windows 18.775 / 18.813 / 18.445
+(mean 18.678) vs the reference&#x27;s 18.278 / 18.325 / 17.904 (mean 18.169) → side <b>0.9728×</b>,
+projected 0.9971. The hypothesis was wrong in an informative way: flashinfer&#x27;s oneshot-lamport
+fused allreduce+add+norm is built for *decode*-sized batches (the student&#x27;s bs=32), and at a
+4096-token prefill it is worse than the plain NCCL ring allreduce it replaces — while
+<code>base_runner.py:317</code> also grows the fusion workspace with the ceiling, costing bandwidth.
+The switch stays at its stock default 2048.
+
+Follow-up (<code>/tmp/r10/queue.sh</code>, detached, <b>PID 658379</b>, log <code>/tmp/r10/queue.log</code>, waits for the
+r9 queue): attack the same 22.5 % allreduce share by *count* instead of by fusion —
+<code>--chunked-prefill-size 8192</code> (≈1 chunk per ~8300-token request instead of 3, so fewer exposed
+all-reduces and larger GEMMs) and <code>--chunked-prefill-size 2048</code> (the opposite direction, which
+gets under the stock fusion ceiling with a batch size the fused kernel is actually good at).
+Teacher chunking cannot change what is computed — causal attention is exact under any chunking —
+but it may move the reduction order, so it would need a <code>check</code> before adoption.
+
+Measured (<code>/tmp/r10/t_chunk8192</code>, <code>/tmp/r10/t_chunk2048</code>, both <code>time --side teacher</code>, status ok,
+layout clean):
+
+| teacher args | windows (s) | mean | side | projected |
+|---|---|---|---|---|
+| stock (4096) | 18.278 / 18.325 / 17.904 | 18.169 | 1.0 | 1.0 |
+| <code>--chunked-prefill-size 8192</code> | 17.513 / 17.972 / 17.457 | 17.648 | <b>1.0296</b> | 1.0030 |
+| <code>--chunked-prefill-size 2048</code> | 20.042 / 20.134 / 19.734 | 19.970 | 0.9098 | 0.9899 |
+| <code>OPD_AR_FUSION_MAX_TOKENS=4096</code> | 18.775 / 18.813 / 18.445 | 18.678 | 0.9728 | 0.9971 |
+
+So the mechanism is real but small: fewer/larger chunks help (+3 %), smaller chunks hurt (−9 %),
+and forcing the fused allreduce at prefill size hurts (−2.7 %). <b>Not adopted.</b> +3 % on a side
+weighted 0.1027 is +0.3 % on the step, and it would add an unverified numerics change to the
+teacher gate — which is currently *bitwise* identical to the reference (<code>mean_abs 0.0</code>). Risking
+a zero on the whole submission for 0.3 % is a bad trade. <code>OPD_TEACHER_SERVER_ARGS</code> stays unset.</pre></details><details><summary><em class="">1.2 h</em><span>Round 4 — activation recompute and the replicated GatedDeltaNet (00:45 → …)</span></summary><pre>Two independent train-side changes, each behind its own switch, both off by default:
+
+- <code>OPD_RECOMPUTE</code> (<code>slime/backends/megatron_utils/arguments.py::_recompute_override</code>, applied at
+  the top of <code>validate_args</code>): <code>none</code> clears <code>recompute_granularity/method/num_layers</code>,
+  <code>selective</code> selects selective granularity. The recipe recomputes every layer
+  (<code>full</code>/<code>uniform</code>/1) — a second forward per micro-batch. Memory is the only reason for it and
+  the colocated engines release their occupation while the trainer runs, so this is a memory
+  strategy change, not a semantics change. Recompute replays the same forward, so the activations
+  are bitwise identical → expected N0.
+- <code>OPD_GDN_CP_HEADS</code> (<code>slime_plugins/models/qwen3_5.py</code>): the replicated <code>Qwen3_5GatedDeltaNet</code>
+  multiplies <b>every</b> head over the <b>whole</b> CP-gathered sequence on <b>every</b> rank, so its
+  projections are <code>cp_size</code>× redundant (~47 % of the step&#x27;s FLOPs at cp=2). Each CP rank now
+  selects its own head rows of <code>in_proj_qkv/conv1d/in_proj_z/in_proj_b/in_proj_a/dt_bias/A_log</code>
+  and its own columns of <code>out_proj</code>, and the partial <code>out_proj</code> sums are all-reduced over CP.
+  Parameter names, shapes and dtypes are untouched (the judge&#x27;s record gate compares them
+  exactly, which is what rules out Megatron&#x27;s native TP/CP-sharded GDN).
+  Gradient argument: <code>dist_nn.all_reduce</code>&#x27;s backward all-reduces the gradient, and each CP rank
+  only keeps its own zigzag output chunks, so the GDN backward sees the same full output gradient
+  as before and produces the partial parameter gradient of its head slice. Megatron already sums
+  partial CP gradients (<code>calculate_per_token_loss=False</code> → scale <code>1/dp_cp</code>, sum over dp_cp), so
+  the reduced gradient is unchanged. Only the fp32 reduction order inside <code>out_proj</code> differs → N1.
+
+Screening queue (<code>/tmp/r4/queue.sh</code>, detached): <code>check --side train</code> with <code>OPD_GDN_CP_HEADS=1</code>
+(<code>/tmp/r4/gdn_check</code>), then <code>time --side train</code> with <code>OPD_RECOMPUTE=none</code> (<code>/tmp/r4/recomp_time</code>),
+then <code>time --side teacher</code> with <code>OPD_AR_FUSION_MAX_TOKENS=4096</code> (<code>/tmp/r4/t_fusion4096</code>).
+Superseded by the Round-6 queue below, which runs the same jobs after the CPU-threads screen.
+
+### Result: <code>OPD_GDN_CP_HEADS</code> REJECTED (01:09 → 02:05, <code>/tmp/r4/gdn_check/check.json</code>)
+
+<b>status INCORRECT</b>, and the speed it bought was noise. Both reasons to leave it off:
+
+- Correctness: <code>grad_norm_first</code> 1.01865 vs reference 0.99674, d <b>0.0219</b> against a paired-noise
+  tolerance of <b>0.00165</b> (13× over); <code>update_direction_cos</code> <b>0.9313</b> vs min 0.9566.
+  <code>update_norm</code>, <code>exp_avg_sq_norm</code> and <code>loss_mean</code> were all inside tolerance, so this is not a
+  gradient-plumbing bug — the plumbing is right, the *precision* is not. Sharding <code>out_proj</code>&#x27;s
+  K dimension splits one fp32-accumulated 4096-term GEMM into two 2048-term GEMMs that each round
+  to bf16 <b>before</b> the CP all-reduce adds them. That extra rounding is ~1e-3 relative on the
+  GDN output, which is far above the reference&#x27;s own run-to-run noise. A bitwise-preserving
+  variant would have to keep <code>out_proj</code> unsharded (all-gather <code>core_attn_out</code> over CP first, then
+  every rank runs the full GEMM), which gives back a third of the saving.
+- Speed: train windows 58.802 / 59.953 / 59.448 (mean 59.401) → side <b>1.3414</b> vs Round 2&#x27;s
+  <b>1.3362</b> on the same base. +0.4 %, inside the reference&#x27;s 1.04 % spread. The micro-batch loop
+  went 40 s @ 1.59 mb/s → 39–42 s @ 1.64–1.70 mb/s (~5 %), not the ~23 % the FLOP count predicted.
+  The GDN&#x27;s cost is evidently dominated by the Triton chunked delta-rule recurrence and the
+  CP sequence all-gather, not by the head projections the sharding halves.
+
+The switch stays committed but <b>off</b>; <code>/submission/switches.json</code> does not set it. With the flag
+unset the wrapper takes the original replicated path.
+
+Also measured in the same run (the inert <code>OPD_STUDENT_SGLANG_ARGS</code> hook makes the judge score all
+three sides): rollout 0.996× and teacher 0.9973× — both at parity with the reference, inside their
+0.72 % / 0.22 % spreads. So the full-loop projection is dominated by the train side: train 1.34×
+against a 0.4976 weight gives 1.1425× overall.
+
+### Result: <code>OPD_RECOMPUTE=none</code> LANDED (02:19:18 → 02:32:28, <code>/tmp/r6/recomp_time/time.json</code>)
+
+<code>time --side train</code>, status ok, <b>train side speedup 1.6354</b>, projected full loop <b>1.2397</b>.
+Windows <b>49.389 / 48.814 / 47.966 s</b>, mean 48.723. <code>OPD_RECOMPUTE=none: recompute_granularity=None</code>
+is logged, so the override is confirmed active. <code>actor_train</code> <b>41.0 / 43.1 / 42.5 / 41.5 / 42.9 s</b>
+(was 51.4–52.4 s) → ~9 s saved, and the micro-batch loop rate rises 1.57–1.61 → ~1.90 mb/s.
+That is the second forward pass disappearing, as predicted. No OOM: this screen has no teacher
+resident, but the full loop still leaves ~76 GB/GPU for activations (see the offload correction
+above), and the packing screen below probes the memory ceiling directly.
+
+This lever and the CPU-threads lever are independent — one shortens the micro-batch loop, the
+other the optimizer tail — so they are expected to add: 48.7 − 6.3 ≈ 42.4 s → train ≈ 1.88×.
+
+### Correction to the Round-1 note on offload
+
+<code>launch.sh</code> passes no <code>--offload-train</code>/<code>--offload-rollout</code>, but <code>slime/utils/arguments.py:2135-2146</code>
+defaults <b>both to True under <code>--colocate</code></b>. So the colocated dance does happen: <code>sleep</code> 3.0–3.4 s
+and <code>wake_up</code> 1.5 s per step (slime timers), and the student engines&#x27; 0.45 static fraction is
+released while the trainer runs. That leaves roughly 143 − 36 (teacher) − 31 (Megatron) ≈ 76 GB per
+GPU for activations in the *full* loop, which is what makes <code>OPD_RECOMPUTE=none</code> worth screening.</pre></details><details><summary><em class="">1.4 h</em><span>Round 5 — the CPU-offloaded Adam step runs on one core (01:00 → …)</span></summary><pre><code>actor_train</code> is ~52 s while the 64-micro-batch forward/backward loop inside it is only ~40 s
+(<code>actor train: 64/64 [00:40, 1.59microbatch/s]</code>). The remaining ~11 s is grad finalization plus
+<code>optimizer.step()</code>. Sampling the actor&#x27;s threads over a whole run:
+
+- main thread 429.1 CPU-seconds, autograd thread 168.8 s, <b>all 104 other threads together 1.6 s</b>;
+- a 36 s per-thread poll never saw more than one thread above 0.3 CPU;
+- <code>py-spy</code> catches <code>core/optimizer/cpu_offloading/hybrid_optimizer.py:109 _set_sub_optimizer_grads</code>.
+
+So Ray&#x27;s <code>OMP_NUM_THREADS=1</code> for workers leaves the whole CPU Adam update on a single core of a
+96-core host, four actors each on their own core. <code>HybridDeviceOptimizer.build_cpu_optimizer_list</code>
+also builds one Adam optimizer per parameter tensor, so every update is a chain of full-tensor
+elementwise passes — exactly the shape that scales with intra-op threads.
+
+Change: <code>OPD_TRAIN_CPU_THREADS</code> (<code>slime/backends/megatron_utils/actor.py</code>, right after the
+<code>debug_rollout_only</code> guard) calls <code>torch.set_num_threads(int(...))</code>. Off by default.
+Adam is elementwise and the grad norm is computed on GPU, so the thread count cannot change any
+value → expected <b>N0</b>. Screening 24 threads (96 cores / 4 actors).
+
+Queue <code>/tmp/r6/queue.sh</code> (detached, PID 528491, log <code>/tmp/r6/queue.log</code>), one GPU lock per command,
+started after the Round-4 GDN check released the lock at 02:05:53:
+1. <code>time --side train</code> <code>OPD_TRAIN_CPU_THREADS=24</code> → <code>/tmp/r6/threads_time</code>
+2. <code>time --side train</code> <code>OPD_RECOMPUTE=none</code> → <code>/tmp/r6/recomp_time</code>
+3. <code>time --side teacher</code> <code>OPD_AR_FUSION_MAX_TOKENS=4096</code> → <code>/tmp/r6/t_fusion4096</code>
+
+(The earlier <code>/tmp/r5/queue.sh</code> was killed before it ran anything: it would have re-run the GDN
+check that was already in flight. <code>pkill -f</code> on a queue script also matches the invoking shell&#x27;s
+own command line, so the queues are stopped by explicit PID now.)
+
+### Result: <code>OPD_TRAIN_CPU_THREADS=24</code> LANDED (02:05:53 → 02:19:18, <code>/tmp/r6/threads_time/time.json</code>)
+
+<code>time --side train</code>, status ok, <b>train side speedup 1.4938</b> (Round 2&#x27;s base was 1.3362).
+Windows <b>51.759 / 56.207 / 52.255 s</b>, mean 53.407, against the reference&#x27;s 80.010 / 79.953 / 79.061.
+
+The timers confirm the diagnosis exactly — the whole win is in the optimizer, none in the loop:
+- <code>actor_train</code> steady state <b>45.4 / 45.5 / 45.9 / 45.6 s</b> (was 51.4–52.4 s) → ~6 s saved;
+- the 64-micro-batch loop is unchanged at <b>40 s, 1.57–1.61 microbatch/s</b>;
+- so the non-loop part of <code>actor_train</code> went ~11.5 s → ~5.5 s.
+
+<code>torch intra-op threads 24</code> is logged by all four actors, so the switch is confirmed active.
+Expected numerics tier <b>N0</b>: the CPU Adam update is elementwise (each element independent, so
+the thread partition cannot change a value) and Megatron&#x27;s grad-norm/clip runs on the GPU.
+24 = 96 cores / 4 colocated actors, which is why it is not oversubscribed.
+
+### Rollout: investigated, no change yet
+Decode is weight-bandwidth bound: 4.54 ms of GPU kernel time per step at bs=32 per engine
+(~4950 tok/s), of which the nvjet GEMMs are ~2.85 ms ≈ 59 % of the 4.8 TB/s peak. The remaining
+~1.9 ms/step is GPU idle. Attributing the idle gaps in the rollout trace to Python frames puts
+them in <code>decode_cuda_graph_runner.load_batch</code> (223 ms/200 steps), <code>process_batch_result_decode</code>
+(222 ms), <code>prepare_for_decode</code>/<code>alloc_for_decode</code> (163 ms) — scheduler bookkeeping, not kernels.
+<code>num_continuous_decode_steps</code>, the knob that would amortize exactly this, is declared in
+<code>srt/arg_groups/fields/schedule.py</code> but never read anywhere in this sglang tree, so it is dead.
+The sampler&#x27;s full-vocab fp32 passes (<code>div_</code> by temperature 1, <code>softmax</code>, <code>log</code>) are only ~0.19 ms
+of the 4.54 ms, so they are not worth the numerics risk. No rollout change submitted so far;
+<code>OPD_STUDENT_SGLANG_ARGS</code> (commit c22526a5) is the hook for screening engine args if a lever turns up.
+
+### Rollout fast-path inventory (what is already enabled — do not re-try these)
+
+Per-decode-step kernel budget, from <code>/tmp/r1/prof_rollout/kernel_report.md</code> (200 steps, TP-0):
+
+| kernel | calls/step | ms/step | note |
+|---|---:|---:|---|
+| <code>nvjet_…128x32_64x10_4x1_v_bz_TNT</code> | 32 | 1.044 | 96 blocks, SM cov 0.73 |
+| <code>nvjet_…64x32_64x16_4x1_v_bz_TNT</code> | 32 | 0.512 | 96 blocks, SM cov 0.70 |
+| <code>nvjet_…64x32_64x16_2x1_v_bz_splitK_TNT</code> | 32 | 0.493 | |
+| <code>fused_recurrent_gated_delta_rule_packed_decode</code> | 24 | 0.487 | one per GDN layer, SM cov 1.00 |
+| <code>flashinfer allreduce_fusion_oneshot_lamport</code> | 64 | 0.405 | 2 per layer, already fused |
+| <code>nvjet_…64x32_64x16_1x1_h_bz_splitK_TNT</code> | 24 | 0.300 | <b>3 blocks, SM cov 0.02</b> = <code>in_proj_ba</code> |
+| <code>nvjet_…64x16_64x16_1x2_h_bz_TNT</code> | 32 | 0.265 | |
+| <code>cublasLt splitKreduce</code> | 56 | 0.117 | serves both splitK GEMMs |
+| flash attn fwd (+combine) | 8 | 0.123 | one per full-attention layer |
+| sampler softmax / allgather / argmax / rand / log | 1 each | ~0.19 | eager, outside the graph |
+
+Already-enabled fast paths, verified in this tree:
+- <b>decode CUDA graph</b> (<code>disable_cuda_graph = False</code>), so the model forward is graph-replayed;
+- <b>overlap scheduling is ON</b>, not off: <code>_mamba_radix_cache_resolution</code>
+  (<code>srt/arg_groups/overrides.py:451</code>) only forces <code>disable_overlap_schedule=True</code> when it picks
+  <code>no_buffer</code>, and it picks <code>extra_buffer</code> when overlap is wanted and
+  <code>linear_attn_backend == &quot;triton&quot;</code> — which it is (the FLA Triton decode kernel is in the trace).
+  The teacher&#x27;s <code>get_server_info</code> confirms <code>disable_overlap_schedule = False</code>.
+- <b><code>in_proj_ba</code> already runs on a second CUDA stream</b> during graph capture
+  (<code>qwen3_next.py::_forward_input_proj</code>, <code>alt_stream</code>, <code>seq_len &lt; 1024</code>), so the 3-block
+  under-filled GEMM is largely *hidden* behind <code>in_proj_qkvz</code> — the union-of-kernels busy time
+  (907 ms) is 8 % below the sum of durations (987 ms). Merging b/a into qkvz would therefore
+  recover much less than its 0.300 ms/step of kernel time.
+- <code>fused_qkvzba_split_reshape_cat</code>, <code>_fused_qkvzba_causal_conv1d_update_contiguous</code>,
+  <code>_fused_qk_rmsnorm_rope_gate</code>, <code>_fused_sigmoid_mul</code>, <code>act_and_mul</code>, flashinfer RMSNorm fusion.
+
+Why the remaining rollout headroom is hard: at the fixed 32 requests/engine the GEMMs are
+weight-bandwidth bound and the two largest run on 96 of 132 SMs (M=32 → one M-tile, N=12288 →
+96 N-tiles of 128), reaching ~62 % of the 4.8 TB/s peak. Filling 132 SMs needs a tile count that
+does not divide the fixed N, and splitK=2 gives 192 blocks = 1.45 waves, i.e. the same 0.73
+utilization. Raising the batch per engine is forbidden by the fixed layout (2 engines × TP2) and
+the fixed global batch (64 samples).</pre></details><details><summary><em class="">2.4 h</em><span>Round 6 — micro-batch packing (02:06 → …)</span></summary><pre>The step runs <b>64 micro-batches for 64 samples</b>: <code>max_tokens_per_gpu 4096 × cp 2</code> = an 8192-token
+bin, and a sample is ~8300 tokens (8135 response + prompt), so <code>first_fit_pack</code>
+(<code>slime/utils/dp_schedule.py:120</code>) puts every sample in a bin of its own — the documented
+&quot;individual sample larger than the cap&quot; exception. Every micro-batch therefore pays the full
+per-micro-batch Python/launch/grad-accumulation cost for one sample&#x27;s worth of GEMMs.
+
+<b>Packing is semantically free here.</b> <code>loss.py:1623-1629</code> scales the loss by
+<code>num_microbatches / step_global_batch_size * dp_world_size(with_context_parallel=True)</code>, which
+cancels Megatron&#x27;s <code>1/num_microbatches</code> and the <code>1/dp_cp</code> gradient scale. The step&#x27;s gradient is
+<code>Σ_samples (Σ_tokens x·mask / sample_mask_sum) / 64</code> for *any* binning. <code>get_sum_of_sample_mean</code>
+(<code>cp_utils.py:54</code>) also derives each sample&#x27;s CP zigzag split from that sample&#x27;s own
+<code>total_length</code>, not from the bin, so the CP chunk boundaries do not move either. Only GEMM shapes
+and accumulation order change → N1, the same class as the landed log-prob fusion.
+The layout gate only compares <code>rank/world/tp/cp/pp/dp/ep/device/visible</code>
+(<code>judge/megatron_layout.rank*.json</code>), so the token budget is not pinned.
+
+Change: <code>OPD_MAX_TOKENS_PER_GPU</code>
+(<code>slime/backends/megatron_utils/arguments.py::_dynamic_batch_override</code>, called from
+<code>validate_args</code> next to the recompute override) sets <code>max_tokens_per_gpu</code> and
+<code>log_probs_max_tokens_per_gpu</code>. Off by default. Commit a155fe5b.
+
+Screening queue <code>/tmp/r8/queue.sh</code> (detached, PID 612655, log <code>/tmp/r8/queue.log</code>), waits for the
+Round-6 queue then runs <code>time --side train</code> for 16384 (≈3 samples/bin → ~22 micro-batches) and
+32768 (≈7/bin → ~10): <code>/tmp/r8/pack16384</code>, <code>/tmp/r8/pack32768</code>.
+Note this lever and <code>OPD_RECOMPUTE=none</code> compete for the same activation memory, so they are
+screened separately and only the better one goes into the final switch set.
+
+Superseded before it ran anything: once <code>OPD_RECOMPUTE=none</code> measured 1.6354× on its own, the
+useful question became packing&#x27;s *marginal* contribution on top of the best base, not packing
+alone. The idle queue was stopped by explicit process group (<code>kill -TERM -- -612658</code>; no bench
+child had started) and replaced by <code>/tmp/r9/queue.sh</code> (detached, <b>PID 648713</b>, log
+<code>/tmp/r9/queue.log</code>), which waits for the Round-6 queue and then runs <code>time --side train</code> for:
+1. <code>/tmp/r9/combo</code> — threads 24 + recompute none (<code>/tmp/r9/sw_combo.json</code>), the leading candidate;
+2. <code>/tmp/r9/combo_pack</code> — that plus <code>OPD_MAX_TOKENS_PER_GPU=16384</code> (<code>/tmp/r9/sw_combo_pack.json</code>),
+   which also tests whether the two memory-hungry levers fit together.
+
+Process note: <code>pgrep -f &#x27;bash /tmp/rN/queue.sh&#x27;</code> run from a shell whose own command line contains
+that string returns the *invoking shell&#x27;s* PID, not the queue&#x27;s. Read the queue&#x27;s real PID from
+<code>ps -eo pid,pgid,cmd</code> instead.
+
+### Result: <code>OPD_MAX_TOKENS_PER_GPU</code> REJECTED — OOM (02:48:43 → 02:52:07, <code>/tmp/r9/combo_pack</code>)
+
+<code>time --side train</code> with the best base plus <code>OPD_MAX_TOKENS_PER_GPU=16384</code> (≈3 samples/bin,
+~12450 tokens/GPU) died: `torch.OutOfMemoryError ... Tried to allocate 508.00 MiB. GPU 2 has a
+total capacity of 139.80 GiB of which 446.25 MiB is free ... 135.21 GiB is allocated by PyTorch`.
+Status ERROR, rc 1, no windows. The switch stays off.
+
+Useful side effect: this bounds the activation footprint. 135.2 GiB allocated − 30.9 GiB of
+params/grads ≈ <b>104 GiB of activations at ~12450 tokens/GPU</b>, so ≈ <b>35 GiB at the stock 4096</b>
+budget. In the full loop the trainer has 139.8 − ~35 (teacher&#x27;s 0.25 static fraction) ≈ 105 GiB,
+and needs 33 + 35 ≈ 68 GiB → ~37 GiB of headroom for <code>OPD_RECOMPUTE=none</code>. That is why the
+recompute lever is safe but packing on top of it is not: they compete for the same memory, and
+recompute buys far more (1.6354× vs packing&#x27;s untestable claim).</pre></details><details><summary><em class="">3.0 h</em><span>Round 7 — the two independent train levers together (02:36 → …)</span></summary><pre><code>/tmp/r9/combo</code> (<code>time --side train</code>, <code>/tmp/r9/sw_combo.json</code> = Round-2 base +
+<code>OPD_TRAIN_CPU_THREADS=24</code> + <code>OPD_RECOMPUTE=none</code>), 02:36:38 → 02:48:43, status ok:
+
+| config | train windows (s) | mean | <code>actor_train</code> | mb loop | train side | projected |
+|---|---|---|---|---|---|---|
+| reference | 80.010 / 79.953 / 79.061 | 79.675 | — | — | 1.0 | 1.0 |
+| Round-2 base | 63.269 / 58.242 / 57.660 | 59.724 | 51.4–52.4 | 40 s @ 1.59 | 1.3362 | 1.1431 |
+| + threads 24 | 51.759 / 56.207 / 52.255 | 53.407 | 45.4–45.9 | 40 s @ 1.61 | 1.4938 | 1.1969 |
+| + recompute none | 49.389 / 48.814 / 47.966 | 48.723 | 41.0–43.1 | ~34 s @ 1.90 | 1.6354 | 1.2397 |
+| <b>both</b> | <b>45.806 / 43.829 / 42.973</b> | <b>44.203</b> | <b>35.3–39.7</b> | <b>31–32 s @ 2.03</b> | <b>1.8036</b> | <b>1.2849</b> |
+
+They add almost exactly (−6.3 s and −11.0 s separately, −15.5 s together), which is the expected
+result for one lever that shortens the optimizer tail and one that shortens the micro-batch loop.
+<code>/submission/switches.json</code> now carries this set.</pre></details><details><summary><em class="">4.3 h</em><span>Round 8 — the colocated offload dance (03:56 → …)</span></summary><pre>Full check <code>/tmp/r11/final</code> passed at 1.2884×, so the trees were free to edit again. Plan written
+up front in <code>/tmp/r12/plan.md</code> while the check held the GPUs.
+
+Hotspot: with the loop now 31.5 s, <code>sleep</code> (3.0–3.4 s) + <code>wake_up</code> (1.5 s) is ~4.5 s = <b>10 %</b> of
+the 44 s train window, and it is pure memory strategy. Composition of the window:
+loop 31.5 s (71 %), grad finalize + CPU Adam ~5 s (11 %), sleep 3.2 s (7 %), wake_up 1.5 s (3 %),
+rest of <code>train_wait</code> ~1 s (2 %).
+
+<code>clear_memory</code> (<code>slime/utils/memory_utils.py</code>) is the prime suspect and is called by both:
+<code>accelerator.synchronize()</code> + <code>gc.collect()</code> + <code>accelerator.empty_cache()</code> + optionally
+<code>torch._C._host_emptyCache()</code>. Suspicions, in order: the full Python GC over an actor holding the
+Megatron model, the per-tensor Adam sub-optimizers and the rollout batch; <code>cudaFree</code> over ~34 GiB
+of activation cache; and dropping the <b>pinned host</b> cache that the CPU-offloaded optimizer
+re-allocates every step under <code>--overlap-cpu-optimizer-d2h-h2d</code> (host RAM is not scarce: 2 TB
+total, ~1.65 TB available).
+
+Two switches, both off by default, both <b>N0</b> (host-memory caching and logging; no value touched):
+- <code>OPD_OFFLOAD_TIMING=1</code> logs the four component durations of <code>clear_memory</code>. Three
+  <code>time.perf_counter()</code> reads (~150 ns) are unconditional so the body is not duplicated; the
+  logging is gated. No GPU work, so it cannot move the measurement.
+- <code>OPD_KEEP_PINNED_CACHE=1</code> skips <code>torch._C._host_emptyCache()</code>. Its only caller with
+  <code>clear_host_memory=True</code> is <code>actor.sleep</code> (<code>actor.py:194</code>), so the blast radius is exactly the
+  per-step offload. The pinned blocks are reused every step, so the footprint plateaus.
+
+Deliberately *not* done: dropping <code>empty_cache()</code> from <code>sleep</code> (the engines&#x27; 0.45 static fraction
+must fit when they resume, so the untagged activation cache has to go back to the driver);
+dropping <code>gc.collect()</code> (it breaks the cycles holding GPU tensors — risks growth and a full-loop
+OOM); keeping process groups alive across <code>torch_memory_saver.pause()</code> (NCCL&#x27;s buffers would be
+allocated inside the paused region and then discarded).
+
+Commit 45525a7d. Screening <code>time --side train</code> with both on: detached <b>PID 770803</b>, log
+<code>/tmp/r12/offload.log</code>, out <code>/tmp/r12/offload</code>, started 04:03:17. One run gives both the breakdown
+and the speedup against the 44.203 s / 43.505 s baselines.
+
+### Result: <code>OPD_KEEP_PINNED_CACHE</code> REJECTED, but the instrumentation found the real cost
+
+<code>/tmp/r12/offload/time.json</code>, 04:03:30 → 04:15:21, status ok: windows 46.276 / 43.317 / 42.834,
+mean <b>44.142</b> vs the combo&#x27;s 44.203 → side 1.8068, projected 1.2857. <b>No gain</b> (0.1 %, noise).
+The switch stays off. The reason is unambiguous in the new breakdown:
+
+```
+clear_memory(host=True):  sync 0.000s gc 0.605s empty_cache 0.120s host_emptyCache 0.000s
+clear_memory(host=False): sync 0.000s gc 0.640s empty_cache 0.000s host_emptyCache 0.000s
+clear_memory(host=True):  sync 0.000s gc 0.788s empty_cache 0.076s host_emptyCache 0.000s
+clear_memory(host=False): sync 0.000s gc 0.615s empty_cache 0.000s host_emptyCache 0.000s
+```
+
+- <code>host_emptyCache</code> is <b>0.000 s</b> — the hypothesis was simply wrong; there is nothing to save.
+- <code>synchronize</code> is 0.000 s — the GPU is already idle at the offload boundary.
+- <code>empty_cache</code> is only 0.08–0.12 s in <code>sleep</code> and 0.000 s in <code>wake_up</code>.
+- <b><code>gc.collect()</code> is 0.61–0.79 s per call, and it runs twice per step ≈ 1.25 s/step.</b> That is
+  ~2.8 % of the whole train window and ~28 % of the offload dance, spent walking a Python object
+  graph that is almost entirely immortal (the model, and one Adam sub-optimizer per parameter
+  tensor).
+
+<code>sleep</code> totals 3.5–3.8 s and <code>wake_up</code> 1.5 s, so ~2.8 s of <code>sleep</code> is still outside <code>clear_memory</code>
+(<code>destroy_process_groups</code>, <code>torch_memory_saver.pause</code>, <code>reset_cuda_stack_size</code>, <code>print_memory</code>).</pre></details><details><summary><em class="">4.7 h</em><span>Round 9 — freeze the immortal GC graph (04:19 → …)</span></summary><pre>Directly attacks the measured 1.25 s/step. <code>OPD_GC_FREEZE=1</code>
+(<code>slime/backends/megatron_utils/actor.py</code>, at the end of <code>init</code>, after <code>prof.on_init_end()</code>) runs
+one <code>gc.collect()</code> and then <b><code>gc.freeze()</code></b>, which moves every currently tracked object into
+CPython&#x27;s permanent generation, where all later collections ignore it. The model and the
+per-tensor Adam sub-optimizers are exactly the immortal population that dominates the walk, and
+by the end of <code>init</code> they all exist. Per-step garbage is allocated *after* the freeze, so it is
+still collected normally — this is not <code>gc.disable()</code>, and it does not risk the growth that
+dropping <code>gc.collect()</code> would.
+
+<b>N0</b>: garbage collection cannot change a value.
+Note <code>gc.freeze()</code> returns <code>None</code> on CPython 3.12, so the log reports <code>len(gc.get_objects())</code>
+taken just before the freeze instead.
+
+Also added, under the existing <code>OPD_OFFLOAD_TIMING</code> flag: <code>_OffloadClock</code>, a per-component
+stopwatch for <code>sleep</code>/<code>wake_up</code> (inert null-object when the flag is off), to account for the
+remaining ~2.8 s of <code>sleep</code>.
+
+Commit 0b191710. Screening <code>time --side train</code> with <code>OPD_GC_FREEZE=1</code> + <code>OPD_OFFLOAD_TIMING=1</code>
+(and <b>not</b> the rejected pinned-cache switch): detached <b>PID 790371</b>, log
+<code>/tmp/r13/gcfreeze.log</code>, out <code>/tmp/r13/gcfreeze</code>, started 04:26:57.
+
+### Result: <code>OPD_GC_FREEZE</code> ADOPTED (04:27:09 → 04:38:35, <code>/tmp/r13/gcfreeze/time.json</code>)
+
+Status ok. <code>OPD_GC_FREEZE=1: froze 1260655 tracked objects into the permanent generation</code> — 1.26 M
+immortal objects, which is exactly why each collection cost 0.65 s.
+
+The component effect is unambiguous, a <b>10× reduction</b>:
+
+| | before | after |
+|---|---|---|
+| <code>gc.collect()</code> in <code>clear_memory</code> | 0.605–0.788 s | <b>0.060–0.076 s</b> |
+| <code>Timer sleep</code> | 3.5–3.8 s | <b>3.1–3.2 s</b> |
+| <code>Timer wake_up</code> | 1.5 s | <b>0.9–1.0 s</b> |
+
+End to end: windows 42.560 / 43.324 / 44.882, mean <b>43.589</b>, side <b>1.829</b>, projected <b>1.2912</b>.
+Honest caveat: that is only +1.4 % over the combo&#x27;s <code>time</code> screen (44.203) and *level* with the
+combo&#x27;s <code>check</code> windows (43.505) — the ~1 s saving is at the edge of this host&#x27;s 1–2 % run-to-run
+noise, and the third window (44.882) is an outlier. It is adopted on the strength of the component
+measurement plus the fact that it cannot cost anything: freezing only removes work from later
+collections, its one-off cost is at init (outside every timed window), and it is N0.
+
+### The offload dance, fully accounted (new <code>_OffloadClock</code> marks)
+
+```
+sleep   : clear_memory 0.152-0.177  print_memory 0.001  destroy_process_groups 1.625-1.720
+          tms_pause 0.921-1.267     reset_cuda_stack_size 0.001  print_memory2 0.001
+wake_up : print_memory 0.001  tms_resume 0.357-0.423  clear_memory 0.057-0.067
+          reload_process_groups 0.085-0.141  switch_model 0.380-0.427  print_memory2 0.001
+```
+
+So after the GC fix the dance is dominated by <b><code>destroy_process_groups</code> ~1.7 s</b> and
+<b><code>torch_memory_saver.pause</code> ~1.1 s</b>, not by Python GC any more.
+
+<code>destroy_process_groups</code> is *load-bearing*, not waste: <code>_destroy_default_accelerator_process_group</code>
+(<code>slime/utils/reloadable_process_group.py</code>) destroys WORLD so PyTorch shuts down every NCCL
+backend and <b>releases all communicator memory</b>, which the engines need when they resume. It
+cannot simply be skipped. The cheap fix would be to make teardown use <code>ncclCommAbort</code> instead of
+the blocking <code>ncclCommDestroy</code>, but **<code>TORCH_NCCL_ABORT_IN_DESTROY_PG</code> does not exist in this
+torch (2.13.0+cu130)** — checked every <code>torch/lib/*.so</code>. Calling <code>abort()</code> on the subgroups by hand
+before destroying WORLD is possible, but a mistake there hangs the job, and the prize is ~1.7 s of
+43.5 s (~1.5 % on the step). <b>Not attempted</b>: with a passing 1.2884× submission in hand, risking
+a hang for that is a bad trade.</pre></details><details><summary><em class="">7.0 h</em><span>Round 10 — kernel attribution of the micro-batch loop, and the FlashQLA GDN kernel (05:57 → 06:41)</span></summary><pre>The loop is 74 % of the train window and my FLOP model had already been wrong twice (GDN
+projections, <code>host_emptyCache</code>), so this round bought <b>real attribution</b> before touching anything.
+
+<b>Experiment tree.</b> <code>/tmp/exp</code> holds a copy of <code>slime</code> plus symlinks to the unchanged <code>sglang</code> and
+<code>Megatron-LM</code>, so <code>/submission</code> stayed at the passing 1.3007× state throughout. <code>bench.py time</code>
+accepts <code>--tree /tmp/exp</code> and <code>--config &lt;any switches file&gt;</code>, so the experiment carried its own
+environment and <code>/submission/switches.json</code> was never touched.
+
+<b>Instrument.</b> <code>bench.py profile --side train</code> is unusable here (kineto&#x27;s chrome-trace export never
+finishes), so I added <code>OPD_MODULE_TIMING=&lt;rollout ids|all&gt;</code>: <code>torch.cuda.Event</code> pairs on forward and
+full-backward hooks, read back once per step, <b>no trace export</b>. Buckets are <code>layer</code>,
+<code>layer.&lt;child&gt;[Class]</code>, <code>layer.&lt;child&gt;.&lt;leaf&gt;</code>; the class name is what separates the 24 gated-delta
+layers from the 8 full-attention ones — both hang off the same <code>self_attention</code> attribute.
+
+### Attribution (rank 0, steady step, <code>/tmp/r15/prof</code> and <code>/tmp/r15/qla_run</code>)
+
+| bucket | fwd | bwd | total | calls |
+|---|---|---|---|---|
+| <code>self_attention[Attention]</code> — the 24 <b>GDN</b> layers | 8.21 s | 12.26 s | <b>20.46 s</b> | 24×63 |
+| <code>mlp[MLP]</code> | 3.29 s | 5.14 s | 8.43 s | 32×63 |
+| <code>self_attention[SelfAttention]</code> — the 8 full-attn layers | 2.58 s | 1.95 s | 4.53 s | 8×63 |
+| <code>embedding</code> | 1.94 s | — | 1.94 s | 63 |
+| <code>output_layer</code> | 0.41 s | 0.77 s | 1.18 s | 63 |
+
+Inside the GDN wrapper: <code>linear_attn</code> fwd 4.63 s, <code>input_layernorm</code> 2.84 s, and ~2.8 s of the
+wrapper&#x27;s forward is the CP all-gather in <code>hf_attention.py</code>. (<code>linear_attn</code>&#x27;s own backward span
+reads ~0 — its full-backward hook fires on outputs, so only the wrapper&#x27;s backward is trustworthy.)
+
+<b>So the replicated GDN is ~60 % of the loop, not the ~30 % the FLOP count suggested.</b> Armed hooks
+cost ~5 s/step (mean 47.745 vs 42.432 clean), so later runs arm an *untimed* step only.
+
+### Result: <code>OPD_GDN_FLASHQLA</code> REJECTED (<code>/tmp/r15/qla_clean/time.json</code>)
+
+<code>fla</code> 0.5.2 ships a FlashQLA backend (<code>fla/ops/gated_delta_rule/backends/flash_qla.py</code>,
+<code>default_enable=True</code>, priority 3) and <code>tilelang</code> 0.1.12 was already installed; only <code>flash_qla</code>
+was missing. Its verifier matches this recipe exactly (SM90, bf16, K=V=128). Installed
+<code>flash-qla==0.1.3</code> with <code>--no-deps</code> into <b><code>/opt/candidate-env</code> only</b> — <code>bench.json</code>&#x27;s
+<code>candidate_python</code>; the reference interpreter <code>/opt/sglang</code> still reports it MISSING, and sglang&#x27;s
+CUDA GDN path never imports <code>fla</code>, so rollout and teacher are untouched by construction.
+
+| run | windows (s) | mean | train side |
+|---|---|---|---|
+| current best (passing check) | 41.987 / 43.354 / 41.955 | <b>42.432</b> | 1.8781 |
+| FlashQLA, no hooks | 40.846 / 42.003 / 49.146 | <b>43.998</b> | 1.8237 |
+
+<b>Slower.</b> Per-step <code>actor_train</code>: 34.9 / 34.6 / 35.5 / 36.5 / 39.8 / 41.6 — the early steps beat
+the baseline but the *timed* late steps do not, and one step paid 75.5 s with <b>zero</b> TileLang
+compiles, i.e. a runtime shape decision (<code>flash_qla/.../cp/autocp/decision.py</code>) that no cache covers.
+Numerics are equivalent: train/rollout logprob mismatch per step differs by ≤1e-4
+(0.00822…0.03035 vs 0.00826…0.03037), so this was a speed rejection, not a correctness one.
+
+The switch is committed <b>off</b>, and it is now load-bearing in the other direction: with the package
+installed, <code>fla</code> would auto-enable FlashQLA, so the plugin pins <code>FLA_FLASH_QLA=0</code> unless asked.</pre></details><details><summary><em class="">1.2 h</em><span>Why CP head sharding bought nothing (Round 4&#x27;s puzzle, now explained)</span></summary><pre>The state scan&#x27;s grid is <code>(cdiv(V, BV), N * HV)</code>
+(<code>fla/ops/common/chunk_delta_h.py:710</code>), with <code>BV</code> autotuned from <code>{32, 64}</code> on Hopper. At <code>BV=32</code>,
+<code>V=128</code>, <code>HV=32</code> and one sample per bin that is <b>128 blocks on 132 SMs — a single wave</b>. Halving
+the heads per rank halves the work *and* halves the block count to 64, which is still one wave, so
+per-rank wall time barely moves — while adding a full-width CP all-reduce per layer. That is exactly
+the +0.4 % measured. <b>Below one wave, sharding work across ranks buys nothing</b>; the scan is
+latency-bound on its sequential chunk loop, not FLOP-bound. Round 11 attacks occupancy instead.</pre></details><details><summary><em class="">7.6 h</em><span>Round 11 — bin occupancy, not bin cap (06:44 → 07:18)</span></summary><pre>Round 6 rejected packing at 16384 (OOM) and concluded packing was a dead end. That conclusion was
+wrong: it never checked <b>how many samples actually land in a bin</b>.
+
+<code>dp_schedule.py</code>&#x27;s invariant: a bin holds <code>&lt;= max_tokens_per_gpu * cp_size</code> tokens, **except that a
+sample larger than the cap lands alone**. Responses average 8135 tokens, so a whole sample is
+~8300 tokens with its prompt:
+
+| <code>max_tokens_per_gpu</code> | bin cap | samples/bin | micro-batches | verdict |
+|---|---|---|---|---|
+| 4096 (stock) | 8192 | 1 (sample &gt; cap!) | 63 | baseline |
+| 8192 | 16384 | still 1 (2×8300 = 16600 &gt; cap) | 57 | <b>46.261 s — slower</b> |
+| 8400 | 16800 | <b>2</b> | <b>32</b> | <b>39.063 s — WIN</b> |
+| 12288 | 24576 | 3 | 21 | OOM |
+
+So raising the cap from 4096 to 8192 bought *nothing* — the cap moved but the occupancy did not.
+<b>8400 is the first cap that admits two samples</b>, and it halves the micro-batch count.
+
+### Result: <code>OPD_MAX_TOKENS_PER_GPU=8400</code> ADOPTED (<code>/tmp/r16/pack8400/time.json</code>)
+
+| | windows (s) | mean | train side | projected step |
+|---|---|---|---|---|
+| previous best | 41.987 / 43.354 / 41.955 | 42.432 | 1.8781 | 1.3007 |
+| <b>+ packing 8400</b> | <b>39.012 / 39.477 / 38.699</b> | <b>39.063</b> | <b>2.0397</b> | <b>1.3398</b> |
+
+<code>actor_train</code> per step: 33.8 / 33.1 / 33.8 / 33.1 s. The windows are also <b>tighter</b> than the
+baseline&#x27;s (spread 0.8 s vs 1.4 s), because 32 uniform two-sample bins replace 63 ragged ones.
+
+Semantics: unchanged, as established in Round 6 — <code>loss.py</code> scales by
+<code>num_microbatches / step_global_batch_size</code>, and <code>get_sum_of_sample_mean</code> derives each sample&#x27;s CP
+zigzag split from its own <code>total_length</code>, not the bin&#x27;s. Confirmed empirically: the per-step
+train/rollout logprob mismatch is identical to the baseline to 5 decimals
+(0.00826 / 0.00929 / 0.00951 / 0.01191 / 0.01743 / 0.02091 / 0.02705 / 0.03040).
+
+Why it pays — and why it is only +8.6 %, not +50 %: at <code>BV=32</code> the scan goes from 128 blocks
+(one wave) to 256 (two waves), so its wall time per bin *doubles* while the bin count halves —
+the scan&#x27;s total is unchanged. The gain comes from everything around it: half the kernel launches,
+half the CP all-gathers and SP gathers/scatters, half the Python/autograd overhead, and GEMMs at
+M≈8300 instead of M≈4150. The scan itself is now <b>above</b> one wave, which is what makes rank-side
+sharding worth revisiting (see below).
+
+### The memory wall is the logits gradient, not the activations
+
+12288 OOM&#x27;d at <code>ppo_utils.py:925</code>, <code>grad_input = torch.empty_like(logits)</code> — <b>5.68 GiB</b>, i.e.
+12288 tokens × 124160 vocab/TP × fp32. <code>_ChunkedLogProbEntropy</code> chunks the softmax workspace but
+still materialises the full logits <b>and</b> its gradient. The failed allocation had 14.03 GiB
+reserved-but-unallocated, so fragmentation is a real part of the wall.
+
+### Result: 12288 + <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> REJECTED
+
+<code>PYTORCH_CUDA_ALLOC_CONF</code> is <b>not</b> in <code>bench.json reserved_env</code>, so it is a legal switch. It does
+fix the OOM — 29 micro-batches, no allocation failure — but it is <b>slower</b>:
+<code>/tmp/r16/pack12288es</code> windows 45.437 / 43.631 / 44.919, mean <b>44.662 s</b>, train 1.7845×.
+Per-step <code>actor_train</code> 35.0–38.8 s against 8400&#x27;s 33.1–33.8 s.
+
+The reason is visible in the bin count: cap 24576 admits three ~8300-token samples only when they
+are short, so most bins still hold two and the count only falls 32 → 29, while the occasional
+three-sample bin pushes the scan to three waves and the logits gradient to 5.7 GiB. **8400 is the
+sweet spot**: the smallest cap that reliably doubles occupancy, and the largest that stays at two.
+
+### Next: rank-side head sharding is worth revisiting *at the new occupancy*
+
+Round 4&#x27;s <code>OPD_GDN_CP_HEADS</code> was measured at one sample per bin, i.e. below one wave, where it
+cannot pay. At two samples per bin the scan is at two waves, so halving the heads per rank would
+bring it back to one. Two things to fix before re-testing: the sharded conv path passed
+<code>bias=self.conv1d.bias</code> <b>unsharded</b> while slicing the weight rows, which is a genuine bug and a
+better explanation for the 2 % <code>grad_norm</code> error than bf16 rounding; and the partial-sum combine
+should ride the existing SP reduce-scatter rather than a new all-reduce.</pre></details><details><summary><em class="">9.7 h</em><span>Round 12 — shard the replicated GDN heads over TP (07:50 → 09:19)</span></summary><pre>Round 4 tried this across CP and got INCORRECT + no speed. Two things changed: the occupancy
+(Round 11 put the scan above one wave, where halving heads per rank actually shortens it), and the
+<b>combine</b>, which is where Round 4 lost its precision.
+
+### The design that keeps the forward exact
+
+Every per-head operation in the GDN — the projections&#x27; rows, the depthwise conv&#x27;s channels, the
+chunk scan, the gated RMSNorm (which normalises over <code>head_v_dim</code>, i.e. *within* a head) — is
+independent across heads. So a rank computing 16 of the 32 heads produces <b>bit-for-bit</b> what the
+replicated path produces for those heads. The only place heads meet is <code>out_proj</code>, which reduces
+over all <code>num_v_heads * head_v_dim</code> columns.
+
+Round 4 sliced <code>out_proj</code> too and summed two bf16 partials with an all-reduce — two extra roundings
+per layer, compounding over 24 layers, which is what produced its 2 % <code>grad_norm</code> error. This version
+instead <b>re-gathers the heads along the last dim before <code>out_proj</code></b>
+(<code>gather_from_tensor_model_parallel_region</code>, whose backward splits), so that GEMM keeps the
+reference&#x27;s full-width reduction and its single rounding. The layer output is therefore still
+replicated and the SP scatter is untouched; only the *input gradient* is partial, and it is summed
+by switching the SP gather&#x27;s backward from split to reduce-scatter (<code>tensor_parallel_output_grad</code>).
+
+Sharded parameters are marked <code>param.sequence_parallel = True</code> so Megatron&#x27;s
+<code>finalize_model_grads</code> sums their gradients over TP. <code>out_proj.weight</code> is deliberately <b>excluded</b>:
+it still runs full-width, its gradient is already replicated, and summing it would double it. The
+wrapper&#x27;s <code>input_layernorm.weight</code> is included, because its output gradient is the sharded GDN&#x27;s
+partial input gradient.
+
+### Result: <code>OPD_GDN_TP_HEADS=1</code> ADOPTED (<code>/tmp/r18/tpheads/check.json</code>, all three sides judged)
+
+<b>PASS, tier N1, speedup 1.3749</b> (against 1.3246 for the same tree without the switch).
+
+| | windows (s) | mean | train side |
+|---|---|---|---|
+| Round 11 (packing only) | 39.744 / 39.980 / 39.547 | 39.757 | 2.0040 |
+| <b>+ TP head sharding</b> | <b>35.723 / 33.627 / 34.896</b> | <b>34.749</b> | <b>2.2943</b> |
+
+<code>actor_train</code> steady steps <b>27.7 / 28.1 / 28.3 / 28.7 s</b> against 33.1–33.8 s. (The first two steps
+read 32.5 s and 44.2 s — warm-up and a shape compile; judging from those alone would have wrongly
+rejected this as a ~1 s change.)
+
+Numerics, all within tolerance:
+
+| endpoint | d | tolerance |
+|---|---|---|
+| update_norm | −3.46e-5 | 1.20e-3 |
+| exp_avg_sq_norm | +1.46e-5 | 4.36e-4 |
+| loss_mean | +9.13e-6 | 3.75e-5 |
+| grad_norm_first | <b>+4.77e-6</b> | 1.65e-3 |
+| update_direction_cos | <b>0.96142</b> | min 0.95660 |
+
+<code>grad_norm_first</code> is 4600× tighter than Round 4&#x27;s 0.0219 — the exact-forward design did what it was
+meant to do. <b>But <code>update_direction_cos</code> is the one to watch</b>: 0.96142 against a 0.95660 floor is
+a 0.005 margin, where the unsharded path sits at 0.99338. The residual cost is the bf16 reduce-scatter
+of the input gradient, which is inherent to splitting that reduction. <code>/tmp/r19/final</code> is a
+confirming full check on the promoted tree, which also gives a second sample of that cosine.</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_opd-ds.html"><small>← 1.43×</small><strong>DeepSeek V4.1 Flash-1017</strong></a><a class="up" href="slime_opd.html">↑ Slime OPD</a><a class="next" href="t-slime_opd-mm.html"><small>1.40× →</small><strong>MiniMax M3.1 Flash</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_opd-opus.html", "pts": [[0.532, 1.116, 2], [0.761, 1.39, 3], [2.833, 1.39, 4], [3.465, 1.44, 6], [4.781, 1.496, 7], [7.52, 1.63, 8]], "end": 10.0, "final": 1.6416, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_opd-sonnet.html", "pts": [[2.209, 1.208, 2], [4.303, 1.208, 3], [6.164, 1.676, 4], [6.95, 1.676, 5]], "end": 10.0, "final": 1.7587, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_opd-haiku.html", "pts": [[0.842, 1.21, 1], [9.901, 1.245, 3]], "end": 10.002, "final": 1.2273, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-slime_opd-astra62.html", "pts": [[1.477, 1.199, 3], [2.849, 1.27, 4], [5.842, 1.27, 7], [5.908, 1.455, 9]], "end": 10.0, "final": 1.463, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-slime_opd-sol62.html", "pts": [[3.101, 1.308, 7], [4.13, 1.315, 9], [9.673, 1.315, 18]], "end": 10.0, "final": 1.3746, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-slime_opd-gneon.html", "pts": [[7.201, 1.859, 6], [9.655, 2.005, 7]], "end": 9.998, "final": 1.9452, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-slime_opd-gcarbon.html", "pts": [[6.251, 1.36, 5], [9.309, 1.46, 6]], "end": 9.998, "final": 1.4962, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-slime_opd-ghydrogen.html", "pts": [[1.587, 1.138, 1]], "end": 9.999, "final": 1.0964, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-slime_opd-qwen4.html", "pts": [[9.657, 1.375, 12]], "end": 10.0, "final": 1.4004, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-slime_opd-step5.html", "pts": [[0.923, 1.263, 2], [0.923, 1.298, 3], [2.089, 1.298, 5], [2.745, 1.298, 6]], "end": 10.292, "final": 1.3252, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-slime_opd-hy4.html", "pts": [[1.258, 1.085, 2], [1.624, 1.085, 3], [2.797, 1.136, 5], [5.668, 1.136, 6], [5.96, 1.149, 7], [6.482, 1.149, 9], [6.937, 1.149, 10], [6.937, 1.149, 11], [7.462, 1.149, 12], [7.462, 1.149, 13], [7.761, 1.149, 14], [8.864, 1.149, 15], [9.936, 1.149, 16]], "end": 10.0, "final": 1.0677, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_opd-astra.html", "pts": [[0.704, 1.025, 1], [2.689, 1.175, 6], [3.29, 1.175, 7], [5.072, 1.2, 8], [5.072, 1.204, 10], [6.257, 1.204, 13], [6.344, 1.204, 14], [6.869, 1.375, 15]], "end": 10.0, "final": 1.3044, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_opd-glm.html", "pts": [[0.171, 1.39, 1], [1.038, 1.39, 2], [1.272, 1.424, 3], [1.479, 1.581, 4], [2.48, 1.581, 5], [3.956, 1.581, 7], [4.436, 1.581, 8], [4.85, 1.581, 9], [7.574, 1.581, 14], [7.917, 1.581, 15], [9.001, 1.581, 17]], "end": 10.0, "final": 1.4556, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_opd-kimi.html", "pts": [[1.477, 1.139, 5], [2.246, 1.427, 6], [2.841, 1.427, 7], [3.126, 1.427, 8], [4.521, 1.427, 11], [4.816, 1.427, 12], [5.084, 1.427, 13], [5.429, 1.427, 14], [5.743, 1.427, 15], [6.184, 1.427, 16], [6.555, 1.427, 17], [6.589, 1.427, 18], [7.546, 1.575, 19], [8.333, 1.575, 20], [9.421, 1.575, 21], [9.513, 1.575, 22], [9.635, 1.575, 23]], "end": 10.008, "final": 1.5881, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_opd-ds.html", "pts": [[1.107, 1.169, 2], [2.487, 1.169, 3], [4.183, 1.169, 6], [5.366, 1.169, 8], [6.826, 1.255, 9], [9.157, 1.434, 12]], "end": 10.0, "final": 1.4336, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_opd-mm.html", "pts": [[0.945, 1.109, 1], [1.555, 1.368, 4], [2.15, 1.368, 6], [3.524, 1.368, 8], [4.451, 1.368, 9], [4.451, 1.39, 10], [5.957, 1.39, 12], [6.179, 1.39, 13], [6.394, 1.39, 14], [6.799, 1.39, 15], [6.799, 1.489, 16], [7.218, 1.489, 17], [7.992, 1.489, 20], [8.226, 1.489, 21], [8.917, 1.503, 23], [9.234, 1.503, 25]], "end": 10.0, "final": 1.3997, "rej": false}], "focus": "qwen4", "xmax": 10.5, "aria": "Qwen4-Max on Slime OPD: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>

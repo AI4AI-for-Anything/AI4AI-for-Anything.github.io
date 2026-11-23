@@ -1,0 +1,1397 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen4-Max · NanoChat · RSI-Infra Bench</title><meta name="description" content="Qwen4-Max on NanoChat: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11230113"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="on">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="nanochat.html">NanoChat</a><span>/</span><b>Qwen4-Max</b></nav><h1>Qwen4-Max <em>1.04×</em></h1><p class="lede">Harness: Qwen Code · switches: <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> <code>TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1</code> <code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL=134217728</code> <code>NANOCHAT_FP8_CACHE_WEIGHT=1</code> <code>NANOCHAT_FP8_FAST_ACCUM_DGRAD_MAX_N=1536</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.04×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.05×</dd></div><div class=""><dt>Rounds</dt><dd>35</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost</dt><dd>$17.4</dd></div><div class=""><dt>Input tokens · 92.2% cached</dt><dd>81 M</dd></div><div class=""><dt>Output tokens</dt><dd>0.5 M</dd></div><div class=""><dt>Requests</dt><dd>632</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-nanochat-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>1.26×</small></a><a class="chip" data-k="ghydrogen" href="t-nanochat-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.22×</small></a><a class="chip" data-k="sonnet" href="t-nanochat-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.21×</small></a><a class="chip" data-k="opus" href="t-nanochat-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.20×</small></a><a class="chip" data-k="gcarbon" href="t-nanochat-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>1.19×</small></a><a class="chip" data-k="astra62" href="t-nanochat-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.17×</small></a><a class="chip" data-k="astra" href="t-nanochat-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.13×</small></a><a class="chip" data-k="mm" href="t-nanochat-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.13×</small></a><a class="chip" data-k="sol62" href="t-nanochat-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.10×</small></a><a class="chip" data-k="haiku" href="t-nanochat-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.08×</small></a><a class="chip" data-k="step5" href="t-nanochat-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.08×</small></a><a class="chip" data-k="ds" href="t-nanochat-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.06×</small></a><a class="chip" data-k="glm" href="t-nanochat-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.05×</small></a><a class="chip" data-k="hy4" href="t-nanochat-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.04×</small></a><a class="chip self" data-k="qwen4" href="t-nanochat-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.04×</small></a><a class="chip" data-k="kimi" href="t-nanochat-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.03×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Micro-batch regrouping 4×16 → 2×32</dt><dd>✗ considered in round 32 (a larger device batch to halve the grad-accum micro-batches), not done: the recipe passes <code>--device-batch-size=16</code>, and it judged that changing it changes the workload and the scope of each tensor's FP8 amax</dd><dt>Scope of hand-written kernels replacing Inductor glue</dt><dd>✗ no takeover of the glue between GEMMs; that part was left to Inductor coordinate-descent tuning (see last column). Only kept a size-thresholded tiled fp8 byte transpose (<code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL</code>, round 6 1.0203 → 1.0214; round 23 without it 1.0332 vs 1.0333, i.e. no gain); round 2 unconditional transpose split 0.9916, reverted; round 27 hand-written RoPE + QK-norm 103.4 vs 192.0 µs standalone, but in the model Inductor fuses q and k into one 185.8 µs launch, so it would be ~9% slower; not submitted</dd><dt>Per-shape cuBLASLt algorithm selection</dt><dd>✗ no direct cuBLASLt calls. Only tried a larger workspace (<code>CUBLASLT_WORKSPACE_SIZE=32768</code>, round 10, 1.0191, no gain) and Inductor GEMM autotuning (<code>MAX_AUTOTUNE_GEMM</code>, aimed at the optimizer matmuls, round 18 1.0304, round 24 ATen backend only 1.0301, both slightly below 1.0333); it priced the FP8 GEMMs at ~91% of the throttled peak and left them alone</dd><dt>FP8 weights quantized once per step</dt><dd>✓ <code>NANOCHAT_FP8_CACHE_WEIGHT=1</code> (round 14): custom op invalidated by the weight's version counter, quantized once for the 4 micro-batches of an update, column-major copy cached too; single timing 1.0214 → 1.0333, round 15 full check PASS 1.0333 (statistical gate max 0.109σ). Before it, the full check of the same config without the cache got 1.0197 and missed the 1.02 bar (round 13)</dd><dt>Fast accum on backward GEMMs</dt><dd>✓ only on dgrad with reduction length ≤ 1536 (<code>NANOCHAT_FP8_FAST_ACCUM_DGRAD_MAX_N=1536</code>, round 35, 120 of the 145 FP8 linears; MLP up-projection 6144 and lm_head 32768 excluded, no wgrad); the log says pending, the commit message records full check 1.0409, statistical gate max 0.0818σ, ~+0.7% over 1.0333 without it. Rejected twice before: round 3 both backward GEMMs (1.0463 stacked with tuning, −4.33 to −15.48σ), round 34 all dgrad (full check 1.0437, max −8.371σ). The agent itself labelled it N2</dd><dt>Other main levers</dt><dd><code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> + <code>TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1</code> (round 1, alone 1.0203; round 4 passed the statistical gate alone, max 0.39σ); round 11 without coordinate descent only 1.0027, so nearly all the gain is coordinate descent, at the cost of a cold compile to first update of 440.5 s vs 136.1 s for the reference in the final evaluation (untimed); a dozen-plus other Inductor / NCCL switches and CUDA graphs were measured and dropped (the CUDA graph segfault was traced to FA3; partitioning FA3 out hit <code>check_memory_pool</code>, which it refused to bypass)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><details class="raw"><summary><span>Raw work log</span><small>36 sections</small></summary><div class="rounds"><details><summary><em class="">0.2 h</em><span>Round 1 — profile the reference; compute class (FP8 GEMM + Inductor glue)</span></summary><pre>Start 20:31, profile <code>/tmp/r1-profile</code> (judge <code>profile --from 14 --iters 3</code>, reference tree).
+
+### Profile findings (rank 0, 3 steady-state updates, 3.039 s of GPU kernel time = 1.013 s/update)
+
+GPU kernel time ~= wall time, so the GPU is saturated: <b>launch/host overhead is not a bottleneck</b>
+(CUDA graphs / reduce-overhead would buy nothing). Accounting per update:
+
+| class | ms/update | share |
+|---|---|---|
+| GEMM (cuBLAS <code>nvjet</code> FP8 + bf16 Muon) | 454.2 | 44.8% |
+| triton: FP8 quantize / col-major transpose glue | 221.2 | 21.8% |
+| triton: norm / RoPE | 130.1 | 12.8% |
+| FA3 attention (fwd+bwd+pre/post) | 109.1 | 10.8% |
+| triton: loss / softmax | 28.7 | 2.8% |
+| nccl | 23.1 | 2.3% |
+| triton: other | 21.2 | 2.1% |
+| eager elementwise / memset / memcpy | 17.7 | 1.7% |
+| triton: embedding | 7.9 | 0.8% |
+
+Notable: Inductor <b>already traces into</b> <code>_Float8Matmul</code> (kernel names contain <code>_scaled_mm</code>, <code>clamp</code>,
+<code>abs_max</code>), so the FP8 glue is fused, not eager. The remaining inefficiency is bandwidth, not fusion:
+the amax reduction pass runs at ~3.9 TB/s (near Hopper peak) while the pointwise quantize+transpose pass
+runs at ~2.1 TB/s. Biggest single kernel:
+<code>triton_poi_fused__scaled_mm__to_copy_clamp_clone_mul_pow_reciprocal_relu_t_threshold_backward_view_12</code>
+676 us x 96/update = 65 ms/update (6.4%), grid [96,512] block 256, 8 KB shared (tiled fp8 transpose).
+
+FP8 GEMM achieved rate: 5.74e14 FLOP/update/rank over 433 ms = <b>1326 TFLOP/s</b> vs Hopper FP8 peak 1979
+(67%). Backward uses <code>use_fast_accum=False</code>, which on Hopper accumulates at half rate.
+
+### Changes (each behind its own switch, off by default)
+
+- A <code>NANOCHAT_FP8_FAST_ACCUM_BWD=1</code> — <code>nanochat/fp8.py</code>: the two backward <code>_scaled_mm</code> calls use
+  <code>use_fast_accum=True</code> like the forward already does. Tier <b>N2</b> (accumulation precision of the FP8
+  GEMM; scaling recipe stays tensorwise, no new FP8 layers, parameter/state dtypes untouched).
+- B <code>TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE=1</code> + <code>TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1</code> — pure
+  environment, no code change. Targets the 40% of time in Inductor pointwise/reduction kernels that
+  run at ~2 TB/s. Tier N1 (kernel choice). Does not autotune GEMMs, so cuBLAS FP8 is kept.
+
+### Results
+
+| switch | out dir | s/update | windows | speedup_vs_frozen_reference |
+|---|---|---|---|---|
+| A <code>NANOCHAT_FP8_FAST_ACCUM_BWD=1</code> | <code>/tmp/r1-fa</code> | 0.9899 | 0.9881 / 0.9905 / 0.9912 | <b>1.0261</b> |
+| B pointwise autotune + coordinate descent | <code>/tmp/r1-at</code> | 0.9955 | — | <b>1.0203</b> |
+
+Both valid (no recompile-limit / cudagraph-skip signatures). B costs ~7.7 min of compile instead of
+~2.9 min, for less gain than A; kept as a candidate but not promoted.
+A committed as <code>1054449</code>.
+
+### Extra findings that set the direction for later rounds
+
+- <b>The GPUs are power-capped</b>: 700 W limit, ~692 W drawn, SM clock 1455–1485 MHz vs 1980 max.
+  FP8 GEMMs achieve ~1300 TFLOP/s against a *throttled* peak of ~1454 → <b>~89% of achievable</b>.
+  FA3 ~578 TFLOP/s bf16 vs throttled ~727 → ~80%. So GEMM and attention are near their practical
+  ceiling; the headroom is in the memory-bound glue, and cutting traffic also cuts power.
+- Main compute stream is <b>97.1% busy</b> (2970 ms busy / 3058 ms span over 3 updates). CUDA graphs,
+  reduce-overhead and launch-overhead work would buy ~nothing.
+- Upstream&#x27;s <code>num_matmul_params()</code> returns 0 after FP8 conversion (<code>Float8Linear</code> subclasses
+  <code>nn.Linear</code>, not nanochat&#x27;s <code>Linear</code>), so the logged <code>bf16_mfu</code> is meaningless. Real FLOPs/token
+  ≈ 4.78e9. Also <code>short_window</code> computes to <b>512</b>, not the 768 the comment claims.
+- Dumping Inductor&#x27;s code for the same pattern in isolation (<code>/tmp/r2_dump.py</code>) shows the transpose
+  *can* be a separate 2D-tiled <code>clone_t</code> kernel; in the real model Inductor instead fuses it into the
+  quantize kernel, which is what halves that kernel&#x27;s bandwidth.
+
+---</pre></details><details><summary><em class="">0.5 h</em><span>Round 2 — keep the fp8 layout transposes out of the quantize fusion</span></summary><pre>Start ~20:55. Hotspot from round 1: <code>triton: fp8 quant/transpose</code> 221 ms/update, worst kernel
+676 us x 96/update = 65 ms/update at <b>1.79 TB/s</b> while its sibling amax pass runs at <b>3.95 TB/s</b>.
+
+Change: new <code>nanochat/fp8_transpose.py</code> — a tiled byte transpose (fp8 viewed as uint8, 64x64 tiles,
+<code>tl.trans</code> through shared memory) registered as the custom ops <code>nanochat_fp8::transposed_copy</code> and
+<code>nanochat_fp8::col_major</code>. Custom ops are opaque to Inductor, so the quantize kernel stays a pure
+coalesced pointwise pass and the transpose becomes its own tiled kernel. Switch
+<code>NANOCHAT_FP8_TILED_TRANSPOSE=1</code>, off by default. Tier <b>N0</b>: pure data movement, no arithmetic,
+no atomics, deterministic by construction.
+
+Verified before timing (<code>/tmp/r2_test.py</code>, under the GPU lock): byte-exact against
+<code>x.t().contiguous()</code> for both fp8 dtypes over 7 shapes including non-multiples of the tile; exact
+under <code>torch.compile</code>; <code>_scaled_mm</code> accepts the produced layouts and is bitwise equal to the
+reference layouts. Caught and fixed a real bug this way: the kernel first returned uint8 instead of
+the input&#x27;s fp8 dtype (the fake impl hid it under compile).
+
+Timing: <code>/tmp/r2-time</code>, PID 299700, log <code>/tmp/r2-time.log</code>, switches <code>/tmp/sw-r2.json</code>
+(fast-accum + tiled transpose).
+
+### Results
+
+<b>NEGATIVE — reverted.</b> <code>/tmp/r2-time</code>: <b>0.9916</b> (1.0243 s/update), slower than the reference and
+slower than round 1&#x27;s fast-accum alone (0.9899).
+
+Diagnosis from <code>/tmp/r2-profile</code> (per update, vs round 1):
+
+| class | round 1 | round 2 |
+|---|---|---|
+| GEMM | 454.2 | 433.3 (fast accum working, −21) |
+| triton fp8 quant/transpose | 221.2 | 200.4 (−21, the split did help) |
+| &quot;other&quot; (now holds my transpose kernels) | 17.7 | <b>68.2 (+50.5)</b> |
+
+The worst quantize kernel went 676 → 259 us and now runs at 3.9 TB/s as predicted, but the separate
+transpose passes re-read fp8 bytes that the fused kernel had written straight from registers. Total
+glue went 239 → 268 ms/update. **The fused version moves fewer bytes; its lower bandwidth is the
+cheaper trade.** Commits <code>5292d43</code> (change + evidence) then <code>a45843a</code> (revert).
+
+Lesson recorded: for this workload, do not split a producer from its transposed consumer — the
+extra materialization read costs more than the coalescing gain.
+
+---</pre></details><details><summary><em class="">0.7 h</em><span>Round 3 — validate the round-1 stack, then sweep Inductor fusion/reduction configuration</span></summary><pre><code>/submission/switches.json</code> set to fast-accum + pointwise autotune + coordinate descent (the two
+measured wins). Full <code>check</code> launched: <code>/tmp/check-1</code>, PID 318795, log <code>/tmp/check-1.log</code>.
+This is the first full-gate validation; fast-accum is N2 so gate 3 decides it.
+
+Prepared while the check holds the GPUs (configuration-search rung, one class: Inductor
+fusion/reduction codegen + cuBLASLt workspace):
+
+- <code>/tmp/sw-r3a.json</code> — adds <code>TORCHINDUCTOR_BENCHMARK_FUSION=1</code>: Inductor benchmarks fused vs
+  unfused instead of always fusing. Directly targets the round-2 finding that the fusion decision
+  is what costs bandwidth here.
+- <code>/tmp/sw-r3b.json</code> — adds <code>TORCHINDUCTOR_MULTI_KERNEL=1</code> + <code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS=1</code>:
+  the global amax reductions are small-output reductions; cooperative reductions give them more
+  parallelism than the split-reduction default.
+- <code>/tmp/sw-r3c.json</code> — adds <code>CUBLASLT_WORKSPACE_SIZE=32768</code>: larger workspace can unlock split-K
+  algorithms for the grad_weight GEMMs (M,N small, K=32768).
+
+### Results
+
+<b>REJECTED by gate 3.</b> <code>/tmp/check-1/check.json</code>: <code>{&quot;status&quot;: &quot;INCORRECT&quot;, &quot;speedup&quot;: 1.0463}</code>.
+
+- Gate 0 structure: ok. Gate 1 benefit: <b>1.0463</b> (candidate windows 0.9654 / 0.9721 / 0.9747 s/update
+  vs frozen reference 1.0104 / 1.0164 / 1.0203; per-window ratios 1.0466 / 1.0456 / 1.0468). Valid run,
+  no invalid signatures. Candidate startup-to-first-update 440 s (coordinate-descent compile cost).
+- Gate 2 record: <code>exact_items_ok: true</code>, <code>problems: []</code>, compared 10 updates x 175 parameters x 640
+  rows/rank. <code>status: NOT_BITWISE</code>, <code>first_differing_update: 0</code> (54 params differ already at update 0:
+  <code>backout_lambda</code>, <code>lm_head.weight</code>, <code>resid_lambdas</code>, ...; all 175 from update 1 on). So the stack is
+  not N0 — expected, both changes are arithmetic/kernel-selection changes.
+- Gate 3 statistical (seed 1, 150 updates, production settings): <b>verdict <code>different</code></b>. All six
+  endpoints beyond the 3-sigma bound, and all with the *same sign* — the candidate&#x27;s probe loss is
+  systematically <b>lower</b> than the reference&#x27;s, and the gap grows with training:
+
+| endpoint | bias (cand - ref) | sigma_seed | bound (3 sigma) | bias in sigma |
+|---|---|---|---|---|
+| probe_s005_015 | -0.09871 | 0.02282 | 0.06845 | <b>-4.33</b> |
+| probe_s015_030 | -0.06492 | 0.01303 | 0.03908 | <b>-4.98</b> |
+| probe_s030_050 | -0.06279 | 0.00806 | 0.02417 | <b>-7.79</b> |
+| probe_s050_080 | -0.21139 | 0.01366 | 0.04097 | <b>-15.48</b> |
+| probe_s080_115 | -0.24499 | 0.02388 | 0.07163 | <b>-10.26</b> |
+| probe_s115_150 | -0.21770 | 0.03247 | 0.09742 | <b>-6.70</b> |
+
+This is not noise: a coherent, growing bias means the two runs are on genuinely different trajectories.
+The first probe loss matches the reference exactly (10.37471342086792), so the divergence is introduced
+by the *updates*, not by the forward pass at initialisation — consistent with a change in the backward
+GEMMs (switch A) rather than in forward codegen.
+
+Per the rules the gate is not weakened or worked around. The stack is dropped and bisected.</pre></details><details><summary><em class="">1.3 h</em><span>Bisect (round 4)</span></summary><pre><code>/submission/switches.json</code> immediately reset to the N1-only half (autotune + coordinate descent, no
+fast-accum) so the submission is never left on a known-rejected configuration.
+<code>check --n1</code> (gates 0 and 3 only) on that half: <code>/tmp/n1-at</code>, PID 481977, log <code>/tmp/n1-at.log</code>,
+switches <code>/tmp/sw-r1-at.json</code>. This isolates whether the N2 accumulation change or the N1 kernel
+selection is what gate 3 objects to.
+
+### Bisect result — the N2 half is the culprit
+
+<code>/tmp/n1-at/check.json</code>: <b><code>{&quot;status&quot;: &quot;PASS&quot;, &quot;tier&quot;: &quot;N1&quot;}</code></b>, verdict <code>equivalent</code>. Autotune +
+coordinate descent alone is statistically indistinguishable from the reference, with large margin:
+
+| endpoint | bias | bound | in sigma |
+|---|---|---|---|
+| probe_s005_015 | +0.000734 | 0.068452 | +0.03 |
+| probe_s015_030 | +0.000521 | 0.039084 | +0.04 |
+| probe_s030_050 | +0.003105 | 0.024170 | +0.39 |
+| probe_s050_080 | +0.000541 | 0.040966 | +0.04 |
+| probe_s080_115 | -0.000553 | 0.071633 | -0.02 |
+| probe_s115_150 | -0.000963 | 0.097420 | -0.03 |
+
+Conclusion: <b><code>NANOCHAT_FP8_FAST_ACCUM_BWD=1</code> (N2) is rejected</b> — it alone produced the -4 to -15 sigma
+bias. It stays in the tree only as an off-by-default switch and must not be enabled. The N1 Inductor
+codegen half is kept as the validated base.
+
+Refinement prepared for a later round: the two backward GEMMs have very different reduction lengths
+(grad_input over N = 1536/6144; grad_weight over the token batch = 32768), so the accumulation error is
+not shared equally. Split the switch into <code>NANOCHAT_FP8_FAST_ACCUM_DGRAD</code> and
+<code>NANOCHAT_FP8_FAST_ACCUM_WGRAD</code> (both off by default; the old master switch still sets both). If only
+the short-K grad_input GEMM is statistically tolerable it is worth ~half of A&#x27;s 2.6%.
+
+---</pre></details><details><summary><em class="">1.5 h</em><span>Round 5 — Inductor fusion / reduction codegen class, on top of the validated N1 base</span></summary><pre>One class of bottleneck: the memory-bound Inductor glue (~40% of step time). Verified the knob
+spellings against the installed torch 2.9.1 before spending a run on them — <code>multi_kernel</code> and
+<code>cooperative_reductions</code> live under <code>config.triton</code> but their env names are *not* prefixed with
+<code>TRITON_</code> (<code>TORCHINDUCTOR_MULTI_KERNEL</code>, <code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS</code>); the
+<code>TORCHINDUCTOR_TRITON_*</code> spellings are silently ignored. Also found <code>TORCHINDUCTOR_PROLOGUE_FUSION</code>
+(torch 2.9 prologue fusion, off by default) — held back for a separate run because it is experimental.
+
+<code>/tmp/sw-r5x.json</code> = validated base + <code>TORCHINDUCTOR_BENCHMARK_FUSION=1</code> + <code>TORCHINDUCTOR_MULTI_KERNEL=1</code>
++ <code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS=1</code>. <code>time</code>: <code>/tmp/r5x-time</code>, PID 537143, log <code>/tmp/r5x-time.log</code>.
+
+### Results
+
+<b>ABANDONED — compile cost, not a numerics or speed failure.</b> Killed at 22:16 after 17m50s of
+compilation with no training step reached (GPU 100% util but only 165 W and 1980 MHz = the autotune
+benchmark loop, not training). <code>TORCHINDUCTOR_BENCHMARK_FUSION</code> benchmarks every fusion decision; on
+this graph, stacked with coordinate descent and multi-kernel, it is far past the ~7.7 min the validated
+base needs. The judge&#x27;s timing timeout is 2700 s, so a configuration that spends 25+ min compiling is
+fragile even if it were faster. Stopped my own run (PIDs 537143/537215/537216), GPUs released.
+
+Lesson: <code>BENCHMARK_FUSION</code> is not worth its compile cost here. <code>MULTI_KERNEL</code> and
+<code>COOPERATIVE_REDUCTIONS</code> remain untested and are much cheaper; they are the ones that target the
+reduction kernels below.
+
+### Hotspot re-localisation from the reference trace (CPU-only, <code>/tmp/r1-kernels.txt</code>, <code>/tmp/r1-norm.txt</code>)
+
+Per update, the fused quantize+transpose kernels split cleanly into two populations:
+
+| grad shape | kernel | calls | avg | effective BW |
+|---|---|---|---|---|
+| [32768, 1536] | <code>..._clamp_clone_mul_reciprocal_t_view_18</code> | 196 | 52.2 us | <b>3.83 TB/s</b> |
+| [32768, 6144] | <code>..._clamp_clone_mul_pow_reciprocal_relu_t_threshold_backward_view_12</code> | 96 | 676.0 us | <b>1.79 TB/s</b> |
+| [32768, 32768] | <code>..._clamp_clone_div_mul_reciprocal_t_tanh_tanh_backward_view_2</code> | 4 | 2184.2 us | <b>1.96 TB/s</b> |
+
+The two slow ones are exactly those whose quantize prologue is heavy (relu^2 backward; softcap/tanh
+backward): 64 registers + an 8 KB shared-memory transpose tile, so occupancy halves and the transposed
+store stalls. The forward sibling of the same MLP quantize (<code>..._clamp_mul_pow_relu_t_view_20</code>, no
+transpose copy) runs at <b>4.13 TB/s</b>.
+
+Also localised: 24 per-layer <code>triton_red_fused__fused_rms_norm_backward__scaled_mm_..._sum_t_view_*</code>
+kernels at ~475 us x 4 = <b>45.6 ms/update (4.5%)</b>, all launched with only <b>grid=[512]</b>, block 512,
+64 regs, 16 KB shared — under-parallelised full-tensor reductions (the scalar <code>resid_lambdas</code> /
+<code>x0_lambdas</code> gradients fused with rms-norm backward and fp8 quantize). <code>TORCHINDUCTOR_MIN_NUM_SPLIT</code>
+looks like the knob for this but <code>ir.py:1591</code> skips it for static shapes, and this model compiles with
+<code>dynamic=False</code>, so it is a no-op here. <code>COOPERATIVE_REDUCTIONS</code> is the applicable lever.
+
+---</pre></details><details><summary><em class="">1.8 h</em><span>Round 6 — split the transpose out of the quantize fusion *only where fusion is the bottleneck*</span></summary><pre>Round 2&#x27;s lesson was &quot;do not split a producer from its transposed consumer&quot;. The re-localisation above
+refines it: that is true for the [32768, 1536] shapes (fusion already at 3.83 TB/s, splitting only adds
+a materialisation read) and false for the two heavy-prologue shapes (fusion at 1.79-1.96 TB/s). Round 2
+applied the split unconditionally, so the small shapes&#x27; losses cancelled the big shapes&#x27; gains.
+
+Change: restore <code>nanochat/fp8_transpose.py</code> (tiled 64x64 uint8 transpose, <code>tl.trans</code>, custom op
+<code>nanochat_fp8::transposed_copy</code>, exact by construction) and route <code>go_T = go_fp8.t().contiguous()</code>
+through it <b>only when <code>numel &gt;= NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL</code></b>. Default <code>0</code> = off = upstream.
+Tested at <code>134217728</code> (2^27), which selects [32768, 6144] (201M) and [32768, 32768] (1074M) and leaves
+[32768, 1536] (50M) fused. Tier <b>N0</b>: the transpose moves bytes and the quantize arithmetic is
+untouched, so this should be bitwise identical, not merely equivalent.
+
+Predicted from the profile: the 676 us kernel drops to ~259 us (round 2 measured exactly that) plus a
+~115 us transpose pass, i.e. ~-30 ms/update from the MLP and ~-3 ms/update from lm_head.
+
+Verified before timing, <code>/tmp/r6_test.py</code> under the GPU lock — <b>ALL OK</b>:
+1. tiled transpose byte-exact vs <code>x.t().contiguous()</code> on 14 shape/dtype pairs incl. non-tile-multiples;
+2. threshold routing confirmed by call counting (small stays fused, big goes tiled), both byte-exact;
+3. <code>_scaled_mm</code> bitwise identical with the tiled operand;
+4. <code>Float8Linear</code> forward <b>and</b> weight gradient bitwise identical, switch off vs on, in eager <b>and</b>
+   under <code>torch.compile(dynamic=False, fullgraph=True)</code>, and compile vs eager.
+
+Timing: <code>/tmp/r6-time</code>, PID 656247, log <code>/tmp/r6-time.log</code>, switches <code>/tmp/sw-r6.json</code>
+(validated N1 base + <code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL=134217728</code>).
+
+### Results
+
+<b>NO GAIN — the autotuner had already captured it.</b> <code>/tmp/r6-time/time.json</code>:
+<code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 1.0214, &quot;s_per_update&quot;: 0.9944}</code> versus the validated
+base alone at <b>1.0203</b> (0.9955 s/update). The split bought <b>+0.0011</b>, i.e. ~1 ms/update against a
+prediction of ~33 ms/update.
+
+The exactness work was not wasted (the change is provably N0 and safe), but the *premise* was stale:
+the 676 us / 1.79 TB/s measurement came from the <b>un-autotuned reference</b>. <code>MAX_AUTOTUNE_POINTWISE</code> +
+<code>COORDINATE_DESCENT_TUNING</code> searches block size / num_warps for exactly that kernel, so by the time the
+split is applied the fused kernel is no longer the 1.79 TB/s outlier — and splitting then only adds the
+extra materialisation read, which is round 2&#x27;s loss mechanism again.
+
+**Lesson: re-profile the *current best* tree before pricing a kernel-level change. A hotspot measured
+on the reference may already be gone after a configuration change.** The switch is left in the tree off
+by default (<code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL=0</code>) and is not part of the submitted configuration.
+
+---</pre></details><details><summary><em class="">1.9 h</em><span>Round 7 — reduction parallelism (the 45.6 ms/update of grid=[512] kernels)</span></summary><pre>Same class as round 5 but without the ruinously expensive <code>BENCHMARK_FUSION</code>. <code>/tmp/sw-r8.json</code> =
+validated base + <code>TORCHINDUCTOR_MULTI_KERNEL=1</code> + <code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS=1</code>, aimed at the
+24 per-layer <code>triton_red_fused__fused_rms_norm_backward__scaled_mm_..._sum_t_view_*</code> kernels
+(~475 us x 4 each, <b>grid=[512]</b>, 64 regs, 16 KB shared) and at the other small-output full-tensor
+reductions (<code>..._slice_backward_view_31</code>, 24.5 us x 192 at <b>grid=[1,1,1]</b>).
+
+<code>time</code>: <code>/tmp/r8-time</code>, PID 708298, log <code>/tmp/r8-time.log</code>.
+
+### Results
+
+<b>NEGATIVE — large regression.</b> <code>/tmp/r8-time/time.json</code>:
+<code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 0.9123, &quot;s_per_update&quot;: 1.1133}</code>, windows
+1.1069 / 1.1159 / 1.1172. That is <b>10% slower than the reference</b> and 12% slower than the base.
+Compile also grew from ~7.7 min to ~12 min (GPU sat at 0% util / 120 W for most of it: pure CPU codegen,
+because <code>MULTI_KERNEL</code> emits several variants of every reduction kernel).
+
+So the grid=[512] reduction kernels are *not* under-parallelised in a way these knobs can fix —
+<code>COOPERATIVE_REDUCTIONS</code> adds a grid-wide sync and <code>MULTI_KERNEL</code> picks worse variants. Both dropped.
+The 45.6 ms/update they were aimed at is not reachable this way.
+
+---</pre></details><details><summary><em class="">2.1 h</em><span>Round 8 — prologue fusion, and the state of the configuration search</span></summary><pre><code>/tmp/sw-r9.json</code> = validated base + <code>TORCHINDUCTOR_PROLOGUE_FUSION=1</code> (torch 2.9, off by default;
+fuses a producer into its consumer&#x27;s input load, which is the one mechanism that could still remove
+materialisation round-trips without the round-2/round-6 penalty). <code>time</code>: <code>/tmp/r9-time</code>, PID 776914,
+log <code>/tmp/r9-time.log</code>.
+
+Per-window detail of everything measured so far (frozen reference windows 1.0104 / 1.0164 / 1.0203):
+
+| config | windows s/update | per-window ratios | mean |
+|---|---|---|---|
+| B (base) | 0.9904 / 0.9959 / 1.0003 | 1.0202 / 1.0206 / 1.0200 | <b>1.0203</b> |
+| B + transpose split | 0.9868 / 0.9955 / 1.0008 | 1.0239 / 1.0210 / 1.0195 | <b>1.0214</b> |
+| B + multi_kernel + coop | 1.1069 / 1.1159 / 1.1172 | 0.9128 / 0.9108 / 0.9132 | <b>0.9123</b> |
+
+B is extremely consistent (all three windows within 0.0006 of each other) but sits only **0.0003 above
+the 1.02 benefit bar**. That is too thin to be a safe submission against a live re-timed reference.
+
+### Results
+
+<b>NEGATIVE (small).</b> <code>/tmp/r9-time/time.json</code>:
+<code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 1.0188, &quot;s_per_update&quot;: 0.9970}</code> — slightly *worse*
+than the base&#x27;s 1.0203. Prologue fusion does not pay on this graph; dropped.
+
+The configuration search is now exhausted around the base: every additional Inductor knob tried
+(benchmark_fusion, multi_kernel, cooperative_reductions, prologue_fusion) is neutral or harmful, and the
+one code-level kernel change priced from the reference profile (round 6) turned out to be already
+covered by the autotuner. The remaining untested lever is the launch-gap one below.
+
+---</pre></details><details><summary><em class="">2.3 h</em><span>Round 9 — CUDA graphs for the ~11,700 inter-kernel launch gaps per update</span></summary><pre><code>/tmp/sw-r10.json</code> = validated base + <code>TORCHINDUCTOR_CUDAGRAPHS=1</code>. Pure environment, no code change.
+Tier N0 if it captures (graph replay does not change any arithmetic); the risk is not numerics but the
+judge&#x27;s <code>skipping cudagraphs due to</code> invalid-run signature.
+
+<code>time</code>: <code>/tmp/r10-time</code>, PID 828439, log <code>/tmp/r10-time.log</code>.
+
+### Results
+
+<b>HARD FAILURE — SIGSEGV, abandoned.</b> <code>/tmp/r10-time/time.json</code>: <code>{&quot;status&quot;: &quot;ERROR&quot;}</code>, both ranks
+killed by signal 11 after 73.2 s, before update 34. No <code>skipping cudagraphs</code> line was ever logged
+(grep count 0), so Inductor did try to capture and then crashed inside replay/capture rather than
+declining. The graph contains an <code>allow_in_graph</code> custom autograd Function, <code>torch._scaled_mm</code>, eager
+AccumulateGrad into freshly allocated <code>.grad</code> buffers each update, and NCCL collectives in the
+optimizer; that combination is not cudagraph-safe here.
+
+Not worked around. The ~2.2% of launch-gap idle is real but not reachable with this knob, and making it
+reachable would mean restructuring the training step around graph capture — out of proportion to the
+remaining time and to the risk of changing what is computed.
+
+---</pre></details><details><summary><em class="">2.3 h</em><span>Round 10 — cuBLASLt workspace for the long-K grad_weight GEMMs</span></summary><pre>Last cheap lever. <code>/tmp/sw-r11.json</code> = base + transpose split + <code>CUBLASLT_WORKSPACE_SIZE=32768</code> (KiB).
+The grad_weight GEMMs are M,N = 1536/6144 with <b>K = 32768</b>; a larger workspace can unlock split-K /
+cooperative algorithms that the default workspace rules out. Pure environment, no code change, no
+effect on compile time. Tier N1 (algorithm selection; if it changes a reduction order gate 3 decides).
+
+<code>time</code>: <code>/tmp/r11-time</code>, PID 837440, log <code>/tmp/r11-time.log</code>.
+
+### Results
+
+<b>NO GAIN.</b> <code>/tmp/r11-time/time.json</code>:
+<code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 1.0191, &quot;s_per_update&quot;: 0.9967}</code> — no better than the
+base. The long-K grad_weight GEMMs already get a cooperative algorithm
+(<code>nvjet_tst_192x192_64x4_2x1_v_bz_coopB_TNN</code>), so extra workspace buys nothing. Dropped.
+
+---</pre></details><details><summary><em class="">2.5 h</em><span>Round 11 — is coordinate descent earning its compile cost? (attribution)</span></summary><pre><code>/tmp/sw-r12.json</code> = <code>MAX_AUTOTUNE_POINTWISE=1</code> + transpose split, <b>without</b>
+<code>COORDINATE_DESCENT_TUNING</code>. <code>time</code>: <code>/tmp/r12-time</code>, PID 891749.
+
+### Results
+
+<b>Decisive attribution.</b> <code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 1.0027, &quot;s_per_update&quot;: 1.0130}</code>.
+
+So pointwise autotune on its own is worth only <b>+0.27%</b>, and **coordinate descent supplies essentially
+the whole +2.0%**. CD is not a refinement of the autotuner here, it is the active ingredient: the
+default autotune candidate list does not contain the good launch configs for these kernels, and CD&#x27;s
+neighbourhood search finds them. Compile without CD is ~3 min instead of ~7.7 min, but the speed is not
+worth trading. <b>Keep CD.</b>
+
+This also re-explains round 6: the transpose split could not add anything because CD had already retuned
+the very kernel the split was aimed at.
+
+---</pre></details><details><summary><em class="">2.5 h</em><span>Round 12 — widen the coordinate-descent search (the active ingredient)</span></summary><pre>Since CD is where the entire gain comes from, search it harder. torch 2.9 exposes two further knobs
+(<code>config.py:555,558</code>), both off/default:
+<code>TORCHINDUCTOR_COORDINATE_DESCENT_CHECK_ALL_DIRECTIONS</code> (default 0) and
+<code>TORCHINDUCTOR_COORDINATE_DESCENT_RADIUS</code> (default 1).
+
+<code>/tmp/sw-r13.json</code> = base + <code>CHECK_ALL_DIRECTIONS=1</code> + <code>RADIUS=2</code>. Pure environment, tier N1 (kernel
+launch-config selection only). <code>time</code>: <code>/tmp/r13-time</code>, PID 915520, log <code>/tmp/r13-time.log</code>.
+Cost: a wider search means more compile time; the judge&#x27;s timing timeout is 2700 s and CD alone uses
+~460 s, so there is room, but this is the last configuration rung worth climbing.
+
+### Results
+
+<b>ABANDONED — compile cost again.</b> Killed at 23:22 after 19m57s with no training step reached
+(GPU 0% util, rank 0 pinned at 96% CPU = pure codegen/benchmark). <code>RADIUS=2</code> +
+<code>CHECK_ALL_DIRECTIONS</code> multiplies CD&#x27;s neighbourhood search and behaves like <code>BENCHMARK_FUSION</code> did in
+round 5. Even if it were faster, a ~30 min compile per run would leave little margin under the judge&#x27;s
+2700 s timing / 3600 s record / 3600 s trajectory timeouts, and the full check would take ~90 min.
+Stopped my own run (PIDs 915520/915592/915593), GPUs released.
+
+<b>The configuration ladder is now exhausted.</b> Everything tried beyond the base is neutral or harmful,
+and the two knobs that could plausibly have extended the base&#x27;s gain are both priced out by compile
+time. Submitted configuration = base + the exact transpose split, the best measured combination.
+
+---</pre></details><details><summary><em class="">2.9 h</em><span>Round 13 — full-gate validation of the submitted configuration</span></summary><pre><code>/submission/switches.json</code> =
+<code>{&quot;TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE&quot;: &quot;1&quot;, &quot;TORCHINDUCTOR_COORDINATE_DESCENT_TUNING&quot;: &quot;1&quot;, &quot;NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL&quot;: &quot;134217728&quot;}</code>
+
+Full <code>check</code> (gates 0, 1, 2, 3): <code>/tmp/check-2</code>, PID 951330, log <code>/tmp/check-2.log</code>.
+Expected tier N1: the base passed gate 3 on its own at max 0.39 sigma, and the split is provably N0
+(bitwise-identical forward and weight gradient, eager and compiled), so the combination should land in
+the same place. Gate 1 is the real question — 1.0214 measured against a 1.02 bar.
+
+### Results
+
+<b>REJECTED BY GATE 1 — <code>UNAVAILABLE</code>, speedup 1.0197.</b> <code>/tmp/check-2/check.json</code>. Per-window ratios
+1.0217 / <b>1.0165</b> / 1.0208, mean 1.0197 &lt; the 1.02 bar. The judge stopped at gate 1
+(<code>verdict: no_benefit</code>, &quot;rejected without a precision evaluation&quot;), so gates 2 and 3 never ran.
+
+This is the margin risk materialising: the same configuration measured <b>1.0214</b> in <code>/tmp/r6-time</code> and
+<b>1.0197</b> here. The middle window dipped by 0.005. Run-to-run spread is ~±0.003, so a configuration
+sitting at ~1.020 is a coin flip at the bar. <b>A bigger gain is required, not a re-roll.</b>
+
+---</pre></details><details><summary><em class="">3.0 h</em><span>Round 14 — cache the FP8 weight across the grad-accum micro-batches (code rung, N0)</span></summary><pre>The weight of a Linear is constant across the 4 micro-batches of an update, yet the forward re-quantizes
+it (amax + scale + cast) and the backward re-transposes it to column-major on every one. From the
+reference trace the weight-shaped kernels are ~12-14 ms/update (96 attention linears at
+<code>grid=[48,48]</code> = exactly 1536x1536, 5.3 us x 384; 48 MLP linears at <code>grid=[9216]</code> = 6144x1536,
+13.1 us x 576), plus ~1300 kernel launches whose inter-kernel gaps cost ~1.9 us each. Caching removes
+three quarters of both: <b>~1%+, tier N0</b> (same values, computed once instead of four times).
+
+Two things made this safe to attempt:
+- The cache must sit behind a <b>custom op</b>, because a Python dict read inside the compiled region is
+  evaluated at trace time and baked into the graph.
+- Invalidation keys on the weight&#x27;s <b>version counter</b>. Verified on this torch build that compiled
+  in-place mutation bumps it — <code>add_</code>, <code>mul_</code>, <code>_foreach_add_</code> and <code>_foreach_copy_</code> all went 0 -&gt; 1 -&gt; 2
+  under <code>torch.compile(fullgraph=True)</code>. <code>_foreach_copy_</code> is exactly how <code>MuonAdamW</code> writes parameters
+  back (<code>optim.py:426</code>), so no change to the training loop is needed.
+- The quantizer inside the custom op is itself <code>@torch.compile(dynamic=False)</code>, so it stays fused.
+  Running <code>_to_fp8</code> eagerly would materialise fp32 intermediates and move ~8x the bytes, costing more
+  than the caching saves.
+
+Switch <code>NANOCHAT_FP8_CACHE_WEIGHT=1</code>, off by default. Test written: <code>/tmp/r14_test.py</code> (bitwise
+off-vs-on over 4 accumulated micro-batches in eager and compiled, quantize-call counting to prove the
+cache hits, and invalidation on both eager and compiled weight mutation).
+
+Judge mechanics confirmed while preparing this: <code>guarded()</code> (bench.py:913) **materializes the tree into
+a scratch copy once at the start of a check** and re-hashes it at the end, so every gate measures the
+same snapshot. Editing the working tree during a check cannot contaminate it.
+
+### Results
+
+<b>Exactness: ALL OK</b> (<code>/tmp/r14_test.py</code>, under the GPU lock), for all three weight shapes
+[1536,1536], [6144,1536], [1536,6144]:
+- eager and <code>torch.compile(dynamic=False, fullgraph=True)</code>: forward outputs, losses and the
+  <b>accumulated</b> weight gradient over 4 micro-batches all bitwise identical, switch off vs on;
+- quantize actually called <b>once instead of four times</b> per update (call counting), in both modes;
+- cache <b>hits</b> when the weight is unchanged and <b>invalidates</b> on eager <code>add_</code> and on a compiled
+  <code>_foreach_copy_</code> — the optimizer&#x27;s real write-back path;
+- cached operands byte-exact, column-major strides <code>(1, N)</code> as <code>_scaled_mm</code> requires, and the
+  <code>grad_input</code> GEMM bitwise identical with the cached operand.
+
+Two test-harness bugs found and fixed along the way (not code bugs): flipping the module-level switch
+without <code>torch._dynamo.reset()</code> replays the stale guarded graph, and in-place weight mutation needs
+<code>torch.no_grad()</code> because the weight is a leaf requiring grad.
+
+Timing: <code>/tmp/r14-time</code>, PID 1007550, log <code>/tmp/r14-time.log</code>, switches <code>/tmp/sw-r14.json</code>
+(submitted config + <code>NANOCHAT_FP8_CACHE_WEIGHT=1</code>).
+
+<b>POSITIVE — the first real code-level gain.</b> <code>/tmp/r14-time/time.json</code>:
+<code>{&quot;status&quot;: &quot;ok&quot;, &quot;speedup_vs_frozen_reference&quot;: 1.0333, &quot;s_per_update&quot;: 0.9830}</code>, windows
+0.9762 / 0.9845 / 0.9884 -&gt; per-window ratios <b>1.0350 / 1.0324 / 1.0323</b>. Consistent across all three
+windows, unlike the previous config&#x27;s 1.0217 / 1.0165 / 1.0208. Peak reserved memory 58.58 GiB (was
+55.94) — the cache holds ~2.6 GiB of fp8 weights plus their column-major copies, well within budget.
+Startup 425 s, unchanged (the nested per-shape quantizer compiles are cheap).
+
+<b>+1.2% over the same configuration without the cache</b>, exactly the predicted size, and it is N0.
+Committed as <code>8a24951</code>. This is the margin gate 1 needed: 1.0333 against a 1.02 bar, with ~0.013 of
+headroom instead of ~0.000.
+
+---</pre></details><details><summary><em class="">3.2 h</em><span>Round 15 — full-gate validation of the weight-cache configuration</span></summary><pre><code>/submission/switches.json</code> =
+<code>{&quot;TORCHINDUCTOR_MAX_AUTOTUNE_POINTWISE&quot;: &quot;1&quot;, &quot;TORCHINDUCTOR_COORDINATE_DESCENT_TUNING&quot;: &quot;1&quot;, &quot;NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL&quot;: &quot;134217728&quot;, &quot;NANOCHAT_FP8_CACHE_WEIGHT&quot;: &quot;1&quot;}</code>
+
+Full <code>check</code> (gates 0-3): <code>/tmp/check-3</code>, PID 1058496, log <code>/tmp/check-3.log</code>.
+Expected: gate 1 ~1.033; gate 2 NOT_BITWISE (the Inductor half is N1) but exact items passing; gate 3
+equivalent, since the base passed it at max 0.39 sigma and both added changes are provably N0.
+
+### Results
+
+<b><code>/tmp/check-3/check.json</code>: <code>status PASS</code>, <code>speedup 1.0333</code>, <code>measured_tier N1</code>.</b>
+Finished 2026-11-19T00:11:32, wall 29.2 min, cost 0.971 GPU-hours over 3 GPU runs.
+<code>inputs</code> 141/141 match at start <b>and</b> end; <code>source_digest 37c5ce0e…</code>; tree <code>8a24951</code> unchanged.
+
+Gate 1 — benefit, <b>passed</b> (<code>benefit.passed: true</code>, bar 1.02):
+
+| window | frozen ref s/update | candidate s/update | ratio |
+|---|---|---|---|
+| 10-17 | 1.0104 | 0.9764 | 1.0348 |
+| 18-25 | 1.0164 | 0.9848 | 1.0321 |
+| 26-33 | 1.0203 | 0.9876 | 1.0331 |
+
+speedup = mean of ratios = <b>1.0333</b>; candidate mean 0.9829 s/update vs reference 1.0157.
+Spread across windows 0.0027, i.e. the gain is uniform, not one lucky window. Startup to first update
+441.1 s (cold compile, well inside the 2700 s timing timeout), peak reserved 58.58 GiB, <code>fa3 True</code>,
+<code>other_optimizer_steps [0]</code>, <code>run_status ok</code>. This reproduces the standalone <code>time</code> run
+(<code>/tmp/r14-time</code>, 1.0333) to four decimals.
+
+Gate 2 — record, <b>exact items pass</b>, <code>status NOT_BITWISE</code> as predicted for an N1 stack:
+<code>exact_items_ok: true</code>, <code>problems: []</code>, compared 10 updates x 175 parameters x 640 rows/rank,
+deterministic (<code>algorithms: true</code>, <code>inductor_first_configuration: true</code>, FA3 patched to its
+deterministic entry points). First differing update 0 with 50 parameters (<code>lm_head.weight</code>,
+<code>h.0.attn.c_proj.weight</code>, <code>h.0.mlp.c_proj.weight</code>, …), then all 175 from update 1 — exactly the
+signature of Inductor&#x27;s retuned pointwise/reduction kernels, which change reduction order but not the
+computation. No item mismatch, no NaN/Inf, no shape or dtype drift.
+
+Gate 3 — statistical, <b><code>verdict: equivalent</code></b>, seed 1, 150 production updates, sigma_k = 3:
+
+| probe endpoint | mean diff | 3-sigma bound | mean in sigma |
+|---|---|---|---|
+| probe_s005_015 | +0.000193 | 0.06845 | +0.008 |
+| probe_s015_030 | +0.000491 | 0.03908 | +0.038 |
+| probe_s030_050 | +0.000882 | 0.02417 | <b>+0.109</b> |
+| probe_s050_080 | -0.000276 | 0.04097 | -0.020 |
+| probe_s080_115 | -0.000164 | 0.07163 | -0.007 |
+| probe_s115_150 | -0.000236 | 0.09742 | -0.007 |
+
+Max |bias| <b>0.109 sigma</b> against a 3-sigma bound — a 27x margin, and the signs alternate, i.e. noise
+rather than drift. Contrast the rejected fast-accum stack, which was -4.3 to -15.5 sigma with a
+consistent sign. This also confirms the two code changes really are N0 on top of the N1 Inductor base:
+the base alone measured max 0.39 sigma and the full stack measures *less*.
+
+<b>This is the submitted configuration and it passes every gate.</b> No further change to
+<code>/submission/switches.json</code> or the tree without a new full check.</pre></details><details><summary><em class="">0.2 h</em><span>Correction to round 1&#x27;s &quot;CUDA graphs buy nothing&quot; pricing</span></summary><pre>Round 1 priced launch-overhead work at ~0 because the main compute stream is 97.1% busy. That was the
+wrong conclusion from the right number. Decomposing the 87.8 ms of idle over 3 updates
+(<code>/tmp/r1-profile</code> trace, stream 7, 35,387 gaps):
+
+| gap size | count (3 updates) | idle ms/update |
+|---|---|---|
+| &gt; 1 ms | 4 | 2.05 |
+| 100 us - 1 ms | 25 | ~4.5 |
+| &lt;= 100 us (35,234 of them, mostly &lt;= 10 us) | 35,234 | <b>22.72</b> |
+
+The three ~1.7 ms gaps land at 972 / 1993 / 3015 ms, i.e. exactly one per update at the optimizer/sync
+boundary — unavoidable and present in the reference too. But **22.7 ms/update (2.2%) is ~11,700 tiny
+gaps, one after essentially every kernel** (the reference launches ~11,800 kernels/update). That is
+inter-kernel launch latency, not sync bubbles, and it is exactly what CUDA graphs collapse.
+
+So the launch-overhead rung is worth ~2.2%, not ~0. <code>TORCHINDUCTOR_CUDAGRAPHS=1</code> is a pure environment
+switch (torch 2.9 <code>config.triton.cudagraphs</code>), no code change. Risk: the judge&#x27;s invalid-run signatures
+include <code>skipping cudagraphs due to</code>, so if Inductor declines to capture any graph the run is INVALID —
+that is a gate to respect, not to work around.
+
+---</pre></details><details><summary><em class="">3.8 h</em><span>Round 16 — produce the column-major input in the forward, not the backward</span></summary><pre><b>Hotspot.</b> <code>grad_weight = go_T @ in_col</code> needs the linear&#x27;s input in column-major layout, because
+<code>_scaled_mm</code> requires its second operand column-major and the contraction dim here is the token dim.
+Today <code>in_col = _to_col_major(in_fp8)</code> runs in <b>backward</b> on a *saved* tensor. Inductor cannot fuse a
+transpose of a graph input into its producer — the producer is in the forward graph — so this is a
+standalone pass that re-reads fp8 bytes the forward already wrote.
+
+This is the one transpose Inductor has *not* already captured. The comment above <code>_transpose_rows</code>
+records that <code>grad_output.T</code> <b>is</b> fused into the backward quantize kernel, which is why round 2&#x27;s
+attempt to split it out lost. The input transpose is the opposite case: it is unfused, and the fix is
+to fuse it, not to split it.
+
+<b>Pricing (bytes per element of linear input, per micro-batch).</b>
+Today: forward quantize reads bf16 (2B) + writes fp8 row-major (1B); backward transpose reads fp8 (1B)
++ writes fp8 col-major (1B) = <b>5B</b>. If the transposed store fuses into the forward quantize kernel:
+2B read + 2B write, backward 0B = <b>4B</b>. Saving 1B/el.
+Linear input elements per micro-batch: per layer 3x-shared attn input 50.3M + c_proj 50.3M + c_fc 50.3M
++ mlp c_proj 201M = 352M, x24 layers + lm_head 50.3M = 8.5G; x4 micro-batches = <b>34G el/update</b>.
+1B/el = 34 GB/update, at ~3 TB/s = <b>~11 ms/update ~ 1.1%</b>. Memory-neutral: the saved tensor is the
+same size, only its strides change.
+
+<b>Change.</b> <code>NANOCHAT_FP8_SAVE_INPUT_COL</code> (off by default) in <code>nanochat/fp8.py</code>: forward saves
+<code>_to_col_major(input_fp8)</code> instead of <code>input_fp8</code>; backward uses the saved operand directly.
+
+<b>Numerics: N0 by construction.</b> Same quantize, same fp8 bytes, same <code>_scaled_mm</code> operands — only the
+layout of the saved tensor differs. Verified by <code>/tmp/r16_test.py</code>: 3 shapes
+([32768,1536]x[1536,1536], [32768,1536]x[1536,6144], [4096,1536]x[1536,32768]) x {eager, compiled} x
+{output, grad_input, grad_weight} = <b>18/18 bitwise-identical</b>, plus a check that the saved operand
+really has strides (1, M) and holds exactly the row-major quantize bytes.
+(Harness note: the first run of the test reported 18/18 *differing*, including the forward output which
+the switch cannot touch — the global RNG was advancing between the off and on runs. Fixed by seeding
+per run; a second bug compared <code>c.t().contiguous()</code> against the untransposed reference.)
+
+<b>Run.</b> <code>time</code> with <code>/tmp/sw-r16.json</code> (= submitted config + <code>NANOCHAT_FP8_SAVE_INPUT_COL=1</code>),
+out <code>/tmp/r16-time</code>, PID 1232132, log <code>/tmp/r16-time.log</code>, started 00:17:54.
+<code>/submission/switches.json</code> is deliberately left at the check-3-passing configuration; this config is
+only promoted if it wins and then passes its own full check.
+
+### Results
+
+<b>No gain: 1.0336 vs 1.0333</b> (<code>/tmp/r16-time/time.json</code>, status ok, 0.9827 s/update).
+Windows 0.9771 / 0.9836 / 0.9875 vs check-3&#x27;s 0.9764 / 0.9848 / 0.9876 — window 1 slightly worse,
+window 2 slightly better, window 3 unchanged. +0.0003 is far inside the ±0.003 run-to-run spread.
+Peak reserved 58.61 GiB vs 58.58 — memory-neutral exactly as predicted. Startup 420.6 s.
+
+<b>Why it did not work.</b> The premise was that Inductor cannot fuse the transpose of a saved tensor into
+its producer. That is true, but the conclusion was wrong: the transpose is *already* fused wherever it
+matters, just on the other side. The reference profile&#x27;s kernel names all carry <code>clone</code> + <code>t</code> alongside
+<code>clamp</code>/<code>mul</code>/<code>reciprocal</code>/<code>_to_copy</code>, e.g.
+<code>triton_poi_fused__scaled_mm__to_copy_clamp_clone_mul_pow_reciprocal_relu_t_threshold_backward_view_12</code>
+(676 us, grid=[96,512], shared=8192 — a shared-memory tiled transpose *inside* the quantize kernel).
+Inductor emits the dual-layout store itself. Moving the copy from backward to forward therefore just
+relocated the same bytes; it did not remove a pass. This is round 2&#x27;s lesson from the other direction:
+the fp8 transpose family is already well-scheduled and is not a lever.
+
+<b>Action:</b> committed then reverted, restoring the tree byte-for-byte to <code>8a24951</code>, the content that
+passed check-3. <code>/submission/switches.json</code> was never touched.
+
+---</pre></details><details><summary><em class="">4.0 h</em><span>Round 17 — re-profile the submitted tree, not the reference</span></summary><pre>Every hotspot number used so far came from <code>/tmp/r1-profile</code>, which is the <b>un-autotuned reference</b>.
+Round 6 already showed how misleading that is: the 1.79 TB/s transpose hotspot it was priced from had
+been retuned by coordinate descent, so the &quot;fix&quot; bought +0.0011 instead of the predicted few percent.
+Round 16 then failed for the same class of reason. Before spending another code change, get a profile
+of the tree that is actually submitted.
+
+<code>profile --from 12 --iters 3</code> with <code>/submission/switches.json</code>, out <code>/tmp/r17-profile</code>, PID 1282374,
+log <code>/tmp/r17-profile.log</code>, started 00:27:54. Window 12-14 is past warmup and inside the judge&#x27;s first
+timing window.
+
+### Results
+
+<code>/tmp/r17-profile</code>, status ok, 3 updates from step 12, trace 56.8 MB. Total GPU kernel time
+2910.5 ms / 3 = <b>970.2 ms/update</b> against ~983 ms wall, so the GPU is essentially saturated and
+there is no hidden overlap to exploit.
+
+| family | ms/update | share | kernels/update |
+|---|---|---|---|
+| GEMM (cuBLAS/cutlass, incl. <code>_scaled_mm</code> and the optimizer&#x27;s matmuls) | 455.3 | 46.9% | 1948 |
+| Inductor triton | 349.1 | 36.0% | 5575 |
+| FA3 attention | 109.9 | 11.3% | 384 |
+| nccl | 23.1 | 2.4% | 41 |
+| <code>_transpose_bytes_kernel</code> (my round-6 tiled transpose) | 14.9 | 1.5% | 100 |
+| aten eager elementwise/reduce | 10.2 | 1.05% | 681 |
+| memcpy/memset | 3.7 | 0.38% | 1414 |
+| <code>CatArrayBatchedCopy</code> (<code>torch.stack</code> in the optimizer) | 2.2 | 0.23% | 8 |
+| <code>multi_tensor_apply</code> (<code>_foreach_copy_</code>) | 1.7 | 0.18% | 34 |
+
+<b>What changed vs the reference profile, and what it reprices:</b>
+
+- The 676 us relu²-backward quantize kernel that rounds 2 and 6 were priced from is now <b>414 us</b>
+  (39.7 ms/update, was 64.9). Coordinate descent really did retune it, confirming round 6&#x27;s diagnosis.
+  Its bandwidth is now 1206 MB / 414 us = <b>2.91 TB/s</b>; its companion amax reduction runs at
+  804 MB / 200.7 us = <b>4.0 TB/s</b>, i.e. near HBM peak. The remaining gap is the transposed store.
+- The amax reductions alone (<code>triton_red_fused__to_copy_abs_max_*</code>) total <b>40 ms/update (4.1%)</b>.
+  They are unavoidable under *dynamic tensorwise* scaling: you must read the tensor to find its max
+  before you can quantize it. Inductor recomputes relu² backward in both the amax and the quantize
+  kernel; materializing it instead moves exactly the same bytes (804+402+804 vs 804+1206), so there
+  is nothing to win there. Removing the amax pass would mean a static scale — a different FP8 scaling
+  recipe, which the task forbids.
+- <b>New finding: <code>Optimizer.step#MuonAdamW.step</code> is 41.9 ms/update (4.3%)</b>, never examined before.
+  ~34 ms of it is matmul: 60 <code>aten::bmm</code>/update at 352 us (21.1 ms) plus 30
+  <code>nvjet_tst_192x192_..._NNN</code>/update at 425 us (12.8 ms). These are the Polar Express iterations —
+  3 muon groups x 5 iterations x 3 matmuls, already inside <code>@torch.compile</code> but lowered to cuBLAS
+  extern calls. The rest is <code>torch.stack</code>/<code>copy_</code> traffic (~4 ms).
+- <code>aten::add_</code> is 9.9 ms/update over <b>525 calls = 175 params x 3</b>, i.e. autograd&#x27;s AccumulateGrad
+  summing the 4 grad-accum micro-batches. Eager and unfused, but it lives inside AccumulateGrad, not
+  in user code, so it is not reachable without rewriting the accumulation loop.
+- nccl (23.1 ms) is <b>not</b> overlapped: kernel-time sum 970 ms vs 983 ms wall leaves only 13 ms idle.
+  Overlapping gradient reduction with backward would be a DDP-style bucketing rewrite of
+  <code>base_train.py</code> + <code>optim.py</code>, far beyond a round.
+
+<b>Conclusion:</b> GEMM (47%) and FA3 (11%) are near the throttled hardware ceiling, the triton family
+(36%) is memory-bound at 2.9-4.0 TB/s and already CD-tuned, and the transpose family is closed
+(rounds 2, 6, 16). The only untried lever with a real mechanism left is *kernel choice for the
+optimizer&#x27;s matmuls*, which is what round 18 tests.
+
+---</pre></details><details><summary><em class="">4.4 h</em><span>Round 18 — GEMM autotuning for the optimizer&#x27;s matmuls</span></summary><pre>Round 17 found 34 ms/update of cuBLAS extern matmuls inside the Muon step. Inductor only autotunes
+those if <code>max_autotune_gemm</code> is on; round 1 enabled only <code>max_autotune_pointwise</code>. This is the last
+untested cheap lever, and it is a pure environment switch.
+
+<code>TORCHINDUCTOR_MAX_AUTOTUNE_GEMM=1</code> on top of the submitted config, <code>/tmp/sw-r18.json</code>,
+out <code>/tmp/r18-time</code>, PID 1335382, log <code>/tmp/r18-time.log</code>, started 00:37:58.
+
+### Results
+
+<b>No gain: 1.0304 vs 1.0333</b> (<code>/tmp/r18-time/time.json</code>, status ok, 0.9857 s/update) — a small
+regression, and compile roughly doubled (~11 min vs ~7 min, 123 autotune benchmarks logged, many of
+them on tiny fp32 mm shapes where <code>BLOCK_M=BLOCK_N=32</code> Triton templates cannot beat cuBLAS).
+cuBLAS was already picking the right kernels for the Polar Express bmms. Dropped; not submitted.
+
+Also checked which remaining fusion knobs are reachable from a switch file at all. Inductor reads env
+vars per-setting, with no generic override, so of <code>aggressive_fusion</code>, <code>group_fusion</code>,
+<code>split_reductions</code>, <code>realize_opcount_threshold</code> and <code>loop_ordering_after_fusion</code>, <b>only the last one</b>
+is env-settable (verified by printing the config values under the env vars set). The others would need
+a code-level config mutation.
+
+---</pre></details><details><summary><em class="">4.4 h</em><span>Round 19 — loop ordering after fusion</span></summary><pre><code>TORCHINDUCTOR_LOOP_ORDERING_AFTER_FUSION=1</code> re-decides the loop order of a fused kernel from *all*
+its nodes instead of just the first. This model&#x27;s fusions are unusually layout-hostile — the fp8
+quantize kernels write both a row-major and a column-major output from one loop nest — so the default
+&quot;first node wins&quot; order may be leaving coalescing on the table. No extra autotuning, so compile time
+should be unchanged. Pointwise reordering is N0; if it changes a reduction order it is N1.
+
+<code>/tmp/sw-r19.json</code>, out <code>/tmp/r19-time</code>, PID 1398932, log <code>/tmp/r19-time.log</code>, started 00:51:58.
+
+### Results
+
+<b>Killed after 16 min without reaching a training step.</b> The log froze at 00:52 (right after the
+model/recipe banner), both GPUs sat at <b>0% util and 114 W idle</b>, and no <code>step</code> line ever appeared.
+Same signature as rounds 5 and 12: a CPU-side compile blowup, not slow training. Re-deciding loop order
+for every fused node apparently interacts badly with coordinate descent&#x27;s search. Terminated my own
+processes by explicit PID (bench 1398933, torchrun 1398954, ranks 1399004/1399005, TERM then KILL);
+confirmed 0 remaining bench/rank processes and 0 GPU compute apps. Impractical against the 2700 s
+timing timeout, dropped.
+
+Also ruled out <code>TORCHINDUCTOR_MULTI_KERNEL=2</code> and <code>=3</code>: <code>config.py:1370-1372</code> documents them as
+&quot;force persistent / non-persistent reduction (for debugging)&quot;. Mode 1 already tunes between the two,
+so neither is a lever.
+
+---</pre></details><details><summary><em class="">4.7 h</em><span>Round 20 — unbundle round 7: cooperative reductions alone</span></summary><pre>Round 7 measured <code>MULTI_KERNEL=1</code> + <code>COOPERATIVE_REDUCTIONS=1</code> together at <b>0.9123</b>, a 10%
+regression, and attributed it to the grid=[512] reduction kernels. That attribution was never
+isolated — the two knobs were confounded. Round 17 gives a reason to retry coop alone:
+<code>config.py:1361</code> describes it as &quot;for small output size reductions, uses cross thread-block
+synchronization to gain more parallelism&quot;, and the FP8 <code>amax</code> reductions have output size <b>1</b> and
+cost <b>40 ms/update (4.1%)</b>. <code>multi_kernel</code> is the knob that adds subkernel tuning overhead, so it is
+the more likely cause of round 7&#x27;s regression.
+
+Counter-argument to price honestly: those amax kernels already run at ~4.0 TB/s, near HBM peak, so
+they are bandwidth-bound rather than parallelism-bound and there may be nothing to win.
+
+<code>TORCHINDUCTOR_COOPERATIVE_REDUCTIONS=1</code> alone on top of the submitted config, <code>/tmp/sw-r20.json</code>,
+out <code>/tmp/r20-time</code>, PID 1442038, log <code>/tmp/r20-time.log</code>, started 01:10:19.
+
+### Results
+
+<b>Large regression: 0.9189</b> (<code>/tmp/r20-time/time.json</code>, status ok, 1.1054 s/update vs 0.9829).
+
+<b>This resolves round 7&#x27;s confound.</b> Round 7 measured <code>MULTI_KERNEL=1</code> + <code>COOPERATIVE_REDUCTIONS=1</code>
+together at 0.9123 and blamed the reduction kernels generically. Coop *alone* reproduces almost the
+whole regression (0.9189 vs 0.9123), so <b>cooperative reductions is the culprit, not <code>multi_kernel</code></b>.
+The counter-argument above was the right one: these amax reductions are bandwidth-bound at ~4.0 TB/s,
+not parallelism-bound, so cross-thread-block synchronization adds overhead and buys nothing. The
+&quot;small output size&quot; heuristic in the config comment does not apply to reductions that are already
+saturating HBM. Both knobs stay off.
+
+---</pre></details><details><summary><em class="">4.9 h</em><span>Round 21 — measurement-integrity check of the submitted baseline</span></summary><pre>Not an optimization round. After round 20 finished, <code>nvidia-smi</code> reported both GPUs at **100% util and
+~691 W<b> while <code>--query-compute-apps</code> returned </b>nothing** and memory was only 1143 MiB. That state
+persisted for about two minutes (01:21:40, 01:22:41, 01:23:33). A busy GPU with no owning process is
+exactly the condition that would invalidate a timing comparison, and round 20 ran at 01:10-01:21,
+shortly after I SIGKILLed round 19&#x27;s ranks — so round 20&#x27;s 0.9189 could in principle be contention
+rather than a cooperative-reductions effect.
+
+Evidence that it is *not* contention, before re-measuring:
+- Round 20&#x27;s per-update times are uniformly slow from update 1 onward (1.0879 … 1.1122), windows
+  1.1028 / 1.1066 / 1.1070. Contention normally shows spikes or a step change, not a flat 12% tax on
+  all 33 updates including the earliest.
+- Round 7 measured 0.9123 with the same knob hours earlier, an independent agreement.
+- Round 19&#x27;s ranks were killed while <b>compiling</b>, with the GPUs at 0% and 114 W, so no kernel was
+  in flight to be orphaned.
+
+Decisive test anyway: re-<code>time</code> the <b>submitted</b> config, unchanged, out <code>/tmp/r21-verify</code>,
+PID 1500070, log <code>/tmp/r21-verify.log</code>, started 01:23:33. Expected ~1.0333 if the machine is clean.
+Once this run&#x27;s ranks came up, <code>nvidia-smi</code> listed them normally (PIDs 1500144/1500145, 6964 MiB each),
+so the earlier empty process table was driver-side lag during teardown, not a foreign tenant.
+<code>clocks_throttle_reasons.active = 0x4</code> (SW power cap) throughout, consistent with the 700 W cap
+recorded in round 1.
+
+### Results
+
+<b>1.0354</b> (<code>/tmp/r21-verify/time.json</code>, status ok, 0.9810 s/update). The machine is clean and the
+submitted configuration reproduces. Three independent <code>time</code>/<code>check</code> measurements of this exact tree
+and switch file now agree:
+
+| run | s/update | speedup |
+|---|---|---|
+| <code>/tmp/r14-time</code> (<code>time</code>) | 0.9829 | 1.0333 |
+| <code>/tmp/check-3</code> (full check, gate 1) | 0.9829 | 1.0333 |
+| <code>/tmp/r16-time</code> (same tree + an off-by-default switch, so same code path) | 0.9827 | 1.0336 |
+| <code>/tmp/r21-verify</code> (<code>time</code>) | 0.9810 | 1.0354 |
+
+Spread 0.0021 across four runs, all comfortably above the 1.02 bar. The earlier empty
+<code>--query-compute-apps</code> was driver lag during teardown, not a foreign tenant: **round 20&#x27;s 0.9189 is a
+genuine cooperative-reductions regression**, and the round-7 attribution is corrected.
+
+---</pre></details><details><summary><em class="">5.1 h</em><span>Round 22 — paired timing against a freshly measured reference</span></summary><pre>Not a change: a robustness check on the margin. Every number so far compares against the <b>frozen</b>
+reference measured at container startup (~19:29). The final evaluation instead times
+reference -&gt; candidate -&gt; reference in the same check, so the better predictor of the score is a
+<b>paired</b> measurement taken now, in the machine&#x27;s current thermal/power state.
+
+<code>time --paired</code> with the submitted tree and <code>/submission/switches.json</code>, out <code>/tmp/r22-paired</code>,
+PID 1553494, log <code>/tmp/r22-paired.log</code>, started 01:34:05. Two cold-compile runs, ~16 min.
+The task calls <code>--paired</code> a screening number and not a verdict; it is used here only as evidence that
+the 1.033 margin is not an artifact of the frozen baseline.
+
+Also re-ran both bitwise suites against the final (reverted) tree as insurance that the revert left
+nothing half-edited: <code>/tmp/r6_test.py</code> <b>ALL OK</b> (tiled transpose byte-exact on 14 shape/dtype pairs,
+threshold routing correct, <code>_scaled_mm</code> bitwise, Float8Linear fwd+grad off-vs-on eager and compiled)
+and <code>/tmp/r14_test.py</code> <b>ALL OK</b> (weight cache bitwise on 3 shapes eager+compiled, 1 quantize call
+instead of 4, invalidation correct on eager and compiled mutation, cached operands byte-exact).
+
+### Results
+
+<b><code>speedup_vs_paired_reference</code> 1.0275</b>, <code>speedup_vs_frozen_reference</code> 1.0304
+(<code>/tmp/r22-paired/time.json</code>, status ok).
+
+| | window 10-17 | 18-25 | 26-33 | mean |
+|---|---|---|---|---|
+| fresh paired reference | 1.0058 | 1.0142 | 1.0211 | 1.0137 |
+| frozen reference | 1.0104 | 1.0164 | 1.0203 | 1.0157 |
+| candidate (this run) | 0.9789 | 0.9865 | 0.9918 | 0.9857 |
+
+The fresh reference is ~0.2% faster than the frozen one, and this candidate run was the slowest of the
+five (0.9857 vs 0.9810-0.9829), so the paired margin of 0.0275 is the pessimistic corner of the noise
+band, not a new baseline. Reference startup 135.4 s vs candidate 430.5 s — the coordinate-descent
+autotuning costs ~295 s of compile, which is the price of the +2% it buys.
+
+<b>Margin analysis for the final evaluation.</b> It scores min(reference A, reference B) per window
+against the candidate. Candidate s/update across five runs: 0.9829, 0.9829, 0.9827, 0.9810, 0.9857 —
+mean 0.9830, sd 0.0017. Taking the fresh reference mean 1.0137 and subtracting ~0.001 for the min-of-two
+gives an expected final ratio near <b>1.030</b>, with the 1.02 bar roughly 3 sd below. The paired run&#x27;s
+1.0275 sits inside that distribution. The margin is real and adequate, but it is a ~3% gain, not a
+large cushion, so widening it is still worth a cheap round.
+
+---</pre></details><details><summary><em class="">5.3 h</em><span>Round 23 — is the tiled-transpose split still worth keeping?</span></summary><pre><code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL</code> was adopted in round 6 on a <b>+0.0011</b> measurement, i.e. inside
+noise, and before the weight cache existed. Round 17&#x27;s profile of the *current* tree shows
+<code>_transpose_bytes_kernel</code> running as a standalone pass costing <b>14.9 ms/update (1.5%)</b> over 100
+calls. Round 16 then established that Inductor&#x27;s own fused dual-layout store is good. So the split may
+now be a small net loss rather than a small net gain, and dropping it would also simplify the tree.
+
+This is a switch-only change (no code edit): <code>/tmp/sw-r23.json</code> is the submitted config <b>minus</b>
+<code>NANOCHAT_FP8_SPLIT_TRANSPOSE_NUMEL</code>. Out <code>/tmp/r23-time</code>, PID 1623660, log <code>/tmp/r23-time.log</code>,
+started 01:46:13. <code>/submission/switches.json</code> stays at the check-3-passing config unless this wins and
+then passes its own full check.
+
+### Results
+
+<b>1.0332 without the split vs 1.0333 with it</b> (<code>/tmp/r23-time/time.json</code>, status ok, 0.9831 s/update).
+Identical within noise, so round 6&#x27;s +0.0011 was indeed noise and the split is **neutral in both
+directions**: Inductor&#x27;s fused dual-layout store and my tiled byte-mover cost the same on these shapes.
+
+<b>Decision: keep the submitted config unchanged.</b> There is no measured gain to justify switching, and
+any switch would require its own 30-minute full check to re-establish a passing state. The split stays
+enabled because it is the exact configuration that passed check-3, it is provably N0, and it is
+byte-exact under <code>/tmp/r6_test.py</code>. The simplification is available but unproven, which is the wrong
+trade when the current tree is validated.
+
+---</pre></details><details><summary><em class="">5.5 h</em><span>Round 24 — GEMM autotuning restricted to ATen (cuBLAS/cuBLASLt) backends</span></summary><pre>Round 18&#x27;s <code>MAX_AUTOTUNE_GEMM=1</code> regressed to 1.0304 and doubled compile time. Its log showed it
+benchmarking Triton templates on tiny fp32 shapes (<code>BLOCK_M=BLOCK_N=32</code>, 0.0058 ms). A plausible
+reading is that those micro-benchmarks are noise-dominated, so a template can win the benchmark and
+lose in production. <code>config.py:498</code> exposes <code>TORCHINDUCTOR_MAX_AUTOTUNE_GEMM_BACKENDS</code> (default
+<code>ATEN,TRITON,CPP</code>); restricting it to <b>ATEN</b> keeps the cuBLASLt algorithm search for the Muon/Polar
+Express matmuls while dropping the Triton template search entirely, which should also cut compile time
+back toward the baseline.
+
+This is the last untested configuration with a mechanism behind it. <code>/tmp/sw-r24.json</code>,
+out <code>/tmp/r24-time</code>, PID 1676356, log <code>/tmp/r24-time.log</code>, started 01:57:57. Submission untouched.
+
+### Results
+
+<b>1.0301</b> (<code>/tmp/r24-time/time.json</code>, status ok, 0.9860 s/update, windows 0.9794 / 0.9885 / 0.9901,
+startup 419.2 s). Essentially the same regression as round 18&#x27;s 1.0304, but with compile back at the
+baseline ~419 s instead of ~11 min.
+
+<b>This refutes the Triton-template hypothesis and closes the configuration space.</b> Removing the
+Triton search removed the compile cost but *not* the regression, so the ~0.3% loss comes from the
+GEMM-autotune path itself — the benchmarked choice is slightly worse in production than cuBLAS&#x27;s
+default heuristic for these shapes, consistently across two independent runs and two backend sets.
+<code>MAX_AUTOTUNE_GEMM</code> is a small, reproducible loss here in every variant. Dropped.
+
+<b>The submitted configuration is unchanged and remains the best measured.</b> Every environment lever
+reachable from a switch file has now been tested (rounds 1, 5, 7, 8, 9, 10, 11, 12, 18, 19, 20, 24),
+and the code-level levers have been tested and either adopted (weight cache), rejected by gate 3
+(fast accumulation), or measured neutral (tiled transpose in both directions, forward-side column-major
+copy).
+
+---</pre></details><details><summary><em class="">5.9 h</em><span>Round 25 — op-level efficiency accounting, then bypass L1 for the streaming quantize kernels</span></summary><pre>### Profile: achieved throughput per op class (from <code>/tmp/r17-profile</code>, no new GPU run)
+
+The judge&#x27;s profiler ran without <code>record_shapes</code>, so I linked every GPU kernel to its launching
+<code>cpu_op</code> by <code>External id</code> (<code>/tmp/r25_attr.py</code>, 0 unattributed kernels) and derived shapes from the
+gate-2 record, which lists every parameter&#x27;s exact shape and optimizer kind.
+
+<b>Correction to round 17: the optimizer is NOT at 53% of peak — I double-counted it.</b>
+<code>nvjet_tst_192x192_64x3_2x1_v_bz_coopB_NNN</code> (12.76 ms/update) *is* the <code>aten::bmm</code> kernel, not a
+separate one; round 17 added it to <code>aten::bmm</code>&#x27;s 21.12 ms instead of recognizing it as a subset.
+
+Muon groups are keyed by shape only (<code>gpt.py:447</code>), and the record shows <b>156</b> muon params, not 144 —
+the <code>ve_gate</code>/<code>smear_gate</code> matrices are <code>[12, 12]</code> and form a fourth, negligible group. Per rank:
+
+| group | params | chunk/rank | GFLOP/update |
+|---|---|---|---|
+| [1536, 1536] square | 96 | 48 | 5224 |
+| [6144, 1536] tall | 24 | 12 | 3918 |
+| [1536, 6144] wide | 24 | 12 | 3918 |
+| [12, 12] gates | 12 | 6 | ~0 |
+
+Total <b>13.06 TFLOP/update</b> in 21.12 ms = <b>618 TFLOPS = 85%</b> of the throttled bf16 peak (~727).
+Model FP8 GEMMs: 574 TFLOP/update in 434.72 ms = <b>1320 TFLOPS = 91%</b> of throttled FP8 peak (~1454).
+So *both* matmul families are near ceiling; the optimizer is not a lever either.
+
+### The actual remaining hotspot: occupancy, not bytes
+
+Launch configs for the top Inductor kernels (<code>/tmp/r25_launch.py</code>), with bytes derived from the op
+signature (M=32768 tokens, D=1536, F=6144, bf16 2B, fp8 1B):
+
+| kernel | ms/upd | us | grid | block | shmem | regs | occ% | TB/s |
+|---|---|---|---|---|---|---|---|---|
+| relu² <b>bwd</b> quantize + dual write | 39.74 | 414.0 | [96,512] | 128 | 8192 | 96 | <b>31</b> | <b>2.92</b> |
+| relu² bwd amax | 19.26 | 200.7 | [768] | 1024 | 128 | 30 | 100 | 4.01 |
+| QK-norm + RoPE fwd | 17.84 | 185.8 | [24576] | 256 | 64 | 64 | <b>50</b> | <b>2.17</b> |
+| relu² <b>fwd</b> quantize + dual write | 16.49 | 171.7 | [98304] | 128 | 0 | 28 | <b>100</b> | <b>4.69</b> |
+| rms_norm / RoPE bwd | 13.44 | 140.0 | [1,12288] | 256 | 0 | 64 | <b>50</b> | <b>2.88</b> |
+| relu² fwd amax | 11.74 | 122.3 | [384] | 512 | 128 | 39 | 73 | 3.29 |
+
+The largest triton kernel in the model runs at **31% occupancy with 96 registers and 8 KB of shared
+memory<b>, while its own forward twin — same tensor, same dual-layout store — runs at </b>100% occupancy,
+28 registers, no shared memory, and 4.69 TB/s**. That is a 1.6x bandwidth gap on 39.74 ms/update, i.e.
+~15 ms/update (~1.5%) if the backward could match the forward. The QK-norm/RoPE pair adds 31.3 ms/update
+at 2.17-2.88 TB/s and 50% occupancy. (Caveat on the RoPE number: <code>cos</code>/<code>sin</code> are indexed by token but
+re-read for each of the 12 heads, so part of that traffic is L2, not HBM, and the true HBM rate is
+higher than 2.17.)
+
+### Change: <code>TORCHINDUCTOR_SKIP_L1=1</code>
+
+<code>codegen/triton.py:2585-2599</code> adds <code>cache_modifier=&#x27;.cg&#x27;</code> to a load when it is coalesced, not
+broadcast, not inside a reduction, and the buffer has exactly one read dependency. That is precisely
+the streaming FP8 quantize pattern: read a huge activation once, write it twice. Bypassing L1 stops
+those single-use streams from evicting the lines the transposed stores and the <code>cos</code>/<code>sin</code> re-reads
+actually want, which is the pressure behind the 96-register / 31%-occupancy kernel.
+
+<b>Numerics: N0 by construction</b> — a cache modifier changes where bytes are cached, never their values
+or the order of any arithmetic. No gate-3 risk.
+
+Also checked: <code>coalesce_tiling_analysis</code> already defaults to <code>1</code> outside fbcode (<code>config.py:1286</code>), so
+it is not a lever. <code>PERSISTENT_REDUCTIONS</code> defaults on and the QK-norm kernel is persistent; forcing
+two-stage would add a pass.
+
+<code>/tmp/sw-r25.json</code>, out <code>/tmp/r25-time</code>, PID 1730951, log <code>/tmp/r25-time.log</code>, started 02:24:56.
+
+### Results
+
+<b><code>status ERROR</code> after 3 min — an upstream PyTorch bug, not a numerics failure.</b>
+<code>/tmp/r26-time</code>&#x27;s predecessor <code>/tmp/r25-time/timing_tree.log</code>:
+
+```
+File &quot;.../torch/_inductor/codegen/triton.py&quot;, line 2587, in load
+    has_read_deps = buffer_read_counts[name] &gt; 1
+torch._inductor.exc.InductorError: KeyError: &#x27;buf94&#x27;
+```
+
+<code>simd_kernel_features.py:172-180</code> builds <code>read_counts</code> as a <code>collections.defaultdict(int)</code> and then
+ends with <code>return dict(read_counts)  # Convert defaultdict to regular dict</code>. The consumer in
+<code>triton.py:2587</code> indexes that plain dict with <b>every</b> loaded buffer name, so any buffer with no
+recorded read inside that kernel raises <code>KeyError</code>. <code>TORCHINDUCTOR_SKIP_L1=1</code> is therefore unusable in
+torch 2.9.1 on this graph. Logged and moved on to fixing it (round 26) rather than abandoning the idea.
+
+---</pre></details><details><summary><em class="">6.1 h</em><span>Round 26 — fix the upstream SKIP_L1 crash and measure the cache policy</span></summary><pre>Same hotspot as round 25: the streaming FP8 quantize kernels, whose largest member runs at 31%
+occupancy / 2.92 TB/s while its forward twin hits 4.69 TB/s. Round 25 established the mechanism
+(bypass L1 for single-use coalesced loads) and found the switch broken.
+
+<b>Change.</b> <code>NANOCHAT_INDUCTOR_SKIP_L1</code> (off by default) in <code>nanochat/fp8.py</code>: wrap
+<code>SIMDKernelFeatures.buffer_read_counts</code> so it returns a <code>defaultdict(int)</code> instead of a plain dict, and
+set <code>config.triton.skip_l1_cache = True</code>. This is a strictly-safe bug fix — keys that are present are
+returned unchanged, and keys that are absent now answer 0 (&quot;not read more than once&quot;, the intended
+case) instead of raising. It cannot make behaviour worse than a crash. One switch controls both the
+patch and the config, so there is no env-ordering dependency.
+
+<b>Numerics: N0.</b> A cache modifier changes where bytes live, never their values or any arithmetic
+order. Verified by <code>/tmp/r26_test.py</code> on an MLP-shaped chain (<code>Float8Linear(1536-&gt;6144)</code> -&gt; relu² -&gt;
+<code>Float8Linear(6144-&gt;1536)</code>, M=8192), compiled <code>dynamic=False, fullgraph=True</code>, skip off vs on:
+output, grad_x, grad_fc_weight, grad_proj_weight <b>4/4 bitwise identical</b>, and it compiles.
+
+<b>Run.</b> <code>time</code> with <code>/tmp/sw-r26.json</code>, out <code>/tmp/r26-time</code>, PID 1751015, log <code>/tmp/r26-time.log</code>,
+started 02:34:00. <code>/submission/switches.json</code> untouched.
+
+### Results
+
+<code>/tmp/r26-time/time.json</code> — <b>status ok, speedup 1.0318, 0.9844 s/update</b>, finished 02:41:37.
+Against 1.0333 / 1.0354 / 1.0332 for the same config without the switch, this is <b>no gain</b> (a
+hair below the band). The crash fix works — the run compiles and trains — so the hypothesis was
+tested rather than blocked, and it came back negative.
+
+<b>Reading.</b> <code>.cg</code> is emitted only for loads that are coalesced, not broadcast, not inside a
+reduction and read at most once (<code>triton.py:2585-2599</code>). The 31%-occupancy backward quantize kernel
+is dominated by exactly the loads that fail that test — the transposed dual-layout store path reads
+its input through shared memory, and the amax prologue is a reduction. So the modifier mostly lands
+on the kernels that were already fast. The 2.92 TB/s vs 4.69 TB/s gap is **register/shared-memory
+occupancy**, not L1 thrash, and cache policy cannot fix occupancy.
+
+<b>Action:</b> committed <code>da945df</code> then reverted <code>c561713</code>, restoring the tree byte-for-byte to the
+check-3-validated content (<code>git diff 8a24951 HEAD</code> empty). Switch stays off; nothing submitted.
+
+---</pre></details><details><summary><em class="">6.3 h</em><span>Round 27 — custom fused RoPE + QK-norm kernel (the expensive rung)</span></summary><pre>Round 25 priced this pair at 31.3 ms/update running at 2.17-2.88 TB/s against an assumed 4.8 TB/s HBM
+peak, and the relu² backward quantize at 2.92 TB/s / 31% occupancy against a &quot;4.69 TB/s forward twin&quot;.
+The cheap levers being exhausted, this round attacks it with a hand-written Triton kernel.
+
+<b>Found the mechanism first.</b> Dumped Inductor&#x27;s generated source for the exact op chain
+(<code>TORCH_LOGS=output_code</code>). The kernel is
+<code>triton_per_fused__to_copy_add_cat_mean_mul_neg_pow_rsqrt_slice_0</code>, and <code>torch.cat([y1,y2], 3)</code> inside
+the <code>rms_norm</code> reduction is lowered as a <b>piecewise function of the reduction index</b>: it emits
+<code>num_load: 8</code> — every source buffer loaded *twice* under complementary masks (<code>r0&lt;64</code> and <code>64&lt;=r0&lt;128</code>),
+half the lanes dead on each — plus <code>tl.where</code> selects to reassemble. It also re-reads cos/sin once per
+head. Confirmed the exact numerics to target: fp32 throughout, <code>eps = 1.1920928955078125e-07</code>,
+<code>sum/128.0</code>, <code>libdevice.rsqrt</code>, <code>*1.2</code> after the norm mul.
+
+<b>Wrote three kernel designs</b> (<code>/tmp/r27_kernel.py</code>, <code>/tmp/r27_sweep.py</code>): (A) one program per
+(batch, token) covering all 12 heads, so each operand is loaded once and cos/sin once per token
+instead of once per head; (C) one program per 4/8/16/32 consecutive head-rows, no masked lanes at all;
+(D) C with <b>q and k in a single launch</b>, sharing the cos/sin loads. Swept <code>num_warps</code> 1-16.
+
+<b>The kernels work and are fast in isolation.</b> Best = C rows=8 w1 at <b>103.4 us</b> vs Inductor&#x27;s
+192.0 us standalone — <b>1.85x</b>, max abs diff 3.1e-2 (1-2 bf16 ulp, i.e. N1 as expected from
+reassociating the 128-wide sum).
+
+<b>But the target was wrong, and the roofline proves it.</b> Two controls:
+
+1. *What the model actually achieves.* From the round-17 profile the in-model kernel is
+   <code>..._slice_view_5</code>, <b>n=288 over a 3-update window = 96 launches/update, avg 185.8 us</b>. 96 = 4
+   micro-batches x 24 layers, i.e. Inductor <b>horizontally fuses q and k into one launch</b>. So the real
+   bar is 185.8 us for *both* tensors = 92.9 us/tensor = <b>2.17 TB/s</b>. My best single-tensor kernel is
+   103.4 us; design D does both in 201.6 us. <b>My kernel would be ~9% slower in-model.</b>
+2. *What the hardware can do.* <code>/tmp/r27_roof.py</code> and <code>/tmp/r27_bw.py</code>, 17 independent measurements:
+   eager <code>q*1.2</code> 1.98 TB/s, <code>q.clone()</code> 1.98, <code>o.copy_(q)</code> 2.00, eight hand-written Triton copy configs
+   (BLK 1024-8192, warps 4/8) 1.86-1.97, a 512 MB eager mul 2.10. Decomposed: **pure read 1.93 TB/s,
+   pure write 1.97 TB/s, read+write copy 1.98 TB/s** — read and write share one budget. Memory clock is
+   at its 3201 MHz maximum and <code>utilization.memory</code> is only 24%, so HBM is not the limiter I assumed.
+   <b>The effective streaming ceiling on this machine is ~2.0 TB/s, not 4.8.</b>
+
+<b>Verdict: hypothesis refuted, no code shipped.</b> My kernel runs at 97.7% of the measured copy
+roofline; the in-model kernel runs at 2.17 TB/s, *above* it, which it can only manage through L2 reuse
+of the tensor the preceding GEMM just wrote. There is no headroom here to take.
+
+<b>This reprices the whole remaining surface, and corrects round 25.</b> The &quot;4.69 TB/s forward twin&quot; and
+&quot;~4.0 TB/s amax&quot; figures were analytic byte counts judged against a 4.8 TB/s spec-sheet peak. Against
+the *measured* ~2.0 TB/s ceiling, every kernel in the Inductor triton family (349 ms/update, 36% of
+runtime) at 2.17-2.92 TB/s is <b>at or above roofline</b>, the excess being L2 hits. The 31% occupancy is
+therefore not a defect to fix — a bandwidth-saturated kernel does not need high occupancy. The
+occupancy lever that rounds 25 and 26 chased does not exist. Round 26&#x27;s null result is consistent.
+
+Nothing was committed this round: all work is in <code>/tmp</code> scripts, the tree was never edited.
+
+---</pre></details><details><summary><em class="">6.6 h</em><span>Round 28 — NCCL protocol: every collective is running RING_LL</span></summary><pre>Round 27 closed the streaming/pointwise family against a measured roofline. The only above-noise item
+left in the repriced surface is <b>nccl, 23.09 ms/update (2.4%)</b>, and I had never tried NCCL&#x27;s own
+configuration levers — a cheap lever missed while chasing kernels.
+
+<b>Profile evidence.</b> The round-17 trace shows *every* collective on the same protocol:
+
+| kernel | n (3 updates) | avg | total |
+|---|---|---|---|
+| <code>ncclDevKernel_ReduceScatter_Sum_bf16_RING_LL</code> | 39 | 383.1 us | 14.94 ms |
+| <code>ncclDevKernel_ReduceScatter_Sum_f32_RING_LL</code> | 15 | 1332.3 us | 19.98 ms |
+| <code>ncclDevKernel_AllGather_RING_LL</code> | 54 | 632.1 us | 34.13 ms |
+
+<b>LL is the low-latency protocol: it carries 4 data bytes per 8 wire bytes</b>, so it halves effective
+bandwidth. It is meant for small messages. A 1332 us f32 reduce-scatter is not a small message.
+LL128 carries 120/128 and Simple has no flag overhead at all.
+
+<b>Numerics argument for N0, then verified.</b> Protocol is a *wire encoding*; holding the algorithm at
+RING leaves the arithmetic untouched. And <code>optim.py</code> uses <code>ReduceOp.AVG</code> over <b>2 ranks</b>, so each
+output element is a single two-operand add regardless of chunking. (Changing *algorithm* to NVLS could
+reassociate AVG as <code>a/2 + b/2</code> instead of <code>(a+b)/2</code>, so I deliberately left <code>NCCL_ALGO</code> alone.)
+Verified empirically rather than assumed: <code>/tmp/r28_nccl.py</code> runs 2 ranks over
+<code>reduce_scatter_tensor(AVG)</code> and <code>all_gather_into_tensor</code> at 32/64/128/256 MB in bf16 and f32, printing
+a float64 checksum of every result. **All checksums are identical across LL, LL128 and Simple at every
+size and dtype** — 48/48 bitwise matches.
+
+<b>Measured (min of 3 blocks of 20 iters, <code>NCCL_ALGO=Ring</code> held constant):</b>
+
+| MB/rank | LL rs | LL128 rs | <b>Simple rs</b> | LL ag | LL128 ag | <b>Simple ag</b> |
+|---|---|---|---|---|---|---|
+| bf16 32 | 462 | 244 | <b>98</b> | 320 | 102 | <b>99</b> |
+| bf16 64 | 748 | 320 | <b>292</b> | 724 | 296 | <b>284</b> |
+| bf16 128 | 1610 | 715 | <b>555</b> | 1441 | 688 | <b>537</b> |
+| f32 32 | 309 | 103 | <b>90</b> | 307 | (4545) | <b>90</b> |
+| f32 64 | 730 | 305 | <b>285</b> | 727 | 293 | <b>282</b> |
+| f32 128 | 1467 | 695 | <b>545</b> | 1437 | 686 | <b>542</b> |
+| f32 256 | 3001 | 1197 | <b>1183</b> | 2993 | 1199 | <b>1166</b> |
+
+Simple is best at every size, ~2.6-3x faster than LL at 128 MB and ~1.3x faster than LL128. Two cells
+(parenthesised, plus Simple bf16 256 rs = 6818) are transient co-tenant bursts, not real: the same
+configuration at adjacent sizes is 3-12x faster. The first sweep also showed LL 5.5 ms vs Simple
+2.1 ms at 453 MB, so the advantage grows with size.
+
+<b>Predicted prize</b>, mapping the profile&#x27;s per-call averages onto the measured curves: f32 rs
+1332 -&gt; ~545 us x5 = 3.9 ms; bf16 rs 383 -&gt; ~98 us x13 = 3.7 ms; all_gather 632 -&gt; ~283 us x18 = 6.3 ms.
+<b>~14 ms/update = ~1.4%</b>, which would be the largest single gain since the FP8 weight cache.
+
+<b>Change:</b> none in the tree — this is a pure environment switch, <code>NCCL_PROTO=Simple</code>, added to the
+submitted four. <b>Run:</b> <code>time</code> with <code>/tmp/sw-r28.json</code>, out <code>/tmp/r28-time</code>, PID 1801468, log
+<code>/tmp/r28-time.log</code>, started 03:05:01. <code>/submission/switches.json</code> untouched pending the result.
+
+### Results
+
+<code>/tmp/r28-time/time.json</code> — <b>status ok, speedup 1.0352, 0.9812 s/update</b>, finished 03:12:42. Inside
+the baseline band (1.0332-1.0354), so no gain. The profile then explained why, and the explanation
+invalidates the premise of the round:
+
+<b><code>NCCL_PROTO</code> does nothing on this stack.</b> <code>/tmp/r28-profile</code> (2-update window) still shows
+<code>ncclDevKernel_AllGather_RING_LL</code>, <code>..._ReduceScatter_Sum_bf16_RING_LL</code>, <code>..._Sum_f32_RING_LL</code>,
+<code>..._AllReduce_Sum_f32_RING_LL</code> — <b>LL everywhere, unchanged</b>, with per-call averages unchanged
+(all_gather 669.5 us vs 632.1; f32 rs 1351 us vs 1332.3). The switch *was* delivered:
+<code>time.json</code> records <code>NCCL_PROTO: &quot;Simple&quot;</code> in both <code>environment</code> and
+<code>fingerprint.candidate_environment</code>; <code>bench.py:288</code> applies <code>cand_env</code> after the RESERVED filter,
+<code>candidate_environment()</code> would have rejected a reserved name, and neither the bench nor nanochat
+sets any NCCL variable (grep found only <code>backend=&quot;nccl&quot;</code> in <code>common.py:201</code>).
+
+Confirmed directly with <code>/tmp/r28_verify.py</code>, which profiles one 128 MB f32 reduce-scatter on 2 ranks
+and prints the kernel name: **<code>NCCL_PROTO=LL</code>, <code>=Simple</code> and <code>=LL128</code> all produce
+<code>ncclDevKernel_ReduceScatter_Sum_f32_RING_LL</code>.** The protocol is not selectable here.
+
+<b>Methodological correction — the microbenchmark was confounded.</b> The 2.6-3x &quot;Simple wins&quot; table
+above was measured by running the three protocols as *separate sequential processes in a fixed order*
+(LL, then LL128, then Simple), twice. Both sweeps put LL first and LL was slowest in both. Since the
+kernel is provably identical in all three, the difference was <b>order/warm-up, not protocol</b> — the
+later processes ran on a warmer machine. The two extreme outliers (LL128 f32-32 ag 4545 us, Simple
+bf16-256 rs 6818 us) were the same effect in the other direction. I over-read a clean-looking table.
+**Lesson: an A/B run as separate processes in fixed order is confounded by clock ramp and co-tenant
+drift; interleave the arms inside one process, or randomise order, and verify the mechanism (kernel
+name) changed before believing the timing.** Round 27&#x27;s roofline is *not* affected: all 17 of those
+measurements were interleaved inside single processes and agreed regardless of position.
+
+<b>Net:</b> the lever does not exist. No code changed, nothing committed, <code>/submission/switches.json</code>
+untouched. The run is a useful <b>sixth reproducibility sample</b> of the submitted configuration:
+0.9812 s/update is the best absolute number observed, band now 1.0332-1.0354 over six runs.
+
+<b>Also checked this round, and closed:</b> whether the MLP activation chain materialises an avoidable
+pass. It does not. The profile has exactly one relu kernel,
+<code>triton_poi_fused__scaled_mm__to_copy_clamp_clone_mul_pow_reciprocal_relu_t_threshold_backward_view_10</code>
+(39.74 ms/update), which <b>recomputes</b> relu²-backward and fuses it with quantize + dual-layout store,
+paired with <code>triton_red_fused__to_copy_abs_max_mul_pow_relu_threshold_backward_view_8</code> (19.26 ms/update)
+which recomputes it again for the amax reduction. That is already the byte-optimal two-pass structure
+for dynamic tensorwise scaling — no bf16 grad_z is ever materialised. The forward pair
+(<code>..._abs_max_pow_relu_view_11</code> / <code>..._clamp_mul_pow_relu_t_view_13</code>) does the same. Inductor&#x27;s fusion
+here is optimal; there is no pass to remove.
+
+---</pre></details><details><summary><em class="">7.0 h</em><span>Round 29 — measure the nccl overlap properly, then attack CPU-side launch overhead</span></summary><pre><b>First, a correction to round 17 that closes the overlap lever.</b> Round 17 argued &quot;kernel time sums
+to 970 ms against 983 ms wall, which leaves no room for concurrent execution&quot;, and priced nccl overlap
+at 23 ms with a delicate ZeRO-2 rewrite. That inference was <b>wrong</b>: summing kernel durations
+double-counts kernels that run concurrently. The right test is interval overlap on the timeline.
+<code>/tmp/r29_overlap.py</code> does exactly that on <code>/tmp/r28-profile/timing_profile.trace.json</code> (2-update
+window, 17,542 kernels, 82 of them nccl), unioning each family&#x27;s intervals and intersecting:
+
+| quantity | per 2 updates | per update |
+|---|---|---|
+| wall span | 1941.95 ms | 970.98 ms |
+| compute busy (union) | 1883.44 ms | 941.72 ms |
+| nccl busy (union) | 47.65 ms | 23.83 ms |
+| <b>nccl ∩ compute</b> | <b>34.93 ms</b> | <b>17.47 ms — 73.3% of nccl</b> |
+| GPU idle (neither) | 45.80 ms | <b>22.90 ms</b> |
+
+<b>73.3% of nccl time is already overlapped with compute.</b> <code>optim.py:434-459</code> is already structured
+correctly (phase 1 launches every group&#x27;s async reduce, phase 2 waits per group then computes and
+launches its gather), so later groups&#x27; reduces hide behind earlier groups&#x27; Polar Express matmuls.
+Only <b>6.36 ms/update (0.65%)</b> of nccl is exposed. The 23 ms rewrite prize does not exist; the
+delicate <code>base_train.py</code> + ZeRO-2 change I called &quot;the worst effort/risk/reward ratio left&quot; is now
+also the *smallest* prize left. Closed.
+
+The same measurement independently confirms round 9&#x27;s launch-gap figure from the other direction:
+<b>22.90 ms/update of true GPU idle (2.36%)</b>, over ~8,771 kernels/update = ~2.6 us per gap. With nccl
+overlap closed and every kernel family at a measured roofline, **this is now the largest remaining
+item**, and it is CPU-side launch overhead, not GPU work.
+
+<b>Change under test.</b> Two Inductor knobs of that one class, both off by default upstream and both
+<b>N0</b> (they change how kernels are launched and how buffers are allocated, never arithmetic):
+<code>TORCHINDUCTOR_CPP_WRAPPER=1</code> (generate a C++ wrapper instead of Python, cutting per-launch CPU cost)
+and <code>TORCHINDUCTOR_MEMORY_PLANNING=1</code> (pool buffer allocations). Verified env-settable at
+<code>config.py:179</code> and <code>config.py:226</code>. Also checked <code>TORCHINDUCTOR_USE_STATIC_CUDA_LAUNCHER</code> — it is
+<b>already default True in OSS</b> (<code>config.py:42-53</code>), so it is not a lever.
+
+<b>Run:</b> <code>time</code> with <code>/tmp/sw-r29.json</code>, out <code>/tmp/r29-time</code>, PID 1904160, log <code>/tmp/r29-time.log</code>,
+started 03:28:05. <code>/submission/switches.json</code> untouched.
+
+### Results
+
+<code>/tmp/r29-time/time.json</code> — <b>status ok, speedup 1.0268, 0.9892 s/update</b>, finished 03:38:17.
+A <b>regression</b> of ~0.7% against the 1.0332-1.0354 band. Compile also grew from ~423 s to ~570 s
+(the C++ wrapper builds a shared object per graph). Both knobs dropped; not bisected, because the
+combined loss is clear and neither had shown independent promise. No code changed, nothing committed.
+
+<b>Reading.</b> The 22.90 ms of GPU idle is ~2.6 us per gap across ~8,771 kernels/update, which is about
+the *minimum* CUDA launch latency, not Python overhead — the CPU is already ahead of the GPU. A C++
+wrapper removes CPU work that was not on the critical path, while costing codegen quality. Consistent
+with round 9&#x27;s finding that the gaps are launch latency rather than sync bubbles.
+
+<b>Also priced and closed this round: the <code>gpu_memset</code> traffic.</b> The trace has 2,802 memsets per 2
+updates (1,401/update, ~16% of all launches), which looked like a lever. <code>/tmp/r30_memset.py</code> shows
+every one is <b>4 bytes</b>, total <b>1.45 ms/update</b>, and the launching op is <code>aten::_scaled_mm</code> (2,712)
+or <code>aten::bmm</code> (90). These are cuBLASLt&#x27;s split-K/cooperative semaphore initialisations — the same
+<code>coopA</code>/<code>coopB</code> algorithms visible in the GEMM kernel names. Removing them means choosing different
+GEMM algorithms, and rounds 18/24 already showed GEMM autotuning regresses. Not actionable.
+<code>base_train.py:540</code> already uses <code>zero_grad(set_to_none=True)</code>, so gradient zeroing is not a source.
+
+---</pre></details><details><summary><em class="">7.3 h</em><span>Round 30 — CUDA graphs: isolate the round-9 segfault and try to route around it</span></summary><pre>The largest remaining item is the <b>22.90 ms/update of GPU idle (2.36%)</b> measured in round 29, and
+CUDA graphs are the only mechanism that reaches it. Round 9 recorded only &quot;SIGSEGV both ranks after
+73 s&quot; with no diagnosis. This round isolates the cause and attempts a surgical fix.
+
+<b>Isolated the culprit with a minimal reproducer.</b> <code>/tmp/r30_cg.py</code> runs one component per process
+under <code>TORCHINDUCTOR_CUDAGRAPHS=1</code>, so a crash is attributable:
+
+| stage | component | exit |
+|---|---|---|
+| 1 | FP8 MLP (<code>Float8Linear</code> -&gt; relu² -&gt; <code>Float8Linear</code>), fwd+bwd | 1 (my test held a graph output across replays) |
+| 2 | <b>FA3 alone</b> (<code>flash_attn_func</code>), fwd+bwd | <b>139 = SIGSEGV</b> |
+| 3 | FP8 + FA3 + FP8 | <b>139 = SIGSEGV</b> |
+
+<b>FA3 is the culprit</b>, not FP8, not <code>_scaled_mm</code>, not the nanochat custom ops (round 9 predates the
+weight cache, so the cache was never the cause). <code>PYTHONFAULTHANDLER=1</code> places the fault at
+<code>cudagraph_trees.py:2316 add_function</code> -&gt; <code>cudagraphify</code> — i.e. inside graph *capture*, on the first
+call, before any training step.
+
+<b>Found the surgical hook.</b> <code>torch._inductor.config.custom_should_partition_ops</code> (<code>config.py:471</code>,
+consumed at <code>scheduler.py:4643-4653</code>) forces a graph partition at a named <code>FallbackKernel</code>, so the
+named op runs eager while the rest is captured. <code>config.graph_partition</code> is already default-on in OSS.
+
+<b>Gotcha worth recording:</b> the op names printed by <code>TorchDispatchMode</code>
+(<code>flash_attn_3._flash_attn_forward.default</code>, dots) are <b>not</b> what the hook compares against.
+<code>scheduler.py</code> uses <code>op.name()</code>, which returns <b><code>flash_attn_3::_flash_attn_forward</code></b> — double colon.
+With the dotted names the partition silently does not happen and the segfault is unchanged; that cost
+one full probe cycle before I printed <code>op.name()</code> directly.
+
+<b>With the correct names the segfault is gone</b> (exit 139 -&gt; exit 1) on both stages, so partitioning
+does take effect. It is replaced by a different, harder failure:
+
+```
+RuntimeError: These storage data ptrs are not allocated in pool (0, 1) but should be {...}
+  cudagraph_trees.py:720 run -&gt; check_memory_pool -&gt; torch._check
+```
+
+The eager (uncaptured) FA3 partition allocates its outputs outside the cudagraph private pool, and the
+captured partition downstream requires pool-allocated inputs. This is a <b>memory-safety invariant</b> of
+cudagraph trees, not a tuning knob.
+
+<b>Decision: stop here, and do not disable the check.</b> The two remaining routes are (a) forcing
+<code>graph_break()</code> around every attention call so attention-free graphs are captured separately — which
+fragments the whole-model compile at <code>base_train.py:246</code>, destroys the cross-layer fusion that rounds
+17/28 showed is already byte-optimal, and costs more than the 2.36% it could recover; or (b) patching
+out <code>check_memory_pool</code>, which exists to prevent stale/freed storage being read and would risk silent
+numerical corruption. <b>(b) is exactly the kind of safety-check bypass I will not do</b>, and it would
+put gate 2/gate 3 at risk for an unmeasurable gain. No code was added to the tree; all work is in
+<code>/tmp</code> probes. Nothing committed.
+
+<b>Conclusion: the 22.90 ms of launch latency is not reachable on this stack.</b> CUDA graphs are blocked
+by a third-party kernel&#x27;s incompatibility with capture, and the framework&#x27;s own partitioning escape
+hatch cannot bridge the pool boundary. This closes the last above-noise item in the repriced surface.
+
+---</pre></details><details><summary><em class="">7.3 h</em><span>Round 31 — reconfirm the verdict with a fresh full check</span></summary><pre>Rounds 27-30 attacked the four remaining leads (custom fused kernel, NCCL protocol, CPU-side launch
+overhead, CUDA graphs) and <b>all four were refuted by measurement</b>, three of them by mechanisms I had
+previously mis-priced. No code was added in any of them, so the tree is still byte-identical to the
+content that passed check-3 (<code>git diff 8a24951 HEAD</code> empty, HEAD <code>c561713</code>, working tree clean,
+<code>/submission/switches.json</code> unchanged).
+
+Since the judge is the only verdict and the machine has shown drift and co-tenant bursts, the highest
+value remaining action is to reconfirm the <b>full verdict</b> on the exact submitted tree rather than
+spend more runs on levers now priced below the noise floor.
+
+<b>Run:</b> <code>check</code> with <code>--config /submission/switches.json</code>, out <code>/tmp/check-4</code>, PID 1961896, log
+<code>/tmp/check-4.log</code>, started 03:51:06. Expected ~29 min (gates 1-3, including the 150-update gate-3
+trajectories).
+
+### Results
+
+<code>/tmp/check-4/check.json</code> — <b><code>status PASS</code>, <code>speedup 1.0303</code>, tier <code>N1</code></b>, finished
+2026-11-19T04:19:32, inputs 141/141 at start and end, on exactly the submitted tree and switch file.
+
+- <b>Gate 1 (benefit):</b> window ratios <b>1.0304 / 1.0290 / 1.0315</b>, candidate windows
+  0.9806 / 0.9878 / 0.9891 s/update against the frozen reference&#x27;s 1.0104 / 1.0164 / 1.0203.
+  Speedup 1.0303 vs bar 1.02 — <b>passed</b>, margin 0.0103, and all three windows clear the bar
+  individually (the weakest is 1.0290).
+- <b>Gate 2 (record):</b> <code>exact_items_ok: true</code>, <code>status NOT_BITWISE</code>, <code>bitwise: false</code> — exactly what
+  tier N1 requires. No exact item drifted.
+- <b>Gate 3 (statistical):</b> <code>verdict: equivalent</code>, all six probes <code>within</code>:
+  -0.0001, +0.0262, +0.1105, -0.0423, -0.0021, +0.0509 sigma. **Max |bias| 0.1105 sigma vs a 3-sigma
+  bound — a 27x margin**, reproducing check-3&#x27;s 0.109 sigma almost exactly.
+
+<b>This is the second independent full-check PASS on the same content.</b> The two verdicts differ only
+in timing (1.0333 vs 1.0303, a 0.3% spread consistent with the six-run <code>time</code> band), while the
+numerics verdict is essentially identical. The submission is confirmed stable, not a lucky run.
+
+---</pre></details><details><summary><em class="">7.9 h</em><span>Round 32 — bisect round 29: MEMORY_PLANNING alone</span></summary><pre>Round 29 dropped <code>CPP_WRAPPER</code> and <code>MEMORY_PLANNING</code> jointly after a 1.0268 regression, without
+attribution. That leaves one cheap knob untested in isolation, and the two act on different things
+(codegen language vs buffer allocation), so one of them could be neutral or positive while the other
+carries the whole loss. Completing the attribution is cheap and is the last untested lever.
+
+<b>Change:</b> none in the tree; <code>TORCHINDUCTOR_MEMORY_PLANNING=1</code> added to the submitted four.
+<b>Run:</b> <code>time</code> with <code>/tmp/sw-r32.json</code>, out <code>/tmp/r32-time</code>. <code>/submission/switches.json</code> untouched.
+
+### Results
+
+<code>/tmp/r32-time/time.json</code> — <b>status ok, speedup 1.0331, 0.9832 s/update</b>, finished 04:31:01.
+Inside the baseline band, so <b><code>MEMORY_PLANNING</code> is neutral</b> and **<code>CPP_WRAPPER</code> carried the whole
+~0.6% regression** of round 29. Attribution complete. Not added: a neutral knob is not worth changing
+a configuration that has passed two full checks.
+
+<b>Also considered and ruled out of scope:</b> raising the device batch size to halve the number of
+grad-accum micro-batches (fewer, larger kernels would attack both the launch latency and the GEMM
+efficiency). The judge supplies <code>--device-batch-size=16</code> and <code>--total-batch-size=262144</code> in the recipe
+argv, so overriding them changes the workload rather than the implementation, and it would also change
+the per-tensor FP8 amax granularity — the same reason chunking the lm_head was forbidden. Not attempted.
+
+---</pre></details><details><summary><em class="">8.3 h</em><span>Round 33 — FA3 windowed vs plain causal on the L layers</span></summary><pre><b>Lead.</b> <code>gpt.py:301</code> sets <code>long_window = config.sequence_len</code> = 2048, so the 6 &quot;L&quot; layers of the SSSL
+pattern call FA3 with <code>window_size=(2048, 0)</code> while T = 2048. The largest causal distance is T-1 = 2047,
+so that window admits <b>every</b> causal pair — it is mathematically identical to <code>(-1, 0)</code> — yet it still
+selects FA3&#x27;s *windowed* kernel path. If the plain causal path is faster, this is free. (Also noted:
+<code>short_window</code> evaluates to <b>512</b>, not the 768 the comment at <code>gpt.py:302</code> claims.)
+
+<b>Measured</b> (<code>/tmp/r33_window.py</code>, exact training shape B=16 T=2048 H=12 D=128 bf16, arms
+<b>interleaved in one process</b>, min of 3 blocks, per the round-28 lesson):
+
+| arm | forward | fwd+bwd |
+|---|---|---|
+| <code>window_size=(2048,0)</code> | 773.3 us | 3385.1 us |
+| <code>window_size=(-1,0)</code> | 762.8 us | 3413.2 us |
+
+Forward is 10.5 us faster, fwd+bwd is 28.1 us <b>slower</b>. Net over 24 L-layer calls/update:
+<b>-0.67 ms = -0.07%</b>, i.e. noise. FA3&#x27;s windowed path costs essentially nothing when the window spans
+the whole sequence. <b>Not shipped</b>; no code changed.
+
+<b>Incidental finding worth recording:</b> running the *same* arm twice gives bitwise-identical forward
+output and identical <code>grad_k</code>/<code>grad_v</code>, but <b><code>grad_q</code> differs</b> (max abs 4.9e-4). FA3&#x27;s backward
+accumulates <code>dq</code> non-deterministically (atomics).
+
+<b>Correction to an earlier claim in this entry.</b> I first wrote that this makes &quot;N0 unattainable for
+this workload regardless of implementation&quot;. That is <b>wrong</b>, and the judge&#x27;s own output disproves
+it: <code>/tmp/check-4/record_cand.r0.json</code> reports, for gate 2 only,
+<code>deterministic_patched = [flash_attn_func, flash_attn_qkvpacked_func, flash_attn_varlen_func]</code> and
+<code>deterministic_algorithms = true</code> (<code>inductor_deterministic = false</code>). The judge patches the three FA3
+entry points to their deterministic variants in <code>record</code> mode, so gate 2 *is* bitwise reproducible —
+which is exactly why the submitted tree has been recording <code>N0</code> on its non-FP8-graph changes all along.
+The non-determinism is live only in gate 3 (<code>traj</code> runs production settings, as timed), so its real
+consequence is narrower but still useful: **part of gate 3&#x27;s measured spread is inherent FA3 <code>dq</code>
+noise**, which sets a floor on how tight a statistical comparison can be.
+
+<b>Absolute-number caveat:</b> my microbenchmark puts an L-layer forward at 773 us while the in-model
+profile puts it at 353.8 us (<code>n=72</code> over 3 updates). The box is more contended now than during the
+round-17 profile. Interleaved *comparisons* remain valid; absolute microbenchmark times do not transfer.
+
+---</pre></details><details><summary><em class="">8.3 h</em><span>Round 34 — bisect the gate-3-rejected fast accumulation: DGRAD alone</span></summary><pre>Round 1 enabled fast accumulation on <b>both</b> backward GEMMs (<code>NANOCHAT_FP8_FAST_ACCUM_BWD=1</code>), measured
+<b>1.0261</b> alone / <b>1.0463</b> stacked, and gate 3 rejected it (-4.3 to -15.5 sigma). The code has had
+separate <code>FAST_ACCUM_DGRAD</code> and <code>FAST_ACCUM_WGRAD</code> switches since <code>97e29d5</code>, but **the two were never
+measured or gate-checked individually** — every run used the combined switch. That is a real gap, and
+there is a strong reason to expect the two to differ:
+
+- <b>dgrad</b> = <code>grad_output @ weight</code>, reduction length <b>N = 1536 or 6144</b>.
+- <b>wgrad</b> = <code>grad_output.T @ input</code>, reduction length <b>the whole token batch = 32768</b>.
+
+Hopper FP8 fast accumulation keeps a reduced-precision accumulator and promotes periodically, so its
+error grows with reduction length. wgrad&#x27;s reduction is <b>5-21x longer</b>, making it the likely source of
+the gate-3 bias. If dgrad alone is numerically acceptable, it should still recover a meaningful share of
+the 2.6% (the forward already uses fast accum, and the three GEMMs split the FLOPs evenly).
+
+<b>Change:</b> none in the tree — <code>NANOCHAT_FP8_FAST_ACCUM_DGRAD=1</code> added to the submitted four.
+<b>Tier: N2</b> (changes accumulation precision), so it needs gate 3, not just a timing win.
+<b>Run:</b> <code>time</code> with <code>/tmp/sw-r34.json</code>, out <code>/tmp/r34-time</code>, PID 2177898, log <code>/tmp/r34-time.log</code>,
+started 04:52:03. If it beats the band, a full check follows; if gate 3 rejects it, it is dropped and
+logged like round 1, not worked around. <code>/submission/switches.json</code> untouched.
+
+### Results
+
+<code>/tmp/r34-time/time.json</code> — <b>status ok, speedup 1.0478, 0.9694 s/update</b>, finished 04:59:38.
+<b>Well above the 1.0332-1.0354 band: +1.4% over the submitted configuration</b>, and the best number
+measured in the entire search. The bisect hypothesis was right about speed — dgrad alone recovers a
+large share of the fast-accumulation prize.
+
+<b>This is tier N2, so timing is not a verdict.</b> Launched the full check immediately:
+<code>check</code> with <code>/tmp/sw-r34.json</code>, out <code>/tmp/check-5</code>, PID 2229111, log <code>/tmp/check-5.log</code>, started
+05:00:28. <code>/submission/switches.json</code> is <b>untouched</b> and the tree is unchanged; nothing is promoted
+unless gate 3 passes. Round 1&#x27;s combined switch failed gate 3 at -4.3 to -15.5 sigma, and the open
+question is whether the short-reduction dgrad contributes little enough bias to stay inside 3 sigma.
+
+### Results
+
+<code>/tmp/check-5/check.json</code> — <b><code>status INCORRECT</code>, speedup 1.0437</b>, finished 05:29:47.
+Gate 1 passed comfortably (window ratios 1.0422 / 1.0431 / 1.0458) and gate 2&#x27;s exact items were all
+fine (<code>exact_items_ok: true</code>, <code>NOT_BITWISE</code>), but <b>gate 3 rejected it: <code>verdict different</code></b>.
+
+| probe | state | bias |
+|---|---|---|
+| s005_015 | beyond | <b>-5.115 sigma</b> |
+| s015_030 | within | -2.059 sigma |
+| s030_050 | within | -2.358 sigma |
+| s050_080 | beyond | <b>-8.371 sigma</b> |
+| s080_115 | beyond | <b>-7.788 sigma</b> |
+| s115_150 | beyond | <b>-5.377 sigma</b> |
+
+Max |bias| <b>8.371 sigma</b> against a 3-sigma bound; 4 of 6 probes beyond. <b>All six are negative</b>, the
+same systematic downward signature as round 1&#x27;s combined switch (-4.3 to -15.5 sigma). So dgrad alone
+carries roughly <b>55% of the combined error</b> — the bisect confirmed the direction of the hypothesis
+but not enough to clear the gate. <b>Dropped, not worked around.</b> Nothing promoted;
+<code>/submission/switches.json</code> untouched.
+
+<b>What the bisect taught:</b> the error is not confined to wgrad. dgrad&#x27;s reduction length is *not*
+uniform across the model, which the original comment in <code>fp8.py</code> glossed as &quot;1536/6144&quot;: it is
+<b>1536</b> for attention and the MLP down-projection, <b>6144</b> for the MLP up-projection, and <b>32768</b>
+for <code>lm_head</code> (vocab, <code>gpt.py:31</code>) — so lm_head&#x27;s dgrad is as long as a wgrad reduction, and it sits at
+the top of the network where its bias propagates into every layer. That motivates round 35.
+
+---</pre></details><details><summary><em class="">9.3 h</em><span>Round 35 — cap dgrad fast accumulation by reduction length</span></summary><pre><b>Change</b> (<code>nanochat/fp8.py</code>, off by default): new <code>NANOCHAT_FP8_FAST_ACCUM_DGRAD_MAX_N</code>, an integer
+cap. dgrad uses fast accumulation only when <code>grad_output.shape[1] &lt;= cap</code>; with the default 0 no N
+qualifies, so the tree is behaviourally unchanged. Forward (<code>use_fast_accum=True</code>) and wgrad
+(<code>FAST_ACCUM_WGRAD</code>, off) are untouched.
+
+At cap <b>1536</b> the enabled set is attention&#x27;s four projections plus the MLP down-projection — 120 of
+the 145 FP8 linears — while the MLP up-projection (6144) and lm_head (32768) keep full-precision
+accumulation. In dgrad FLOP terms that retains ~62% of the work (96+96 of 309 units, counting
+2*B*1536^2 as one unit) and removes the two longest reductions, which are the plausible bias sources.
+
+<b>Tier N2.</b> Verified routing with <code>/tmp/r35_test.py</code>, which spies on <code>_scaled_mm</code> via
+<code>TorchDispatchMode</code> (reading <code>use_fast_accum</code> by schema index, since dispatch normalises kwargs into
+args) and exercises each linear in isolation so the three calls are unambiguously
+[forward, dgrad, wgrad]:
+
+- cap 0: dgrad False for N = 1536 / 6144 / 32768 — <b>off by default confirmed</b>
+- cap 1536: dgrad True only for N=1536; <b>forward True and wgrad False in every case</b>
+- cap 6144: dgrad True for 1536 and 6144, False for 32768
+- grads of the N=6144 and N=32768 linears are <b>bitwise identical</b> between cap 0 and cap 1536
+
+<b>Run:</b> going straight to <code>check</code> rather than <code>time</code> + <code>check</code>, because <code>check</code> reports gate 1&#x27;s
+speedup as well as the numerics verdict — one 30-min run instead of two. Out <code>/tmp/check-6</code>,
+PID 2400924, log <code>/tmp/check-6.log</code>, config <code>/tmp/sw-r35.json</code>, started 05:45:03.
+<code>/submission/switches.json</code> untouched.
+
+<b>Promotion rule decided in advance:</b> promote only on a full PASS, and treat a *marginal* pass
+(2-3 sigma) as a real risk increase, since the current submission has a 27x gate-3 margin and two
+PASSes. If gate 3 rejects this too, the fast-accumulation family is closed for good.
+
+### Results
+
+(pending)
+
+---</pre></details></div></details></section><div class="pager"><a class="prev" href="t-nanochat-hy4.html"><small>← 1.04×</small><strong>Hy4</strong></a><a class="up" href="nanochat.html">↑ NanoChat</a><a class="next" href="t-nanochat-kimi.html"><small>1.03× →</small><strong>Kimi k3.1</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-23 17:13 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-nanochat-opus.html", "pts": [[1.36, 1.056, 4], [3.926, 1.097, 5]], "end": 10.0, "final": 1.2018, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-nanochat-sonnet.html", "pts": [[0.83, 1.026, 2], [0.83, 1.044, 3], [1.365, 1.066, 6], [2.175, 1.129, 7], [2.694, 1.147, 8], [3.013, 1.154, 9], [3.181, 1.159, 10], [3.63, 1.164, 11], [5.189, 1.186, 14], [5.693, 1.188, 15]], "end": 10.0, "final": 1.2141, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-nanochat-haiku.html", "pts": [[0.728, 1.005, 2], [1.35, 1.01, 5], [1.638, 1.01, 10], [1.942, 1.01, 12], [2.047, 1.012, 13], [2.212, 1.02, 14], [2.526, 1.021, 16], [2.848, 1.022, 17], [3.225, 1.028, 18], [3.855, 1.03, 19], [4.078, 1.049, 20], [4.336, 1.053, 21], [4.559, 1.054, 22], [4.85, 1.054, 23], [5.201, 1.061, 24], [5.461, 1.062, 25], [6.031, 1.066, 27], [6.244, 1.07, 28], [6.625, 1.073, 29], [6.777, 1.073, 30], [6.993, 1.075, 31], [7.18, 1.075, 33], [7.405, 1.075, 35], [7.902, 1.075, 36], [8.444, 1.075, 37], [8.798, 1.075, 38], [9.797, 1.076, 40]], "end": 9.999, "final": 1.0821, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-nanochat-astra62.html", "pts": [[0.346, 1.017, 1], [1.137, 1.044, 2], [1.871, 1.072, 3], [2.703, 1.099, 4], [3.038, 1.099, 5], [3.745, 1.113, 6], [3.745, 1.113, 7], [4.695, 1.117, 8], [4.873, 1.117, 9], [5.765, 1.128, 10], [6.482, 1.135, 11], [7.163, 1.156, 12], [7.443, 1.156, 13], [7.933, 1.156, 14], [8.808, 1.167, 15], [9.082, 1.167, 16], [9.921, 1.167, 17]], "end": 10.0, "final": 1.1693, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-nanochat-sol62.html", "pts": [[0.438, 1.006, 1], [0.873, 1.03, 2], [1.362, 1.045, 3], [2.024, 1.063, 5], [2.962, 1.067, 6], [3.316, 1.067, 7], [3.758, 1.067, 8], [4.405, 1.067, 10], [5.341, 1.072, 11], [5.532, 1.078, 12], [6.13, 1.091, 13], [7.011, 1.095, 14], [7.886, 1.099, 15], [8.129, 1.101, 16], [8.619, 1.103, 17], [8.989, 1.103, 18], [9.47, 1.103, 19], [9.801, 1.11, 20]], "end": 10.0, "final": 1.0975, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-nanochat-gneon.html", "pts": [[0.41, 1.031, 2], [0.791, 1.087, 3], [1.673, 1.152, 4], [2.369, 1.162, 5], [2.369, 1.206, 6]], "end": 9.999, "final": 1.2586, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-nanochat-gcarbon.html", "pts": [[0.733, 1.03, 1], [1.623, 1.073, 2], [1.975, 1.087, 3], [2.391, 1.094, 4], [2.902, 1.098, 5], [3.073, 1.118, 6], [3.748, 1.127, 7], [4.269, 1.132, 8], [4.632, 1.138, 9], [5.292, 1.169, 10], [6.149, 1.174, 11], [7.708, 1.178, 12], [8.375, 1.183, 13], [9.087, 1.188, 14]], "end": 9.998, "final": 1.1916, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-nanochat-ghydrogen.html", "pts": [[0.0, 1.062, 3], [0.0, 1.067, 4], [0.0, 1.108, 5], [0.0, 1.135, 6], [4.634, 1.156, 7], [5.575, 1.18, 8], [7.141, 1.199, 9], [9.807, 1.22, 10]], "end": 9.997, "final": 1.22, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-nanochat-qwen4.html", "pts": [[1.284, 1.046, 3], [1.925, 1.046, 6], [2.278, 1.046, 8], [2.534, 1.046, 10], [3.059, 1.046, 13], [3.198, 1.046, 14], [3.198, 1.046, 15], [5.267, 1.046, 22], [6.283, 1.046, 26], [6.713, 1.046, 28], [7.172, 1.046, 29], [7.862, 1.046, 31], [7.888, 1.046, 32], [8.51, 1.048, 34]], "end": 10.0, "final": 1.0396, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-nanochat-step5.html", "pts": [[0.417, 1.014, 1], [0.976, 1.039, 2], [1.293, 1.06, 3], [1.744, 1.06, 4], [2.591, 1.071, 5], [3.466, 1.071, 8], [4.817, 1.075, 9], [7.159, 1.075, 13]], "end": 10.111, "final": 1.0758, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-nanochat-hy4.html", "pts": [[0.856, 1.032, 2], [1.438, 1.032, 3], [3.985, 1.032, 7], [4.598, 1.035, 9], [5.608, 1.035, 10], [5.608, 1.035, 11], [6.378, 1.043, 12], [6.864, 1.043, 13], [7.557, 1.043, 14], [7.557, 1.043, 15], [8.242, 1.043, 16], [8.744, 1.043, 17], [9.48, 1.044, 18], [9.829, 1.047, 19]], "end": 10.0, "final": 1.0404, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-nanochat-astra.html", "pts": [[0.126, 1.065, 1], [0.748, 1.08, 2], [1.613, 1.093, 5], [2.001, 1.1, 6], [2.51, 1.1, 7], [2.919, 1.101, 8], [3.124, 1.101, 9], [3.793, 1.105, 10], [4.073, 1.105, 11], [4.636, 1.132, 12], [4.901, 1.135, 13], [5.162, 1.135, 14], [5.53, 1.135, 15], [6.041, 1.16, 16], [6.24, 1.176, 17], [6.628, 1.176, 18], [6.977, 1.195, 19], [7.39, 1.196, 20], [7.738, 1.196, 21], [8.014, 1.197, 22], [8.385, 1.197, 23], [9.221, 1.197, 24], [9.602, 1.197, 25], [9.816, 1.206, 26]], "end": 10.001, "final": 1.1342, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-nanochat-glm.html", "pts": [[1.325, 1.009, 2], [3.116, 1.022, 7], [4.38, 1.027, 9], [6.228, 1.027, 10], [7.66, 1.047, 11], [8.492, 1.048, 12], [9.298, 1.048, 14]], "end": 10.002, "final": 1.046, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-nanochat-kimi.html", "pts": [[0.88, 1.015, 3], [3.69, 1.026, 19], [3.912, 1.026, 20], [5.396, 1.026, 28], [5.769, 1.026, 29], [6.412, 1.026, 32], [6.764, 1.026, 33], [7.632, 1.026, 34], [7.78, 1.026, 35], [8.151, 1.026, 36], [8.604, 1.026, 37], [8.875, 1.026, 38], [9.109, 1.026, 39], [9.391, 1.026, 40], [9.606, 1.027, 41]], "end": 10.004, "final": 1.0264, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-nanochat-ds.html", "pts": [[0.553, 1.026, 1], [0.553, 1.026, 2], [0.866, 1.026, 4], [0.866, 1.026, 5], [0.927, 1.032, 7], [1.074, 1.032, 8], [1.683, 1.035, 10], [2.007, 1.038, 13], [2.261, 1.038, 14], [2.324, 1.04, 15], [2.383, 1.04, 16], [2.626, 1.04, 17], [2.705, 1.04, 18], [3.407, 1.051, 19], [3.532, 1.051, 20], [3.593, 1.051, 21], [3.835, 1.051, 22], [3.974, 1.051, 24], [4.099, 1.051, 25], [4.166, 1.051, 26], [4.27, 1.051, 27], [4.463, 1.051, 29], [4.64, 1.052, 31], [4.854, 1.052, 35], [4.944, 1.052, 36], [5.007, 1.052, 38], [5.079, 1.052, 39], [5.148, 1.052, 40], [5.377, 1.052, 41], [5.445, 1.052, 42], [5.562, 1.052, 43], [5.748, 1.052, 46], [5.94, 1.052, 47], [5.998, 1.052, 48], [6.074, 1.052, 49], [6.147, 1.052, 50], [6.211, 1.052, 51], [6.278, 1.052, 52], [6.467, 1.052, 53], [6.604, 1.052, 59], [6.667, 1.052, 60], [6.993, 1.055, 63], [7.485, 1.061, 64], [7.552, 1.061, 65], [7.618, 1.061, 66], [7.808, 1.061, 67], [7.975, 1.061, 71], [8.166, 1.061, 73], [8.268, 1.061, 74], [8.325, 1.061, 75], [8.516, 1.061, 76], [8.72, 1.061, 81], [8.814, 1.061, 82], [8.926, 1.061, 85], [9.01, 1.061, 88]], "end": 9.019, "final": 1.0599, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-nanochat-mm.html", "pts": [[3.554, 1.016, 7], [3.554, 1.022, 8], [4.279, 1.022, 9], [4.623, 1.043, 10], [5.089, 1.043, 11], [5.408, 1.072, 12], [6.349, 1.082, 13], [7.751, 1.091, 14], [7.938, 1.095, 15], [8.818, 1.098, 16], [8.818, 1.1, 17], [9.649, 1.128, 18], [9.917, 1.128, 19]], "end": 10.004, "final": 1.1268, "rej": false}], "focus": "qwen4", "xmax": 10.5, "aria": "Qwen4-Max on NanoChat: best self-measured speedup over time"}</script><script src="chart.js?v=11230113"></script></body></html>
