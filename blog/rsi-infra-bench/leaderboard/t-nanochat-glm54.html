@@ -1,0 +1,322 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLM-5.4 · NanoChat · RSI-Infra Bench</title><meta name="description" content="GLM-5.4 on NanoChat: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11250202"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="on">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="nanochat.html">NanoChat</a><span>/</span><b>GLM-5.4</b></nav><h1>GLM-5.4 <em>1.05×</em></h1><p class="lede">Harness: Claude Code · switches: <code>NANOCHAT_OPT_MLP_FUSED=1</code> <code>NANOCHAT_OPT_WQ_CACHE=1</code> <code>NANOCHAT_OPT_MLP_FWD_QUANT=1</code> <code>NANOCHAT_OPT_QK_BWD=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.05×</dd></div><div class=""><dt>Tier</dt><dd>N0</dd></div><div class=""><dt>Self-best</dt><dd>1.04×</dd></div><div class=""><dt>Rounds</dt><dd>9</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost (est.)</dt><dd>$39.0</dd></div><div class=""><dt>Input tokens · 96.7% cached</dt><dd>110 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.4 M</dd></div><div class=""><dt>Requests</dt><dd>859</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-nanochat-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>1.26×</small></a><a class="chip" data-k="ghydrogen" href="t-nanochat-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.22×</small></a><a class="chip" data-k="sonnet" href="t-nanochat-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>1.21×</small></a><a class="chip" data-k="opus" href="t-nanochat-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>1.20×</small></a><a class="chip" data-k="gcarbon" href="t-nanochat-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>1.19×</small></a><a class="chip" data-k="astra62" href="t-nanochat-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.17×</small></a><a class="chip" data-k="astra" href="t-nanochat-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.13×</small></a><a class="chip" data-k="mm" href="t-nanochat-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.13×</small></a><a class="chip" data-k="sol62" href="t-nanochat-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.10×</small></a><a class="chip" data-k="haiku" href="t-nanochat-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.08×</small></a><a class="chip" data-k="step5" href="t-nanochat-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.08×</small></a><a class="chip self" data-k="glm54" href="t-nanochat-glm54.html"><i style="background:#101e7c"></i>GLM-5.4<small>1.05×</small></a><a class="chip" data-k="glm" href="t-nanochat-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.05×</small></a><a class="chip" data-k="ds" href="t-nanochat-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.04×</small></a><a class="chip" data-k="hy4" href="t-nanochat-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.04×</small></a><a class="chip" data-k="qwen4" href="t-nanochat-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.04×</small></a><a class="chip" data-k="kimi" href="t-nanochat-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.03×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Micro-batch regrouping 4×16 → 2×32</dt><dd>✗</dd><dt>Scope of hand-written kernels replacing Inductor glue</dt><dd>partial: whole-MLP fused unit (bitwise, +1.2%) and fused QK-norm / RoPE backward (bitwise, +1.0%), rounding points pinned to Inductor's PTX</dd><dt>Per-shape cuBLASLt algorithm selection</dt><dd>✗</dd><dt>FP8 weights quantized once per step</dt><dd>✓ <code>NANOCHAT_OPT_WQ_CACHE</code> (bitwise, +1.2%)</dd><dt>Fast accum on backward GEMMs</dt><dd>✗ deliberately not done (precision)</dd><dt>Other main levers</dt><dd>found the GPUs pinned at their 700 W power cap and hunted hotspots by energy per update; N0 (bitwise) throughout, 1.049×</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><p class="cap">This work log is reconstructed from what the agent wrote into its WORK_LOG.md during the run (the last version of each section).</p><details class="raw"><summary><span>Raw work log</span><small>10 sections</small></summary><div class="rounds"><details><summary><em class="">1.0 h</em><span>Round 1 (04:13 – 05:50): profile of the unchanged reference; FP8 transposed copies</span></summary><pre><b>Profile first</b> (<code>profile --tree /submission/nanochat</code>, output <code>/tmp/profile-ref-1</code>, updates 12–13, rank 0; unchanged tree):
+
+- 1.019 s of GPU time per update, GPU ~98 % busy (≈22 ms idle: ~20 ms in ~11.6k launch gaps of 1–2 µs
+  between ~10.4k kernels; 4 × 0.5 ms before each forward caused by the loader&#x27;s blocking pageable H2D copy;
+  0.28 ms before the NCCL reduce-scatter; 0.83 ms after the optimizer step).
+- Per update (ms): forward 4 × 73.9 = 295.8 (GEMM 144.1, attention 25.1, memory-bound glue 123.7,
+  of which weight FP8 quantization ≈ 21); backward 4 × 162.6 = 650.3 (GEMM 290.0, attention 84, FP8/norm
+  glue ≈ 211, loss + lm_head glue ≈ 30); optimizer kernels 42.8; NCCL 23.5.
+- Classes: GEMM 434 ms (42.6 %, 1.15–1.57 PF against a measured cuBLAS FP8 peak of ≈1.44–1.50 PF: little
+  headroom), attention 109 ms (10.7 %), memory-bound elementwise/quantization/norm glue ≈ 336 ms (33 %),
+  optimizer + NCCL 66 ms (6.5 %), launch gaps ≈ 20 ms (2 %).
+- Top glue kernels per micro-batch: <code>…relu_t_threshold_backward_view_12</code> ×24 @ 679 µs (c_proj backward:
+  quantize + two strided transposed stores, 16.3 ms = 10 % of the backward), its amax pass <code>view_10</code> ×24 @ 205 µs,
+  24 composite <code>fused_rms_norm_backward…sum_t_view_N</code> kernels (314–481 µs each, 11.4 ms), forward relu² amax
+  (135 µs) + quantize (193 µs) ×24, per-layer pre-norm kernels 151–194 µs ×24, weight amax/quant kernels
+  ≈ 5.3 ms, loss kernels ≈ 7 ms.
+
+<b>Change (r1a)</b>: <code>nanochat/fp8_kernels.py</code> + switch <code>NANOCHAT_OPT_FP8_T_COPY=1</code>: the transposed copies of the
+wide (32768×6144) FP8 gradient tensors are taken out of the compiled graph as an opaque custom op running a
+tiled Triton transpose (<code>nanochat::t_copy</code>, coalesced, 3.6 TB/s).
+
+- <code>time</code> (<code>/tmp/time-r1a</code>, switch on): window_s_per_update [1.0411, 1.0424, 1.0443], s_per_update 1.0426,
+  <b>speedup_vs_frozen_reference 0.9833</b> (slower). <code>check --quick</code> (<code>/tmp/quick-r1a</code>): PASS, bitwise (N0).
+- Reference tree timed right after (<code>/tmp/time-refnow</code>, unchanged tree): 1.0293 s/update, 0.996 vs frozen →
+  the machine drifts by ≈0.4 % (and warms up by ≈1 % inside a run), so r1a costs ≈1.3 %.
+- Why (<code>profile</code> of r1a, <code>/tmp/profile-r1a</code>): splitting the fused kernel makes Inductor recompute the e4m3 input
+  in a separate 198 µs kernel + a 106 µs transpose, and the remaining e5m2 quantize kernel alone still takes
+  270 µs: 785 µs per layer instead of 883 µs, i.e. only −98 µs per layer, while total traffic grows
+  (Inductor&#x27;s separate kernels run at 3 TB/s). The uncoalesced stores are not the main cost; the fix has to be
+  one custom kernel that reads z and g once and writes row-major + tiled transposed outputs.
+- Result: switch left OFF (default), not in <code>switches.json</code>. Code committed for reuse of the transpose kernel.</pre></details><details><summary><em class="">1.5 h</em><span>Round 2 (05:53 – 07:10): compile-time switches (coordinate-descent tuning, CUDA graphs)</span></summary><pre><b>Profile first</b>: basis is the round-1 profile of the unchanged reference (still the best version): ≈20 ms of launch
+gaps per update (≈11.6k kernels), and most Inductor glue kernels run at ≈3 TB/s → two cheap knobs were screened:
+more thorough kernel tuning, and CUDA graphs.
+
+- <b>r2a <code>TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1</code></b> (<code>/tmp/time-r2a</code>): window_s_per_update
+  [1.0143, 1.0236, 1.0267], s_per_update 1.0215, <b>speedup_vs_frozen_reference 1.0036</b> (+0.76 % against the
+  reference-now 1.0293 s/update). Startup grows to 412 s (tuning is compiled on the cold cache). <code>check --quick</code>
+  (<code>/tmp/quick-r2a</code>): NOT_BITWISE (exact items pass; 50 parameters differ at update 0) → tier N1.
+- <b>r2b <code>NANOCHAT_OPT_CUDAGRAPHS=1</code></b> (<code>torch.compile(..., options={&quot;triton.cudagraphs&quot;: True})</code>): the run dies
+  with SIGSEGV at the first forward (<code>/tmp/time-r2b</code>), also in a dev run with faulthandler and in a 20-line
+  repro. Cause (cuda-gdb, disassembly): the FlashAttention-3 build of the hub takes its stream through
+  <code>aoti_torch_get_current_stream</code> + <code>aoti_torch_stream_id</code>, i.e. it launches on the *c10 StreamId* cast to
+  <code>cudaStream_t</code>. On the default stream the id is 0 (NULL), which works by accident; on any other stream the
+  kernel launch dereferences a bogus handle. Inductor&#x27;s CUDA graphs warm up and capture on a side stream, so they
+  cannot work with this build, and the model (FA3) can never run on a side stream. Switch removed again.
+- No code change is enabled from this round. Coordinate-descent tuning stays available as an N1 option for the end
+  (it needs the statistical gate); it is not in <code>switches.json</code>.</pre></details><details><summary><em class="">2.5 h</em><span>Round 3 (07:12 – 09:15): weight FP8 quantization cached per update; pinned loader staging</span></summary><pre><b>Profile first</b>: basis again the round-1 profile of the unchanged reference. Two items were picked from the
+forward accounting: the FP8 weight quantization repeated every micro-batch (then estimated at ≈21 ms/update) and the
+4 × 0.5 ms GPU idle gaps before each forward (blocking pageable H2D copy of the loader).
+
+- <b>r3a <code>NANOCHAT_OPT_WQ_CACHE=1</code></b> (<code>/tmp/time-r3w</code>): weight quantization of every FP8 linear once per optimizer
+  update in an opaque custom op <code>nanochat::fp8_weight</code> (cache keyed by data_ptr/_version, cleared by an optimizer
+  step pre-hook; the nested <code>torch.compile(_to_fp8)</code> reproduces Inductor&#x27;s in-graph scale arithmetic bitwise).
+  window_s_per_update [1.0257, 1.0296, 1.0284], s_per_update 1.0279, <b>speedup_vs_frozen_reference 0.9974</b>.
+- <b>r3b <code>NANOCHAT_OPT_PINNED=1</code></b> (<code>/tmp/time-r3p</code>): loader stages in pinned memory and copies non-blocking.
+  window_s_per_update [1.0292, 1.0293, 1.0317], s_per_update 1.0301, <b>speedup_vs_frozen_reference 0.9952</b>.
+- <b>Both</b> (<code>/tmp/time-r3</code>, the configuration enabled in <code>switches.json</code>): window_s_per_update
+  [1.0224, 1.0233, 1.0264], s_per_update 1.0240, <b>speedup_vs_frozen_reference 1.0012</b>.
+  <code>check --quick</code> (<code>/tmp/quick-r3</code>): <b>PASS, bitwise (N0)</b>.
+- Why there is no visible gain: re-counting from the kernel table, the weight quantization (incl. transposed copies)
+  is only ≈3 ms/update (2 %), not 21 ms as estimated in round 1; the cache gives back ≈1.5 ms of it, the pinned copy
+  ≈2 ms of idle time. Both are below the run-to-run noise (≈0.3 %), so the three runs cannot be separated.
+- Lesson (cost ≈1 h of debugging): torch.compile hands the storage of a dead intermediate to later kernels as an
+  in-place buffer. Tensors that a custom op caches across calls must never be returned to the compiled graph
+  (the first version returned the cached tensors themselves; Inductor overwrote the cached inverse scale during
+  the forward and the loss stayed flat at 10.398). The op now returns <code>.clone()</code>s.
+- Committed as 8a18833 (both switches off by default; enabled through <code>switches.json</code>).</pre></details><details><summary><em class="">3.9 h</em><span>Round 4 (09:15 – 11:10): fused activation-backward quantization of the MLP (NANOCHAT_OPT_MLP_FUSED)</span></summary><pre><b>Profile first</b>: basis is the round-1/3 profile of the unchanged reference (still the best version). Hotspot of
+this round: the glue on the gradient of the c_fc output, per layer <code>view_12</code> (679 µs, quantize + two strided
+transposed stores, 2.0 TB/s) + <code>view_10</code> (amax, 205 µs) + <code>view_11</code> (scale) = 21.6 ms per micro-batch = 86 ms per
+update (8.4 % of the update), the largest single memory-bound item.
+
+<b>Change (r4)</b>: one opaque unit for <code>c_fc -&gt; relu().square() -&gt; input quantization of c_proj</code>
+(<code>nanochat/fp8.py</code>: <code>_FcReluSq8</code>, <code>_Float8MatmulPrequantized</code>; <code>nanochat/gpt.py</code>: <code>MLP.forward</code>). Its backward
+calls the custom op <code>nanochat::act_bwd_quant</code> (<code>nanochat/act_kernels.py</code>, Triton): one pass over z and gz for the
+amax of <code>gz * 2 * relu(z)</code>, one tiled kernel writing e5m2(da) row-major, e5m2(da) transposed and the transposed
+e4m3 copy of <code>relu(z)^2</code>; the scale arithmetic is written exactly as Inductor writes it (f64 reciprocal, f64
+multiply, f32 division), so the bytes and the inverse scale are bit-identical.
+
+- Findings while building it (dev checks only, not speed measurements): (1) autograd casts a gradient to the dtype
+  of the tensor it flows to, so the e4m3 activation&#x27;s gradient slot cannot carry gz; the unit returns the bf16
+  activation as an extra output whose gradient is gz. (2) Triton 3.5.1 miscompiles a transposed store when the
+  same fp8 value is also stored row-major in the kernel (verified tile by tile); the row store uses a separate
+  round-tripped definition. (3) A custom op must return fresh aligned tensors (0-dim inverse scale, no views).
+  (4) Production mode is not run-to-run deterministic: the <code>wte</code> gradient differs in 1–2 elements between
+  identical runs (embedding_dense_backward atomics) for the reference and the fused path alike.
+- Kernel-level and model-level dev comparisons (compiled reference path vs compiled fused path): y, dx, dW_fc,
+  dW_proj bitwise on many shapes and on a 4-layer model (except that one <code>wte</code> element).
+- <code>check --quick</code> on the fused tree with the switch on (<code>/tmp/quick-r4</code>): <b>PASS, bitwise (N0)</b>.
+- <code>time</code> (switch on, <code>/tmp/time-r4</code>): window_s_per_update [1.0306, 1.0368, 1.0327], s_per_update 1.0334,
+  <b>speedup_vs_frozen_reference 0.9921</b> → no gain (−0.8 %).
+- Why (<code>profile</code> of the fused tree, <code>/tmp/profile-r4</code>, vs <code>/tmp/profile-ref-1</code>): the three kernels are gone
+  (−21.6 ms per micro-batch) and the new ones cost 9.43 (pair, 24 × 393 µs) + 4.55 (amax, 24 × 190 µs) + 0.08 ms,
+  i.e. −7.5 ms per micro-batch as predicted, but Inductor adds a new strided kernel
+  <code>…clamp_clone_mul_pow_relu_t_10</code> (24 × 212 µs = 5.12 ms per micro-batch): the weight gradient of c_proj takes
+  the *saved row-major* e4m3 activation, whose column-major copy Inductor rematerializes from z (a chain of
+  pointwise ops), so the transposed copy the op produces is written and never read. The remaining kernels of the
+  backward are ≈1.1 ms per micro-batch slower in that trace than in the reference trace (GEMMs +0.8, others +0.3;
+  unexplained, ≈1.5 % on unrelated kernels). Net GPU time per micro-batch: 162.56 → 161.82 ms (−3 ms per update);
+  un-instrumented steps 1–10 of the two profile runs: 1.0268 vs 1.0239 s/update.
+- Result: switch left OFF, committed as ae4a02e. Fix for the next round: one Function for the whole MLP whose
+  backward feeds the op&#x27;s transposed e4m3 output to the c_proj weight gradient (expected ≈ −20 ms more per update).</pre></details><details><summary><em class="">4.6 h</em><span>Round 5 (11:03 – 12:10): whole-MLP unit; the GPUs are power-capped (energy is the objective)</span></summary><pre><b>Profile first</b>: the round-4 profile (<code>/tmp/profile-r4</code>, deleted) showed the cause of the missing gain: Inductor
+rematerialized the transposed e4m3 activation for the c_proj weight gradient in a separate strided kernel
+(<code>…clamp_clone_mul_pow_relu_t_10</code>, 24 × 212 µs = 5.1 ms per micro-batch) because the consumer saved the row-major
+activation instead of taking the op&#x27;s output. Hotspot of the round: same class (MLP activation-backward glue).
+
+<b>Change (r5)</b>: <code>_Mlp8</code> (<code>nanochat/fp8.py</code>), one autograd.Function for <code>c_fc -&gt; relu().square() -&gt; c_proj</code>; its
+backward calls <code>nanochat::act_bwd_quant</code> and uses all three outputs (e5m2 row-major for the input gradient of c_fc,
+e5m2 transposed for the weight gradient of c_fc, e4m3 transposed for the weight gradient of c_proj). The GEMM order is
+the reference&#x27;s. Dev comparisons: compiled reference path vs fused path bitwise on the MLP (2 shapes).
+
+- <code>check --quick</code> (switch on, <code>/tmp/quick-r5a</code>): <b>PASS, bitwise (N0)</b>.
+- <code>time</code> (switch on, <code>/tmp/time-r5a</code>): window_s_per_update [1.0108, 1.0134, 1.0144], s_per_update 1.0129,
+  <b>speedup_vs_frozen_reference 1.0121</b>.
+- <code>profile</code> of this tree (<code>/tmp/profile-r5a</code>): the rematerialized kernel is gone; backward GPU time per micro-batch
+  157.71 ms vs 162.56 ms (−4.85 ms; the three replaced kernels −22.0 ms, new ones +14.1 ms, composite kernels
+  unchanged, all unrelated kernels ≈1.5 % slower than in the 04:19 reference trace). Un-instrumented steps 1–10 of
+  the profile runs: 1.0082 s/update vs 1.0239 for the reference profile run.
+- <b>Key finding — the GPUs run at their 700 W power cap during training</b> (NVML sampling around a dev run: power
+  689–696 W, &quot;SW Power Cap&quot; active, SM clocks 1275–1755 MHz instead of 1980 MHz, on both GPUs; during compilation
+  480–500 W at 1980 MHz). The update time therefore follows the *energy* per update (≈ 1.025 s × 695 W ≈ 712 J), not
+  the kernel time. Energy of the compiled D24 model measured with the NVML energy counter (dev probe
+  <code>/tmp/work/micro/phase_energy.py</code>, localization only): forward 51.5 J per call (73.1 ms, 704 W); forward +
+  backward 155.6 J (222.96 ms, 698 W) for the reference path and 156.1 J (219.54 ms, 711 W) for the fused path.
+  The fused kernels cut 7.5 ms of GPU time but move the same bytes, so they cost the same energy (in isolation
+  <code>act_bwd_quant</code> runs at 708 W: 0.40 J per layer and call).
+- Isolated kernels (same probe, 3 s loops): cuBLAS FP8 GEMM 32768×1536×6148 ≈ 510–537 µs at 705 W = 0.36–0.38 J
+  per 618 GFLOP (≈ 0.59 mJ/GFLOP → ≈ 344 J per update = 48 %); bf16 Muon bmm 0.40 J per 349 GFLOP; streaming
+  copy 4.2 TB/s at 625 W; read-only reduction 3.7 TB/s at 500 W; fill 3.4 TB/s at 408 W; strided transposed copy
+  1.3 ms at 549 W. So traffic costs ≈ 0.10–0.15 mJ/MB and kernels that issue fast run at the cap.
+- Consequences: (1) gains must come from energy: fewer bytes moved, less SM work, fewer launches matter only via
+  energy; making a kernel faster at the same byte count gains nothing (r4/r5, and probably r1/r3). (2) GEMM energy
+  (≈ 48 %) and attention are fixed by the arithmetic; the optimizable part is the glue + optimizer (≈ 40 %).
+  (3) Per-kernel energy attribution is the tool for choosing hotspots from now on (<code>/tmp/work/micro/kernel_energy.py</code>
+  replays every Triton kernel of the compiled model in isolation and reads the energy counter).
+- Committed as 1f08ec4; <code>switches.json</code> now enables <code>NANOCHAT_OPT_MLP_FUSED=1</code> (bitwise, +1.2 % vs the frozen
+  reference in a single run; still below the 1.02 the benefit gate requires, so more is needed).</pre></details><details><summary><em class="">6.0 h</em><span>Round 6 (12:15 – 13:40): per-kernel energy table; FP8 weights quantized once per update (NANOCHAT_OPT_WQ_CACHE)</span></summary><pre><b>Profile first</b>: energy, not time, is the objective (round 5), so this round&#x27;s profile is a per-kernel energy table
+of the current best tree (1f08ec4 + MLP unit): <code>/tmp/work/micro/kernel_energy.py</code> records every Triton launch of one
+forward+backward of the compiled 24-layer model and replays each kernel alone (CUDA graph, NVML energy counter).
+Tooling cost most of the round: the first replay queued unbounded work (killed after 20 min), the fixed one takes
+9 min. Result (<code>/tmp/work/kenergy_fused_24.log</code>, joules per micro-batch = per forward+backward call; x4 per update):
+- All Triton kernels: <b>54.6 J per micro-batch = 218 J per update (31 % of ≈ 712 J)</b>; the rest is cuBLAS/FA3
+  (≈ 400 J) and optimizer, accumulation, gaps.
+- Largest families (J per micro-batch): <code>_quant_pair_kernel</code> (MLP bwd, mine) 6.16; forward residual + rmsnorm +
+  amax 4.45 (47 × 95 mJ); forward rotary + qk-norm 3.22 (24 × 134 mJ); weight quantization kernels 3.11 over 206
+  launches; <code>_act_amax_kernel</code> (mine) 3.09; MLP-input rmsnorm backward composites 5.35; MLP forward quantization
+  2.78 (24 × 116 mJ); loss kernels ≈ 4.3; q/k-norm + rotary backward 2.30 + 1.57; attention-input rmsnorm backward
+  composites 3.82; qkv gradient quantization 1.75.
+- In-situ cross-check with the existing trace (<code>/tmp/profile-r5a</code>): the weight quantization kernels take 6.9 ms per
+  micro-batch (27.6 ms per update, 2.7 %) — the forward quantizes all 145 FP8 weights and Inductor remakes the 98
+  non-MLP ones in the backward (it rematerializes them instead of saving them). Round 3 had dismissed this item with a
+  miscount (&quot;≈ 3 ms per update&quot;).
+- Calibration: kernels whose working set fits in L2 are too cheap in the isolated replay (the same buffer is
+  replayed back-to-back); for the ≥ 100 MB kernels the table agrees with the trace (e.g. rotary kernel 194 µs in situ
+  at ≈ 690 W = 134 mJ).
+- Energy per byte of the kernels at the cap is well above a lean stream: Inductor&#x27;s MLP amax kernel reads 403 MB for
+  85.5 mJ (0.21 mJ/MB), its quantize kernel 604 MB for 115.7 mJ (0.19); a plain reduction runs at ≈ 0.114 mJ/MB
+  and a copy at ≈ 0.148. So besides fewer bytes, leaner per-element work is a lever.
+
+<b>Change (r6)</b>: <code>NANOCHAT_OPT_WQ_CACHE</code> reworked. Round 3&#x27;s version returned clones of cached tensors from an
+in-graph op (Inductor reuses dead buffers, so the clones were needed) and gained nothing. Now every <code>Float8Linear</code>
+owns persistent tensors <code>wq</code> (e4m3 [N, K] row-major), <code>wq_t</code> (e4m3 [K, N], the column-major operand of the backward)
+and <code>winv</code>, which are *inputs* of the compiled model (never reused by Inductor, no copies); <code>_Float8MatmulCached</code> /
+<code>_Mlp8Cached</code> use them. A step post-hook on the training optimizer rewrites them (per-instance hook, so it runs
+before the judge&#x27;s global hook, i.e. inside the timed update) with three batched Triton kernels over all weights:
+amax (chunks), scale (Inductor&#x27;s f64/f32 arithmetic), quantize + transposed store (tiles). 3 launches, 2.2 ms of GPU
+time per update instead of 27.6 ms.
+- Dev checks: kernels bitwise with Inductor&#x27;s <code>_to_fp8</code> + transposed copy on all 145 weights (zero, huge, tiny,
+  clamped weights; before and after a perturbation); compiled reference path vs cached path bitwise on loss and all
+  gradients (4 layers, deterministic FA3) at init and after a fake step + in-place refresh; end-to-end through the
+  real <code>setup_optimizer</code> hook and a real <code>optimizer.step()</code>.
+- First version (compiled torch refresh, 725 kernels): <code>check --quick</code> PASS N0 (<code>/tmp/quick-r6a</code>); <code>time</code>
+  <code>/tmp/time-r6a</code>: [1.0016, 1.0079, 1.0024], 1.0040 s/update, <b>speedup 1.0211</b>.
+- Batched kernels, first attempt: <code>check --quick</code> <b>NOT_BITWISE, loss NaN from step 0</b> (<code>/tmp/quick-r6b</code>): the
+  quantizer built when the hook was registered allocated a fresh scale buffer and re-pointed every <code>winv</code> at it
+  before any refresh. (Its <code>time</code> run reported 1.19 with a NaN model — discarded.) Fix: one quantizer per model,
+  created at conversion and reused by the hook, plus a refresh at registration.
+- Fixed batched version: <code>check --quick</code> (<code>/tmp/quick-r6c</code>): <b>PASS, bitwise (N0)</b>; <code>time</code> (<code>/tmp/time-r6c</code>):
+  window_s_per_update [0.9998, 1.0016, 1.0007], s_per_update 1.0007, <b>speedup_vs_frozen_reference 1.0245</b>.
+- Committed as 444e5c8; <code>switches.json</code> enables <code>NANOCHAT_OPT_MLP_FUSED=1</code> and <code>NANOCHAT_OPT_WQ_CACHE=1</code>.
+  Full check on the submission tree started at 13:36 (<code>/tmp/check-r6</code>).
+
+<b>Gain accounting so far</b> (single <code>time</code> runs vs the frozen reference): MLP unit +1.2 % (1.0121), persistent FP8
+weights +1.2 % more (1.0245). Now above the 1.02 the benefit gate requires, but within noise of it; a full check is
+needed and more gain is welcome.
+
+<b>Next hotspots (from the energy table)</b>: MLP forward amax + quantization (N0 by construction: pointwise and max
+reductions; ≈ 6 J/update), tile/config sweep of my three MLP kernels (≈ 5 J), forward residual + rmsnorm + amax and
+the backward rmsnorm composites (≈ 50 J together; reduction order → needs layout-identical kernels for N0, else N1),
+forward rotary + qk-norm (≈ 8 J), loss kernels (≈ 10 J), gradient accumulation adds.</pre></details><details><summary><em class="">6.7 h</em><span>Round 7 (13:50 – 14:35): lean forward quantization in the MLP unit (NANOCHAT_OPT_MLP_FWD_QUANT)</span></summary><pre>- Profile (energy table of round 6, J per micro-batch of 54.6 J Triton glue): the MLP unit&#x27;s quantization kernels are
+  the largest class: <code>_quant_pair_kernel</code> 6.16, <code>_act_amax_kernel</code> 3.09, Inductor&#x27;s MLP forward amax 2.06 and
+  forward quantize 2.78 (≈ 14 J ≈ 26 %). Isolated sweeps (<code>/tmp/work/micro/act_sweep.py</code>): the backward pair kernel is
+  at the DRAM floor (best tile (64, 256, 8 warps): 359.7 µs / 281 mJ vs (64, 128, 4): 364.4 µs / 292 mJ; the amax
+  kernel has no better configuration); Inductor&#x27;s forward kernels sit 13–15 % above the floor they could reach (in
+  situ 135 + 193 µs per layer, lean ones 92 + 140 µs → ≈ 9 ms/update expected).
+- Change (<code>nanochat/act_kernels.py</code>, <code>nanochat/fp8.py</code>): <code>NANOCHAT_OPT_MLP_FWD_QUANT=1</code> quantizes the c_proj input of
+  the MLP unit (<code>relu(z)^2</code>, e4m3, tensorwise scale) with two Triton kernels that evaluate the same fp32 expressions
+  (one pass for the amax, <code>_to_fp8</code>&#x27;s scale arithmetic, one pass for the copy) → N0 by construction. Unconditional:
+  pair kernel tile (64, 256, 8).
+- Dev evidence: per-process comparison against the previous configuration (4-layer model, record-like mode): bitwise
+  loss (10.398031234741211 at init, 10.473814010620117 after a parameter perturbation) and all gradients. Pair tile
+  bitwise at three scales. Lesson: toggling a module attribute that an <code>allow_in_graph</code> Function reads, between two
+  compiles in one process, reuses the first compiled artifact (a single-process test reported &quot;bitwise&quot; for code
+  that would have crashed) → such tests need one process per configuration.
+- Judge: first attempt ERROR (<code>NameError: name &#x27;s&#x27; is not defined</code> in <code>act_fwd_quant</code>, a stale variable after
+  renaming) → fixed. <code>check --quick</code> <code>/tmp/quick-r7</code>: <b>PASS, N0, bitwise</b> (175 parameters × 10 updates, 640 rows
+  per rank). <code>time</code> <code>/tmp/time-r7</code>: window_s_per_update [0.9968, 1.0010, 0.9993], 0.999 s/update, 262,400 tokens/s,
+  <b>speedup_vs_frozen_reference 1.0262</b> (ratios [1.024, 1.0257, 1.0288]); previous best 1.0245 → +0.17 %, i.e.
+  within the ≈ 0.3 % run-to-run noise. Kept because it is bitwise and moves less energy (isolated measurements),
+  not because the gain is demonstrated.
+- Commits: 1601a3b (pair tile), eea57ba (forward quantization kernels, switch off by default). <code>switches.json</code>
+  enables <code>NANOCHAT_OPT_MLP_FUSED</code>, <code>NANOCHAT_OPT_WQ_CACHE</code>, <code>NANOCHAT_OPT_MLP_FWD_QUANT</code>.
+- Declined without a judge run: fast accumulation (<code>use_fast_accum=True</code>) in the backward GEMMs. Measured in
+  isolation: 6–13 % less time and energy per backward GEMM (dgrad 1536×1536 143.7→130.2 µs, 110→103.5 mJ; wgrad
+  1536×6144 507.6→439.3 µs, 408→341 mJ), ≈ 20.7 J ≈ 2.6–2.9 % per update. Upstream&#x27;s <code>fp8.py</code> sets it to False
+  deliberately (&quot;we use False in backward for more precise gradients&quot;): lowering the precision of the gradient
+  accumulation is a change of what is computed, which the task forbids in spirit even though it is not FP8 scaling.
+- Next hotspot (from the generated backward wrapper, per layer and micro-batch): the attention backward glue:
+  q/k-norm + rotary backward and e5m2 quantization (kernels 18 ×2, 19, 27 ×2, 28 ×2, 29 ×2 ≈ 567 µs), dv
+  quantization in two passes (≈ 130 µs), attention-norm backward composite + quantization of the previous MLP&#x27;s
+  gradient (≈ 680 µs), gate/ve path (kernels 22–25), six bf16→f32 weight-gradient copies ≈ 1560 µs per layer
+  ≈ 37 ms per micro-batch ≈ 150 ms/update (≈ 15 %). A lean version needs ≈ 525 mJ per layer vs ≈ 860 mJ
+  → ≈ 32 J/update ≈ 4.6 %. It needs a merged autograd unit (QKV linears + rotary/qk-norm + FA3 + c_proj, then the
+  pre-norm), with FA3 called through the hub module&#x27;s <code>_flash_attn_forward/_flash_attn_backward</code> and
+  <code>deterministic=torch.are_deterministic_algorithms_enabled()</code>.</pre></details><details><summary><em class="">8.5 h</em><span>Round 8 (14:45 – 17:50): fused QK-norm/rotary backward and lean e5m2 packet for the c_q/c_k gradients (NANOCHAT_OPT_QK_BWD)</span></summary><pre>- Profile (<code>/tmp/profile-r8</code>, profile of eea57ba; trace grouped with <code>/tmp/work/tracegroups.py</code>): the query/key gradient path of
+  the attention backward, per layer and micro-batch of the reference path: row sums of the norm backward (K14, both tensors)
+  104.7 µs, norm + rotary backward for q and k (K15, four half-size stores) 141.9 µs, amax over the halves (<code>_22</code> ×2) 83.0 µs,
+  scale (<code>_23</code> ×2) 49.4 µs, quantization with strided transposed stores (<code>_24</code> ×2) 152.6 µs, <code>to</code> copies 8.9 µs → 540.5 µs per
+  layer ≈ 52 ms per update (≈ 5 %). Isolated launches of K14 and K15 put them at the energy floor (K14 36 mJ for 200 MB read,
+  K15 72 mJ for 300 MB): nothing to gain from leaner kernels of the same passes. The waste is the passes: the halves are read
+  twice more (amax, quant) and the transposed copy is written with strided stores. A leaner design (one kernel reading x_rot
+  and g once and writing one contiguous bf16 tensor; one amax pass; one pass for both e5m2 copies) moves per tensor 400 MB
+  read + 200 MB written ≈ 101 mJ → ≈ 290 µs per layer at the cap.
+- Change (commit a938060, <code>nanochat/grad_kernels.py</code> new, <code>nanochat/fp8.py</code>, <code>nanochat/gpt.py</code>, switch off by default):
+  <code>_QkNorm8</code> = rotary embedding → per-head rms norm → ×1.2 for q and k as one autograd.Function (forward: the reference&#x27;s
+  ops). Its backward is <code>nanochat::qk_norm_rotary_bwd</code>: one kernel per tensor (8 head vectors per program, 2 warps) that
+  computes the row sums with the reduction tree of the reference&#x27;s record-mode kernel and then the norm and rotary backward,
+  stored as one contiguous bf16 tensor. <code>_Float8MatmulCachedQk</code> takes the e5m2 packet of that gradient from
+  <code>quant_e5m2_pair</code> (one amax pass, one pass for the row-major and the transposed copy, <code>_to_fp8</code>&#x27;s scale arithmetic).
+- Numerics (N0). The exact arithmetic was read from the PTX of Inductor&#x27;s kernels: K14&#x27;s thread partial is
+  <code>fma(x_even·rs, g_even·1.2, round(x_odd·rs · g_odd·1.2))</code> (the even element&#x27;s product is fused, the odd one rounded), the
+  xor butterfly adds own + shuffled (steps 16, 8, 4, 2, 1), warp 0 + warp 1; K15 rounds every product and fuses the
+  subtraction (<code>fma(g, 1.2, −t)</code>) and one rotary product (<code>fma(d2, cos, round(d1·sin))</code>). The kernel pins exactly this with
+  libdevice <code>mul_rn</code> / <code>fma_rn</code>. Evidence: S of a debug copy of the kernel vs Inductor&#x27;s K14 (record-mode configuration):
+  0 mismatches; dx vs Inductor&#x27;s K14 + K15 launched with their record-mode configurations: 0 differing elements for 21 launch
+  configurations (R ∈ 1…64, warps 1…8) on 5 data sets (random at three scales, dumped real inputs and the same ×1e6; up to
+  50M elements each); in-graph on the 4-layer dev model: loss and 34 gradients bitwise vs the previous configuration at
+  perturb 0 and 1 (<code>/tmp/work/micro/cfg_pair.sh r8</code>).
+- Failures on the way (dev only, the submission was not touched): (1) the first kernel emulated the tree with
+  reshape/permute/split/join chains: bitwise at initialization, garbage on the perturbed model (layer 3 received finite
+  inputs |g| ≤ 3.4e-07 and produced |dx| = 4.6e+30; standalone reruns on the same inputs gave 48…5136 Inf elements
+  depending on the launch configuration). Rewritten so that every step is a reshape + split on the minor axis: the lanes are
+  loaded in bit-reversed &quot;butterfly order&quot;, the output is two half stores. (2) With plain <code>*</code>/<code>+</code> the compiler&#x27;s FMA
+  contraction depended on the launch configuration (≤ 2 elements per thread and half: bitwise; 4 or more: 426–1085
+  differing bf16 elements of 50M) and the thread partial fused the wrong element → pinned as above. (3) Two slips in the
+  lane permutation formula (not a permutation; then wrong bit order) — caught by the S check against K14.
+- Configuration (isolated CUDA-event times, localization only): 300 MB per launch at 100 µs for (R=8, 2 warps), 106 (4, 2),
+  128 (8, 4), 142 (16, 2), 149 (2, 2), 155 (4, 4); 1 warp or idle threads: 240 µs…4.4 ms. <code>quant_e5m2_pair</code> 93.5 µs for
+  32768 × 1536 (amax 25.8 µs) for every reasonable tile; kept (64, 128, 8 warps).
+- Judge (dev tree identical to the committed tree): <code>check --quick</code> <code>/tmp/quick-r8</code>: <b>PASS, tier N0, bitwise</b>. <code>time</code>
+  <code>/tmp/time-r8</code>: window_s_per_update [0.9860, 0.9937, 0.9873], 0.989 s/update, 265,063 tokens/s,
+  <b>speedup_vs_frozen_reference 1.0366</b> (ratios [1.0352, 1.0333, 1.0413]); previous best 1.0262 → +1.0 %, above the
+  ≈ 0.3 % noise, in every window.
+- Full check: <code>/tmp/check-r8</code> — FULLCHECK_RESULT
+- Spent: ≈ 3 h for this round (two kernel bugs), far over the 30-minute pace; the result is the largest single gain
+  since round 5.</pre></details><details><summary><em class="">9.1 h</em><span>Round 9 (17:53 – 18:50): the FP8 scale kernels (serial loops over the amax partials)</span></summary><pre>- Profile (<code>/tmp/profile-r9</code>, judge <code>profile</code> of a938060; per-name durations with <code>/tmp/work/tracekd.py</code>,
+  <code>/tmp/work/traceseq.py</code>): per fwd+bwd call 974.3 ms/update of GPU kernel time before the optimizer step
+  (gemm 463.5, Inductor 231.9, mine 124.3, attention + other 117.2, nccl 24.5, eager 12.9 ms). The optimizer step
+  itself is ≈ 48 ms per update (≈ 5 %; <code>/tmp/work/tracetime.py</code>, <code>traceopt.py</code>): Muon&#x27;s bf16 GEMMs 22.5 ms, NCCL
+  ≈ 24 ms, Muon/AdamW glue ≈ 12 ms, gradient stack + copy 4.5 ms, weight quantization 2.4 ms.
+- Hotspot of the round: among my own kernels the trace shows a serial dependent loop: <code>_scale_kernel2</code> (98304 partials
+  = 96 iterations) 44.0 µs per launch × 96 per update, <code>_scale_e5m2_kernel</code> (24 iterations) 11.0 µs × 192,
+  <code>_scale_kernel</code> (3 iterations) 2.9 µs. Each iteration pays one memory latency; isolated microbenchmarks cannot
+  see it (10 µs launch floor), the in-situ trace can. ≈ 5.7 ms of GPU time per update.
+- Change (commit 04e7eb2, unconditional): the three scale kernels take <code>ITERS</code> (a constexpr) and use
+  <code>tl.static_range</code>; <code>scale_config(n_part)</code> picks (BLOCK ≤ 16384, ITERS ≤ 6, 16 elements per thread). Maxima are
+  exact and the scale arithmetic is unchanged: new vs old kernels bitwise on 124 random cases (sizes 1…150000,
+  zeros, inf, denormals; <code>/tmp/work/micro/scale_eq.py</code>).
+- Judge: <code>check --quick</code> <code>/tmp/quick-r9a</code>: <b>PASS, tier N0</b>. <code>time</code> <code>/tmp/time-r9a</code>: window_s_per_update
+  [0.9827, 0.9887, 0.9864], 0.9859 s/update, <b>speedup_vs_frozen_reference 1.0399</b> — the same as a938060&#x27;s
+  1.0366 / 1.0397 within the ≈ 0.3 % noise. Profile of the new tree (<code>/tmp/profile-r9a</code>): the kernels are at
+  7.0 µs, 3.6 µs and 2.3 µs (GPU time 971.9 vs 974.3 ms per update). The gain in update time is below the noise
+  floor: the loop iterations were latency, not energy, and time is energy here (round 5). Kept because it is
+  strictly less work at zero risk.
+- Findings that redirect the next rounds (from the Inductor sources and the trace, no change):
+  - The loss chain is <b>not</b> a hotspot: Inductor never materializes the f32 log-softmax. Forward = one online
+    max/sum pass (2.2 ms) + a gather of the target logits recomputing the softcap (14 µs); backward = an amax pass
+    and a quantize pass, both recomputing the gradient from the bf16 logits + (max, logsum), writing e4m3 row-major
+    and transposed. 8.4 GB per call at ≈ 3.8 TB/s: at the floor.
+  - My MLP kernels (<code>_act_amax_kernel</code> 804 MB in 190 µs, <code>_quant_pair_kernel</code> 1.4 GB in 361 µs) run at
+    4.2–3.9 TB/s: at the floor too.
+  - Candidates with slack (ms per update): the forward QK-norm kernel (Inductor, 195 µs for ≈ 300 MB = 1.5 TB/s,
+    96 launches → ≈ 19 ms; lean ≈ 8 ms → −11 ms); forward residual + norm composites (152 µs for ≈ 600 MB, 188
+    launches → 29 ms + 19 ms for the 197 µs ... see round 10); backward composites ≈ 52 ms; the value-embedding
+    path (Inductor embedding backward 176 µs × 12, 3 more kernels) ≈ 16 ms; optimizer: gradient stack + copy 4.5 ms,
+    AdamW reduce-scatter/all-gather per parameter ≈ 24 ms of NCCL per update in 60+ small collectives.
+- Spent: ≈ 1 h (the trace analysis of the step and of the loss chain).</pre></details><details><summary><em class="">8.5 h</em><span>Current summary (updated 17:50, after round 8)</span></summary><pre>- Current switch file <code>/submission/switches.json</code>: `{&quot;environment&quot;: {&quot;NANOCHAT_OPT_MLP_FUSED&quot;: &quot;1&quot;,
+  &quot;NANOCHAT_OPT_WQ_CACHE&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_MLP_FWD_QUANT&quot;: &quot;1&quot;, &quot;NANOCHAT_OPT_QK_BWD&quot;: &quot;1&quot;}}` (tree a938060, clean).
+- Latest full check: FULLCHECK_SUMMARY The previous full check is <code>/tmp/check-r6/check.json</code> on 444e5c8 with the first two
+  switches: PASS, tier N0, speedup 1.0235. The changes since (1601a3b, eea57ba, a938060) are bitwise by construction and by
+  judge quick checks (<code>/tmp/quick-r7</code>, <code>/tmp/quick-r8</code>: PASS, tier N0).
+- Latest <code>time</code>: <code>/tmp/time-r8</code> on a938060: <b>1.0366</b> vs the frozen reference ([0.9860, 0.9937, 0.9873] s/update).
+- The GPUs are at their 700 W power cap during training: update time ≈ energy per update / 700 W. Energy per update
+  ≈ 712 J before this round: GEMMs + attention ≈ 400 J, Triton glue ≈ 218 J before round 6 (per-kernel table:
+  <code>/tmp/work/kenergy_fused_24.log</code>), rest optimizer/accumulation/gaps.
+- Gains by change (vs frozen reference, single <code>time</code> runs): whole-MLP unit +1.2 % (N0); persistent FP8 weights +1.2 %
+  (N0); together 1.0245, 1.0235 in the full check; lean MLP forward quantization +0.17 % (N0, within noise; 1.0262); fused
+  QK-norm/rotary backward + lean e5m2 packet for c_q/c_k gradients +1.0 % (N0; 1.0366).
+  Not enabled / no gain: r1a split transposes (0.9833), r2b CUDA graphs (FA3 cannot), r2a coordinate-descent tuning
+  (+0.36 %, N1), r3 pinned loader (bitwise, noise), r3&#x27;s op-based weight cache (bitwise, no gain: clones), r4 unit split
+  over two Functions (0.9921), fast GEMM accumulation in backward (declined: precision).
+- Lessons for custom kernels that must stay bitwise with Inductor&#x27;s: read the PTX of the Inductor kernel and pin the
+  rounding points with libdevice <code>mul_rn</code> / <code>fma_rn</code> (the compiler&#x27;s FMA contraction otherwise depends on the launch
+  configuration); verify against the Inductor kernels launched with their first-listed configurations
+  (<code>/tmp/work/micro/qk_vs_k15.py</code>); avoid <code>tl.permute</code> + <code>tl.split</code> / <code>tl.join</code> chains in Triton 3.5.1 (garbage for some
+  launch configurations) — reorder the loads instead.
+- Machine drift: reference-now ≈ 0.4 % slower than the frozen timing; single <code>time</code> runs resolve ≈ 0.3 %. The final
+  evaluation times reference → candidate → reference (drift-free).
+- Next hotspots (attention backward glue ≈ 100 ms/update remain): dv quantization in two passes (≈ 130 µs per layer),
+  attention-norm backward composite + quantization of the previous MLP&#x27;s gradient (≈ 680 µs per layer), gate/ve path,
+  six bf16→f32 weight-gradient copies ≈ 1560 µs per layer ≈ 150 ms/update (≈ 15 %); then the MLP-input norm backward
+  composites (≈ 45 ms/update) and the loss chain (≈ 27 ms). Possible follow-up of this round: amax partials of the QK
+  gradient inside the new kernel (saves one 100 MB read per tensor ≈ 0.15 %).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-nanochat-step5.html"><small>← 1.08×</small><strong>Step-5 Preview</strong></a><a class="up" href="nanochat.html">↑ NanoChat</a><a class="next" href="t-nanochat-glm.html"><small>1.05× →</small><strong>GLM-5.3</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-25 18:02 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-nanochat-opus.html", "pts": [[1.36, 1.056, 4], [3.926, 1.097, 5]], "end": 10.0, "final": 1.2018, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-nanochat-sonnet.html", "pts": [[0.83, 1.026, 2], [0.83, 1.044, 3], [1.365, 1.066, 6], [2.175, 1.129, 7], [2.694, 1.147, 8], [3.013, 1.154, 9], [3.181, 1.159, 10], [3.63, 1.164, 11], [5.189, 1.186, 14], [5.693, 1.188, 15]], "end": 10.0, "final": 1.2141, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-nanochat-haiku.html", "pts": [[0.728, 1.005, 2], [1.35, 1.01, 5], [1.638, 1.01, 10], [1.942, 1.01, 12], [2.047, 1.012, 13], [2.212, 1.02, 14], [2.526, 1.021, 16], [2.848, 1.022, 17], [3.225, 1.028, 18], [3.855, 1.03, 19], [4.078, 1.049, 20], [4.336, 1.053, 21], [4.559, 1.054, 22], [4.85, 1.054, 23], [5.201, 1.061, 24], [5.461, 1.062, 25], [6.031, 1.066, 27], [6.244, 1.07, 28], [6.625, 1.073, 29], [6.777, 1.073, 30], [6.993, 1.075, 31], [7.18, 1.075, 33], [7.405, 1.075, 35], [7.902, 1.075, 36], [8.444, 1.075, 37], [8.798, 1.075, 38], [9.797, 1.076, 40]], "end": 9.999, "final": 1.0821, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-nanochat-astra62.html", "pts": [[0.346, 1.017, 1], [1.137, 1.044, 2], [1.871, 1.072, 3], [2.703, 1.099, 4], [3.038, 1.099, 5], [3.745, 1.113, 6], [3.745, 1.113, 7], [4.695, 1.117, 8], [4.873, 1.117, 9], [5.765, 1.128, 10], [6.482, 1.135, 11], [7.163, 1.156, 12], [7.443, 1.156, 13], [7.933, 1.156, 14], [8.808, 1.167, 15], [9.082, 1.167, 16], [9.921, 1.167, 17]], "end": 10.0, "final": 1.1693, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-nanochat-sol62.html", "pts": [[0.438, 1.006, 1], [0.873, 1.03, 2], [1.362, 1.045, 3], [2.024, 1.063, 5], [2.962, 1.067, 6], [3.316, 1.067, 7], [3.758, 1.067, 8], [4.405, 1.067, 10], [5.341, 1.072, 11], [5.532, 1.078, 12], [6.13, 1.091, 13], [7.011, 1.095, 14], [7.886, 1.099, 15], [8.129, 1.101, 16], [8.619, 1.103, 17], [8.989, 1.103, 18], [9.47, 1.103, 19], [9.801, 1.11, 20]], "end": 10.0, "final": 1.0975, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-nanochat-gneon.html", "pts": [[0.41, 1.031, 2], [0.791, 1.087, 3], [1.673, 1.152, 4], [2.369, 1.162, 5], [2.369, 1.206, 6]], "end": 9.999, "final": 1.2586, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-nanochat-gcarbon.html", "pts": [[0.733, 1.03, 1], [1.623, 1.073, 2], [1.975, 1.087, 3], [2.391, 1.094, 4], [2.902, 1.098, 5], [3.073, 1.118, 6], [3.748, 1.127, 7], [4.269, 1.132, 8], [4.632, 1.138, 9], [5.292, 1.169, 10], [6.149, 1.174, 11], [7.708, 1.178, 12], [8.375, 1.183, 13], [9.087, 1.188, 14]], "end": 9.998, "final": 1.1916, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-nanochat-ghydrogen.html", "pts": [[0.0, 1.062, 3], [0.0, 1.067, 4], [0.0, 1.108, 5], [0.0, 1.135, 6], [4.634, 1.156, 7], [5.575, 1.18, 8], [7.141, 1.199, 9], [9.807, 1.22, 10]], "end": 9.997, "final": 1.22, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-nanochat-qwen4.html", "pts": [[1.284, 1.046, 3], [1.925, 1.046, 6], [2.278, 1.046, 8], [2.534, 1.046, 10], [3.059, 1.046, 13], [3.198, 1.046, 14], [3.198, 1.046, 15], [5.267, 1.046, 22], [6.283, 1.046, 26], [6.713, 1.046, 28], [7.172, 1.046, 29], [7.862, 1.046, 31], [7.888, 1.046, 32], [8.51, 1.048, 34]], "end": 10.0, "final": 1.0396, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-nanochat-step5.html", "pts": [[0.417, 1.014, 1], [0.976, 1.039, 2], [1.293, 1.06, 3], [1.744, 1.06, 4], [2.591, 1.071, 5], [3.466, 1.071, 8], [4.817, 1.075, 9], [7.159, 1.075, 13]], "end": 10.111, "final": 1.0758, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-nanochat-hy4.html", "pts": [[0.856, 1.032, 2], [1.438, 1.032, 3], [3.985, 1.032, 7], [4.598, 1.035, 9], [5.608, 1.035, 10], [5.608, 1.035, 11], [6.378, 1.043, 12], [6.864, 1.043, 13], [7.557, 1.043, 14], [7.557, 1.043, 15], [8.242, 1.043, 16], [8.744, 1.043, 17], [9.48, 1.044, 18], [9.829, 1.047, 19]], "end": 10.0, "final": 1.0404, "rej": false}, {"k": "glm54", "name": "GLM-5.4", "short": "GLM-5.4", "tag": "", "color": "#101e7c", "href": "t-nanochat-glm54.html", "pts": [[4.592, 1.012, 5], [5.958, 1.024, 6], [6.696, 1.026, 7], [8.466, 1.037, 8], [9.13, 1.04, 9]], "end": 10.0, "final": 1.0487, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-nanochat-astra.html", "pts": [[0.126, 1.065, 1], [0.748, 1.08, 2], [1.613, 1.093, 5], [2.001, 1.1, 6], [2.51, 1.1, 7], [2.919, 1.101, 8], [3.124, 1.101, 9], [3.793, 1.105, 10], [4.073, 1.105, 11], [4.636, 1.132, 12], [4.901, 1.135, 13], [5.162, 1.135, 14], [5.53, 1.135, 15], [6.041, 1.16, 16], [6.24, 1.176, 17], [6.628, 1.176, 18], [6.977, 1.195, 19], [7.39, 1.196, 20], [7.738, 1.196, 21], [8.014, 1.197, 22], [8.385, 1.197, 23], [9.221, 1.197, 24], [9.602, 1.197, 25], [9.816, 1.206, 26]], "end": 10.001, "final": 1.1342, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-nanochat-glm.html", "pts": [[1.325, 1.009, 2], [3.116, 1.022, 7], [4.38, 1.027, 9], [6.228, 1.027, 10], [7.66, 1.047, 11], [8.492, 1.048, 12], [9.298, 1.048, 14]], "end": 10.002, "final": 1.046, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-nanochat-kimi.html", "pts": [[0.88, 1.015, 3], [3.69, 1.026, 19], [3.912, 1.026, 20], [5.396, 1.026, 28], [5.769, 1.026, 29], [6.412, 1.026, 32], [6.764, 1.026, 33], [7.632, 1.026, 34], [7.78, 1.026, 35], [8.151, 1.026, 36], [8.604, 1.026, 37], [8.875, 1.026, 38], [9.109, 1.026, 39], [9.391, 1.026, 40], [9.606, 1.027, 41]], "end": 10.004, "final": 1.0264, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-nanochat-ds.html", "pts": [[0.405, 1.029, 2], [1.046, 1.029, 5], [1.742, 1.029, 8], [2.249, 1.042, 9], [2.904, 1.055, 10], [2.904, 1.055, 11], [4.546, 1.055, 13], [4.834, 1.055, 14], [5.059, 1.055, 15], [5.799, 1.055, 18], [6.035, 1.055, 19], [6.516, 1.055, 21], [7.05, 1.055, 22], [7.05, 1.055, 33]], "end": 10.0, "final": 1.0436, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-nanochat-mm.html", "pts": [[3.554, 1.016, 7], [3.554, 1.022, 8], [4.279, 1.022, 9], [4.623, 1.043, 10], [5.089, 1.043, 11], [5.408, 1.072, 12], [6.349, 1.082, 13], [7.751, 1.091, 14], [7.938, 1.095, 15], [8.818, 1.098, 16], [8.818, 1.1, 17], [9.649, 1.128, 18], [9.917, 1.128, 19]], "end": 10.004, "final": 1.1268, "rej": false}], "focus": "glm54", "xmax": 10.5, "aria": "GLM-5.4 on NanoChat: best self-measured speedup over time"}</script><script src="chart.js?v=11250202"></script></body></html>

@@ -1,0 +1,331 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLM-5.4 · Slime GRPO · RSI-Infra Bench</title><meta name="description" content="GLM-5.4 on Slime GRPO: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11250202"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="on">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="slime_grpo.html">Slime GRPO</a><span>/</span><b>GLM-5.4</b></nav><h1>GLM-5.4 <em>2.10×</em></h1><p class="lede">Harness: Claude Code · switches: <code>SLIME_COMPACT_LOGPROBS=1</code> <code>SGLANG_OPT_SKIP_TOP_P_LOGBPROB_SYNC=1</code> <code>SLIME_SKIP_DEAD_KL=1</code> <code>SLIME_NO_RECOMPUTE=1</code> <code>SLIME_TRAIN_CPU_THREADS=16</code> <code>SLIME_RESIDENT_TRAIN=1</code> <code>SLIME_RESIDENT_ROLLOUT=1</code> <code>SLIME_SGLANG_MEM_FRACTION_STATIC=0.30</code> <code>SLIME_GDN_HOST_OFFSETS=1</code> <code>SLIME_TRAIN_SYNC_FREE=1</code> <code>SLIME_TE_SYNC_FREE=1</code> <code>SLIME_TRAIN_ASYNC_H2D=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>2.10×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>2.14×</dd></div><div class=""><dt>Rounds</dt><dd>9</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost (est.)</dt><dd>$49.6</dd></div><div class=""><dt>Input tokens · 97.8% cached</dt><dd>154 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.3 M</dd></div><div class=""><dt>Requests</dt><dd>1,169</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-slime_grpo-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>2.88×</small></a><a class="chip" data-k="sonnet" href="t-slime_grpo-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.40×</small></a><a class="chip" data-k="opus" href="t-slime_grpo-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.35×</small></a><a class="chip" data-k="ghydrogen" href="t-slime_grpo-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>2.20×</small></a><a class="chip" data-k="gcarbon" href="t-slime_grpo-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.19×</small></a><a class="chip" data-k="astra62" href="t-slime_grpo-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>2.15×</small></a><a class="chip self" data-k="glm54" href="t-slime_grpo-glm54.html"><i style="background:#101e7c"></i>GLM-5.4<small>2.10×</small></a><a class="chip" data-k="qwen4" href="t-slime_grpo-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>2.02×</small></a><a class="chip" data-k="mm" href="t-slime_grpo-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.91×</small></a><a class="chip" data-k="haiku" href="t-slime_grpo-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.85×</small></a><a class="chip" data-k="sol62" href="t-slime_grpo-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.85×</small></a><a class="chip" data-k="glm" href="t-slime_grpo-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.79×</small></a><a class="chip" data-k="step5" href="t-slime_grpo-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.67×</small></a><a class="chip" data-k="ds" href="t-slime_grpo-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.40×</small></a><a class="chip" data-k="kimi" href="t-slime_grpo-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.35×</small></a><a class="chip" data-k="hy4" href="t-slime_grpo-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.23×</small></a><a class="chip" data-k="astra" href="t-slime_grpo-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.15×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Candidate, three windows (s)</dt><dd>89.8 / 86.6 / 86.4</dd><dt>Rollout side</dt><dd>2.10×</dd><dt>Train side</dt><dd>1.68×</dd><dt>Rollout host-side fixes</dt><dd>✓ compact logprob responses (1.30×) + sampler's top-p logprob sync removed (→ 2.14×)</dd><dt>Skip zero-coefficient reference forward</dt><dd>✓ <code>SLIME_SKIP_DEAD_KL</code></dd><dt>Train-side main levers</dt><dd>skip dead KL + no recompute (1.39×), CPU optimizer 16 threads (1.47×), training and rollout kept resident, no swap-out (1.68×); round 9 sync-free train step (<code>SLIME_TRAIN_SYNC_FREE</code>, <code>SLIME_TE_SYNC_FREE</code>, async H2D)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><p class="cap">This work log is reconstructed from what the agent wrote into its WORK_LOG.md during the run (the last version of each section).</p><details class="raw"><summary><span>Raw work log</span><small>10 sections</small></summary><div class="rounds"><details><summary><em class="">0.8 h</em><span>Round 1 (2026-11-23 16:40 - 17:30 UTC): rollout tail after the last token (compact logprob responses)</span></summary><pre>Profile first (unchanged reference, <code>profile --side rollout</code>, <code>/tmp/r1/profile</code>).
+
+Step accounting from the reference full-loop log (<code>runs/svc-pack/time/full_svc_ref0/train.log</code>), per
+183 s step:
+
+| phase | seconds | share |
+| --- | --- | --- |
+| rollout: decode (2 engines, 32-35 reqs each, 8192 steps at 9.2-9.5 ms) | ~78 | 42% |
+| rollout: CPU tail after the last decode step until &quot;Finish rollout&quot; | ~31 | 17% |
+| actor log-prob forward (<code>ref_log_probs_time</code>) | 11.3 | 6% |
+| actor train (<code>actor_train_time</code>) | 47 | 26% |
+| sglang sleep 4.2, wake-up 1.3, weight update 1.9, rest of the train window (conversion, data preprocessing) | ~15 | 8% |
+
+Hotspots found:
+
+1. <b>Rollout tail (31 s, chosen this round).</b> The last decode step and the last HTTP responses are 3 s
+   apart, then 31 s pass in the RolloutManager before &quot;Finish rollout&quot;. Every response is ~41 MB of JSON
+   (<code>output_top_logprobs</code> nested list of 8192 x 129 entries plus the base64 top-k arrays) and stdlib
+   <code>json.loads</code> takes 0.49 s per response under the GIL; 48 responses arrive together (measured on CPU:
+   <code>json.loads</code> 0.49 s, <code>orjson.loads</code> 0.315 s, base64 decode + validation 0.011 s; without the nested
+   top-k list 11.5 MB and 0.13 s).
+2. Decode is host/launch bound: GPU busy 30.8% of the window, 5.4 ms of kernels per decode step at
+   ~9.3 ms wall per step. HBM ~4 TB/s (weight-read roofline ~2.25 ms/step). Cause found in the trace:
+   <code>Sampler.forward</code> calls <code>return_top_p_log_probs.any().item()</code> every step
+   (<code>sglang/srt/layers/sampler.py:321</code>), a <code>cudaStreamSynchronize</code> that holds the forward thread until
+   the just-launched graph finished, so the remaining CPU work of the step (top-k launch, 70 small D2H
+   copies, <code>process_batch_result</code>, <code>get_next_batch_to_run</code>, 0.5 ms <code>cudaGraphLaunch</code>) runs while the
+   GPU is idle.
+3. Per-step scheduler CPU (profiled, inflated by the profiler): <code>process_batch_result</code> 1.7 ms,
+   <code>get_next_batch_to_run</code> 0.8 ms, <code>copy_result_to_cpu</code> 70 small async D2H copies (one per request and
+   array), <code>step[DECODE]</code> 2.0 ms of which <code>cudaGraphLaunch</code> 0.5 ms. A finishing request stalls the
+   scheduler for 13 ms (profiled).
+4. Top GPU kernels per step: MLP/attention GEMMs ~3.0 ms (lm_head 248 us, 32x 34 us, 32x 17 us,
+   32x 16 us, 24x 13.5 us), GDN decode kernel 21 us x 24, 63 allreduce-fusion launches (6.7 us each).
+5. Rollout time depends on the router split: 37/27 requests (unbalanced) costs the bigger engine
+   ~1 ms per step (padded to the 40-request graph) and ~5 s per rollout versus 32/32.
+
+Change (switch <code>SLIME_COMPACT_LOGPROBS=1</code>, off by default):
+
+- sglang <code>904ca0d</code>: <code>GenerateReqInput.return_compact_logprobs</code>: output token logprobs as base64
+  float64/int64 arrays, sampler top-k as base64 int32/float32 arrays (same bytes as before), nested
+  <code>output_token_logprobs</code>/<code>output_top_logprobs</code> and input logprobs left out; per-update top-k rows are
+  kept as arrays (the final response no longer converts 2 x 1M Python numbers, ~65 ms per request).
+  Falls back to the nested lists when a value has no array form.
+- slime <code>b33a0274</code>: <code>slime/rollout/compact_logprobs.py</code> requests and decodes the compact response;
+  <code>generate()</code> uses it when the switch is on and score centering asks for top-k. Decoded response equals
+  the regular one (CPU check <code>/tmp/r1/unit/compact_equiv.py</code>: server fields identical, client outputs
+  identical, fallbacks ok).
+
+Numerics tier: N0 (encoding only).
+
+<code>time --side rollout</code> (<code>/tmp/r1/time/time.json</code>): candidate windows 80.4 / 87.5 / 88.8 s vs frozen
+reference 110.1 / 112.0 / 110.0 s; ratios 1.369 / 1.280 / 1.239; <code>speedup_vs_frozen_reference</code> rollout
+<b>1.296</b>; projected step speedup <b>1.1595</b>. Tail after the last response: 78.4 s rollout time vs
+77.3 s max e2e latency (was ~31 s). Windows 2-3 of the candidate run got a 37/27 router split
+(81-82 s decode) which the frozen windows did not have; decode itself is unchanged (108 tok/s per
+request).
+
+<code>check</code>: started 17:30 UTC on this state (<code>/tmp/r1/check</code>, full check) - result appended below.</pre></details><details><summary><em class="">1.5 h</em><span>Round 2 (2026-11-23 17:56 - 18:08 UTC): host-bound decode (per-step device sync in the sampler)</span></summary><pre>Hotspot (from the round-1 profile of the reference): decode was host-bound, 5.4 ms of GPU kernels per 9.3 ms
+step. <code>Sampler.forward</code> ran <code>sampling_info.return_top_p_log_probs.any().item()</code> at every decode step to decide
+whether top-p logprobs are wanted. That <code>cudaStreamSynchronize</code> sits right after the CUDA graph launch, so the
+scheduler thread waited for the whole forward and all the remaining CPU work of the step (top-k launch, 70
+small D2H copies, <code>process_batch_result</code>, <code>get_next_batch_to_run</code>, the next graph launch) ran on an idle GPU.
+No request in this recipe asks for top-p logprobs, so the answer is always &quot;no&quot;.
+
+Change (switch <code>SGLANG_OPT_SKIP_TOP_P_LOGBPROB_SYNC=1</code>, off by default), sglang <code>d54b35f</code>: <code>SamplingBatchInfo</code>
+gets a host-side <code>need_return_top_p_log_probs</code> flag (any request of the batch wants it; OR-ed on batch merge),
+and the sampler reads it instead of syncing. Same branches are taken, same kernels: no arithmetic change.
+
+Numerics tier: N0 (control flow only).
+
+<code>time --side rollout</code> (<code>/tmp/r2/time/time.json</code>, 18:07 UTC): candidate windows 51.294 / 52.588 / 51.409 s vs
+frozen reference 110.149 / 112.04 / 110.028 s; ratios 2.147 / 2.131 / 2.140; <code>speedup_vs_frozen_reference</code>
+rollout <b>2.139</b> (round 1: 1.296); projected step speedup <b>1.4723</b>. The whole run took 357 s instead of
+479 s. Decode is now GPU-bound: 8192 steps in 49 - 54 s (5.3 ms per step at short context, 6.4 ms at 8k),
+tail after the last token about 1 s.
+
+No <code>check</code> for this round (control-flow change only); the next full check will cover it together with the
+next changes.
+
+Observations for later rounds: the router split is still uneven in some rollouts (35/29, 29/35; the larger
+engine pads to the 40-request graph: 5.9 - 6.6 ms per step vs 5.1 - 5.6 ms at 29 - 32 requests); the
+remaining decode time is GPU kernels (GEMMs about 3.0 ms of 5.4 ms at about 2.95 TB/s vs 4.06 TB/s for the
+lm_head GEMM).</pre></details><details><summary><em class="">2.6 h</em><span>Round 3 (2026-11-23 18:07 - 19:13 UTC): train side, reference log-prob pass for a dead KL term</span></summary><pre>Profile first (<code>profile --side train</code> on the reference slime tree with the two rollout switches, 18:07 - 18:47 UTC,
+<code>/tmp/r3/profile-train</code>, rank-0 trace reduced with <code>/tmp/r3/stream_reduce.py</code> and analysed with
+<code>/tmp/r3/ana/ana1.py</code>, <code>ana2.py</code>). The profiled step is one train step on fixture dump 2: 64 micro-batches of one
+sample (about 8300 tokens), reference log-prob forward + actor train (forward, full recompute, backward), then
+the optimizer step. GPU times (not inflated by the profiler), rank 0:
+
+| class | seconds | notes |
+| --- | --- | --- |
+| GEMMs (nvjet) | 22.2 | GDN projections about 715 - 745 TFLOPS (qkv 749 us for 558 GFLOP on the whole 8308-token sequence, z and out_proj about 390 us); MLP fc1 570 us and fc2 288 us, about 365 TFLOPS; final projection in 9 chunks of 833 us |
+| NCCL kernels | 21.8 | 23.8k all-gathers (14.6 s, 0.6 ms average: includes waiting for peers, inflated by the profiler), 3.6 s reduce-scatter, 2.9 s P2P (attention CP), 0.75 s fp32 all-reduce |
+| elementwise / copy | about 9 | dozens of small kernels per layer |
+| fla kernels (GDN recurrence, conv, gated norm) | about 7 | |
+| GPU idle | 38.5 of 104 | host-bound gaps, much inflated by the profiler (unprofiled step 58 s) |
+
+Hotspots found:
+
+1. <b>Dead work per step (chosen this round).</b> The reference log-prob pass (11.3 s) exists only for
+   <code>use_kl_loss</code>, whose loss is <code>0.0 * kl</code> (<code>kl_loss_coef 0.0</code>), and <code>kl_coef 0.0</code>. In train-only runs the judge&#x27;s
+   66 s window is: waiting for the fixture dump 9 - 11 s, wake-up 1.3 - 2.6 s, preprocessing 0.4 s, reference
+   forward 11.3 s, actor train 47 s, sleep 4.4 - 6 s.
+2. <b>Full activation recompute</b>: one extra forward pass per micro-batch (about 7 s of GPU time per step plus its
+   launches and collectives). GPU memory after the train step is 31 GB of 141 GB, so keeping activations fits.
+3. <b>GDN layers are replicated on all 4 ranks</b>: 62% of the GEMM FLOPs of a pass. Each rank computes the GDN
+   projections of the whole sequence for all 32 heads (qkv 4096-&gt;8192, z 4096-&gt;4096, out 4096-&gt;4096), while the
+   MLP is sharded by TP and CP (4154 tokens x half the width). A TP head split would halve them, a TP x CP split
+   quarter them.
+4. MLP GEMMs run at about 365 TFLOPS against 715 - 745 for the GDN projections (shapes to be confirmed).
+5. Host noise: the machine is shared (host load average about 40); the micro-batch time of the actor train was
+   0.65 - 0.70 s with dips to 1.1 s in this round&#x27;s run against a steady 0.62 s in the reference profile run.
+
+Change (switch <code>SLIME_SKIP_DEAD_KL=1</code>, off by default), slime working tree (to be committed with the round-4
+result): <code>megatron_utils/actor.py</code> skips the reference log-prob pass and the restore of the actor when both KL
+coefficients are 0; <code>megatron_utils/loss.py</code> skips the KL loss term (the loss was <code>x + 0.0 * kl</code>).
+
+Numerics tier: N0 (the loss and its gradient are unchanged; <code>train/kl_loss</code> is no longer logged).
+
+<code>time --side train</code> (<code>/tmp/r3/time/time.json</code>, 18:49 - 19:05 UTC): candidate windows 69.997 / 65.114 / 66.707 s vs
+frozen reference 67.336 / 65.878 / 65.511 s; ratios 0.962 / 1.012 / 0.982; <code>speedup_vs_frozen_reference</code> train
+<b>0.9853</b> (projected step 0.9947). No gain visible although the reference pass is gone from the log
+(<code>perf/actor_train_time</code> is the whole train now): the actor train itself took 54 - 60 s instead of the reference&#x27;s
+47 s, with slower and irregular micro-batches (see hotspot 5). The run is treated as noisy; the switch stays on
+and is re-measured together with the recompute change in round 4.</pre></details><details><summary><em class="">2.9 h</em><span>Round 4 (2026-11-23 19:13 - 19:28 UTC): train side, full activation recompute</span></summary><pre>Hotspot (from the round-3 profile): the backward recomputes every layer&#x27;s forward, a fifth pass of all forward
+kernels per micro-batch (about 7 s of GPU time per step plus its launches and collectives); 31 GB of the 141 GB
+of each GPU are in use after a train step, so the activations fit.
+
+Change (switch <code>SLIME_NO_RECOMPUTE=1</code>, off by default), slime <code>2317cd75</code>: <code>megatron_utils/arguments.py</code> sets
+<code>recompute_granularity</code> to None. The dead-KL skip of round 3 is committed as slime <code>1dbefc26</code>.
+
+Numerics tier: N0 (same kernels on the same inputs).
+
+<code>time --side train</code> (<code>/tmp/r4/time/time.json</code>, 19:14 - 19:27 UTC, both switches on): candidate windows
+48.686 / 46.948 / 47.369 s vs frozen reference 67.336 / 65.878 / 65.511 s; ratios 1.383 / 1.403 / 1.383;
+<code>speedup_vs_frozen_reference</code> train <b>1.3898</b> (round 3 alone: 0.9853 in its noisy run); projected step speedup
+<b>1.1124</b>. <code>perf/actor_train_time</code> 38.2 - 39.9 s (reference 47 s with the reference pass on top), micro-batch
+0.49 s (reference 0.62 s). The window still holds about 9 s outside the training itself (sleep 4.2 - 4.4 s,
+wake-up 1.3 s, preprocessing 0.3 - 0.4 s, rest).</pre></details><details><summary><em class="">3.1 h</em><span>Round 5 (2026-11-23 19:28 - 19:50 UTC): train side, GDN heads split over the tensor parallel ranks</span></summary><pre>Hotspot (round-3 profile): every gated delta net (GDN) layer ran whole on all 4 ranks (the wrapper gathers the
+sequence over TP and CP; the layer&#x27;s projections are 4096 -&gt; 8192 / 4096 -&gt; 4096 / 4096 -&gt; 4096 on 8704 tokens,
+about 57% of the transformer GEMM FLOPs). Per GDN layer and micro-batch, reference GPU time without collectives:
+forward 3.2 ms (GEMMs 1.6, unfused input norm 0.5, head repeat / contiguous copies 0.27, fla kernels 0.6, zigzag
+cat 0.1) + backward 4.2 ms (GEMMs 1.95, conv 0.54, unfused input norm 1.1, zigzag cat backward 0.24, three bf16
+sums of the four projections&#x27; input gradients 0.15).
+
+Change (switch <code>SLIME_GDN_TP_SPLIT=1</code>, off by default), slime <code>e7555d17</code>: each TP rank computes 16 of the 32
+value heads and 8 of the 16 key heads (own rows of <code>in_proj_qkv</code>, <code>in_proj_z</code>, <code>in_proj_b</code>, <code>in_proj_a</code>, own
+channels of the conv, own columns of <code>out_proj</code>); the wrapper&#x27;s input gather becomes a real all-gather in backward
+(<code>tensor_parallel_output_grad=True</code>) and the partial outputs are summed by a reduce-scatter over TP. Parameters
+keep their names and shapes; the weight gradients are zero outside the rank&#x27;s shard and are summed over TP by a
+hook before Megatron&#x27;s <code>finish_grad_sync</code> (slime <code>megatron_utils/model.py</code>,
+<code>_sum_sharded_grads_over_tensor_parallel</code>).
+
+Unit test (<code>/tmp/r5/unit/test_wrapper_tp_split.py</code>, 4 ranks TP2 x CP2, one layer, against the replicated layer
+after a TP all-reduce of the weight gradients): weight gradients of all GDN projections bitwise equal (rel 0.0),
+output max|d| 1.95e-3 (mean|out| 7e-2), input gradient rel 4.7e-3, norm weights 2.3e-3 / 4.7e-3.
+
+Numerics tier: N1 (bf16 sums of partial outputs and input gradients over TP).
+
+<code>time --side train</code> (<code>/tmp/r5/time/time.json</code>, 19:33 - 19:46 UTC): candidate windows 50.341 / 44.794 / 44.480 s
+vs frozen 67.336 / 65.878 / 65.511 s; ratios 1.338 / 1.471 / 1.473; <code>speedup_vs_frozen_reference</code> train
+<b>1.427</b> (1.3898 before), projected step speedup <b>1.1208</b>. Micro-batch 0.44 s (0.49 s before).
+<code>train_rollout_logprob_abs_diff</code> 0.0075 - 0.0105 per step, the same values as before the change (reference
+0.0082). The first window was slowed by a host event (see the noise note below); the clean windows give 1.47.
+
+Noise note: this run and round 3&#x27;s run contain stalls that are not in the code path: step 1 micro-batches 13 - 27
+at 4.4 s decaying to 0.45 s over 15 micro-batches (twice), step 3 one of 57 s, step 4 micro-batches at 0.6 - 0.7 s
+for its last 26. Rounds 2, 4 and the reference runs were steady. The container&#x27;s CPU quota is 96 cores and never
+throttled, host memory is not under pressure; the host is shared. A system monitor will run next to the following
+judge runs to locate it.
+
+Correction to round 3&#x27;s hotspot 4: the MLP GEMMs do not run at 365 TFLOPS. With the gated width (fc2 input 6144
+per rank) and the padded length (4352 tokens per CP rank) fc1 takes 570 us for 438 GFLOP and fc2 288 us for
+219 GFLOP, about 760 - 770 TFLOPS; the lm_head GEMMs run at 590 - 750 TFLOPS. All large GEMMs are efficient;
+GEMM time only shrinks with fewer FLOPs (TP split, done; a CP split of the recurrence, deferred).</pre></details><details><summary><em class="">4.6 h</em><span>Round 6 (2026-11-23 19:50 - 21:15 UTC): train side, fused input norm of the GDN layers (rejected)</span></summary><pre>Hotspot (round-3 profile, re-read): the GDN wrapper&#x27;s input norm is the unfused Hugging Face
+<code>Qwen3NextRMSNorm</code> in fp32 (about ten element-wise and reduction kernels; 0.5 ms forward + 1.1 ms backward per
+layer, about 38 ms per micro-batch, about 2 s per step).
+
+Change (switch <code>SLIME_FUSED_GDN_NORM=1</code>): the norm calls fla&#x27;s <code>rms_norm</code> kernel with the scale <code>1 + weight</code>
+in fp32. Unit test (<code>/tmp/r6/unit/test_norm.py</code>, fp64 reference): parameter stays bf16, output is the same bf16
+values on 99.99937 % of the elements (max |d| 1.56e-2 where |y| reaches 9.4), input gradient the same on
+99.99847 %, weight gradient relative difference 1.05e-5, error against fp64 equal to the reference norm&#x27;s;
+493.9 -&gt; 97.0 us forward, 1608.8 -&gt; 301.5 us forward + backward per layer.
+
+Numerics tier: N1 (bf16 outputs differ on 6e-6 of the elements).
+
+<code>time --side train</code> (<code>/tmp/r6/time/time.json</code>, 20:51 - 21:04 UTC; head split off): candidate windows 46.628 /
+45.88 / 45.282 s vs frozen 67.336 / 65.878 / 65.511 s; ratios 1.4441 / 1.4359 / 1.4467;
+<code>speedup_vs_frozen_reference</code> train <b>1.4422</b> (1.3898 without the norm fusion, 1.427 with the head split).
+
+Direction: a diagnostic record run with the judge&#x27;s own <code>record_run</code> (<code>/tmp/diag/record_cos.py</code>,
+<code>/tmp/r6/rec/diag.json</code>, a copy of the check&#x27;s training record, not a verdict): cos <b>0.9039</b> against the
+frozen reference sketch (minimum 0.9554). The same script reproduces the check&#x27;s 0.9370 for the round-5 record,
+so the method is sound. <b>Rejected; the fused norm is off and its code is removed from the tree</b> (kept in
+<code>/tmp/r6/qwen3_5.fused_norm.py</code>).
+
+Bisect (<code>/tmp/r6/rec_base/diag.json</code>): the tree with only <code>SLIME_SKIP_DEAD_KL=1</code> + <code>SLIME_NO_RECOMPUTE=1</code> (the
+round-4 state, head split and fused norm off) gives cos <b>0.9933</b> (update norm d -0.000114, second moment norm
+d 3.5e-7, loss mean d 7.2e-6, gradient norm d 0.00078; all within tolerance). So rounds 3 and 4 pass the
+direction gate and the two bf16-level changes of rounds 5 and 6 are what it rejects.
+
+What the direction gate measures here (evidence for the following rounds): the reference&#x27;s own repeats agree at
+cos 0.991 - 0.994, i.e. its run-to-run noise is at fp32 level. A change that alters bf16 activation values, even
+one unit in the last place on 6e-6 of one norm&#x27;s outputs per layer, spreads within a few layers to whole token
+rows (every later rounding is decided anew), moves the log-probabilities of those tokens by 0.02 - 0.04, and so
+changes the truncated-importance and score-centering weights of a large share of the tokens by percents; several
+percent of the update&#x27;s signs flip and the cosine falls to 0.90 - 0.94. Consequence: the training forward and
+the chain of bf16 input gradients stay bitwise what the reference computes. Admissible on the training side:
+dead work, thread counts, memory and offload strategy, scheduling, and fp32-level changes of gradient
+reductions and the optimizer. The rollout side is judged statistically (round-5 check: ratios 1.00 - 1.01).
+
+Also checked and dropped in this round:
+- &quot;Redundant old-log-prob forward&quot;: none. Upstream already reuses the log-probabilities
+  (<code>can_reuse_log_probs_in_loss</code>, <code>num_microbatches=[64]</code>), and the 9 s <code>train_wait</code> is the inverse timer over
+  sleep, wake-up and preprocessing.
+- Native GQA for the GDN recurrence (16 key heads instead of a repeat to 32): fla dispatches
+  <code>chunk_gated_delta_rule</code> to a tilelang backend here whose backward fails on grouped inputs
+  (&quot;kernel input g ndim mismatch, expected 3; expected: 4, got: 3&quot;, <code>/tmp/r7/unit/test_gqa.py</code>).
+- The CPU-offloaded optimizer step: <code>HybridDeviceOptimizer.step</code> runs 73 CPU <code>AdamW</code> sub-optimizers one after
+  the other on one thread each (4.9 s per step in the round-3 profile: first 1036 ms, then 30 - 88 ms each).
+  Microbenchmark (<code>/tmp/r8/unit/bench_adamw_cpu.py</code>, 62M-parameter bucket): 68.5 ms with 1 thread, 11.3 ms with
+  8, 8.1 ms with 16, 7.0 ms with 24. Ray starts the workers with <code>OMP_NUM_THREADS=1</code>.</pre></details><details><summary><em class="">5.2 h</em><span>Round 7 (2026-11-23 21:15 - 21:38 UTC): train side, threads of the CPU optimizer step</span></summary><pre>Hotspot (round-3 profile; re-checked in the record runs): the tail of a train step is about 8 s after the
+64 micro-batches: gradient reduction, clipping, the CPU-offloaded Adam step, the copy of the parameters back
+and the CPU weight backup. The Adam step alone ran 73 CPU sub-optimizers one after another on one thread each
+(4.9 s in the profile; Ray starts a worker with one thread).
+
+Change (switch <code>SLIME_TRAIN_CPU_THREADS=16</code>), slime <code>f0f17dba</code>: the actor&#x27;s init calls <code>torch.set_num_threads</code>
+with the switch&#x27;s value (log line &quot;CPU operators of this rank use 16 threads&quot;).
+
+Numerics tier: N0 (thread count of an element-wise step). Diagnostic record <code>/tmp/r7/rec/diag.json</code>: cos
+<b>0.9944</b>, step-0 loss and mismatch identical to the single-thread run.
+
+<code>time --side train</code> (<code>/tmp/r7/time/time.json</code>, 21:17 - 21:29 UTC): candidate windows 45.491 / 44.932 / 45.09 s
+vs frozen 67.336 / 65.878 / 65.511 s; ratios 1.4802 / 1.4662 / 1.4529; <code>speedup_vs_frozen_reference</code> train
+<b>1.4664</b> (1.4422 before: the mean window went from 45.93 to 45.17 s). Only 0.76 s of the expected 3.5 s:
+<code>perf/actor_train_time</code> is 36.2 - 37.0 s against 36.8 - 38.3 s before. So the tail is not bound by the single
+thread alone. The container is pinned to one NUMA node (Xeon 8558, 46 cores, one socket&#x27;s memory: about
+300 GB/s) and the four ranks move about 500 GB per step through it, on top of 18 GB of gradient D2H and 9 GB
+of parameter H2D per rank. A train profile of this state (<code>/tmp/r7/profile</code>, started 21:38 UTC) is to show the
+tail&#x27;s breakdown before the next change there.</pre></details><details><summary><em class="">5.8 h</em><span>Round 8 (2026-11-23 20:50 - in progress): train and rollout stay resident between steps</span></summary><pre>Hotspot: per full-loop step about 8 s outside generation and the optimizer step: <code>sleep</code> of the training actors
+4.4 s, weight update 2.0 s, <code>wake_up</code> 1.2 s, <code>data_preprocess</code> 0.4 s (base full-loop diagnostic
+<code>/tmp/r8/full_base</code>, step 2: <code>perf/step_time</code> 104.1 s = sleep 4.36 + update 1.99 + wake 1.20 + preprocess 0.38 +
+rollout about 59 + <code>actor_train</code> 36.9), plus the engines&#x27; memory release and reclaim on the rollout side.
+
+Change (dev copy <code>/tmp/dev/slime_grpo</code>, not yet in the submission): <code>SLIME_RESIDENT_TRAIN=1</code> keeps the actor&#x27;s
+memory resident between steps (<code>clear_memory()</code> instead of sleep/wake, no reload of the process groups around the
+weight update), <code>SLIME_RESIDENT_ROLLOUT=1</code> keeps the engines&#x27; weights and KV pool and only flushes the cache,
+<code>SLIME_SGLANG_MEM_FRACTION_STATIC=0.55</code> leaves the engines&#x27; pool smaller so that both fit (140 GB per GPU).
+Numerics tier: N0 (no arithmetic changes; to be confirmed by the record).</pre></details><details><summary><em class="">8.9 h</em><span>Round 9 (2026-11-23 23:55 UTC - 2026-11-24 02:40 UTC): fewer host synchronizations of the train step</span></summary><pre>Hotspot (round 8&#x27;s light host profile): 4337 device syncs per train step (<code>aten::_local_scalar_dense</code>, 5.49 s of
+host time in the profiled step), most of them in the GDN autograd functions.
+
+Correction to round 8&#x27;s reading: <code>ops/common/chunk_h.py</code> (<code>split_offsets[-1].item()</code>) is not on the path of the
+gated delta rule (it uses <code>chunk_delta_h.py</code>). The GDN sites were <code>prepare_chunk_indices</code>
+(<code>fla/ops/utils/index.py</code>: <code>torch.repeat_interleave</code> on device counts reads their sum on the host, once per
+kernel-launching function) and the pageable host-to-device copy of the sequence offsets that fla does when it
+gets no host copy (<code>cu_seqlens_cpu=None</code>).
+
+Changes (each behind its own switch, all default off):
+- <code>SLIME_GDN_HOST_OFFSETS=1</code> (<code>slime_plugins/models/qwen3_5.py</code>): the fla kernels of the GDN layers get the
+  host lengths slime already has (<code>packed_seq_params.cu_seqlens_q_cpu</code>); the chunk table is fla&#x27;s own
+  <code>prepare_chunk_indices</code> on the same integers, built on the host and uploaded once per offsets tensor through
+  pinned memory (module <code>prepare_chunk_indices</code> of the convolution and of the chunk kernels routed to it).
+- <code>SLIME_TRAIN_SYNC_FREE=1</code>: (a) <code>slime/utils/ppo_utils.py</code>: the masked target of the vocabulary-parallel
+  log-probabilities is written with <code>masked_fill</code>, the backward&#x27;s target update with <code>scatter_add_</code> (a boolean
+  index put reads its number of positions back to the host; bitwise the same values and gradients, checked on a
+  unit case); (b) <code>Megatron-LM/megatron/core/tensor_parallel/layers.py</code>: the embedding&#x27;s masked writes with
+  <code>masked_fill_</code>; (c) <code>slime/utils/reloadable_process_group.py</code>: the reloaded process group wraps the undeprecated
+  collective entry points (<code>all_gather_single</code>, <code>reduce_scatter_single</code>; the deprecated names go through a Python
+  wrapper that builds a warning at every call) and checks the free device memory with one <code>mem_get_info</code> query
+  instead of two <code>memory_stats</code> walks per collective.
+- Numerics tier of all of it: N0 (same kernels, same inputs, same values).
+
+Diagnostics that led there (dev tree <code>/tmp/dev/slime_grpo</code>, which also holds a diagnostic-only profile hook in
+<code>actor.py</code> that is never copied into the submission):
+- <code>/tmp/r9/stacks</code> (torch&#x27;s sync debug mode): 4275 host syncs per step = 66.8 per micro-batch; by owner:
+  <code>AttnFuncWithCPAndKVP2PBackward</code> 48 per micro-batch (3072 per step), inside the FlashAttention-3 backward
+  (<code>flash_attn_3::_flash_attn_backward</code>, a C++ custom op without Python frames; three syncs per call); the GDN
+  functions 14.7 per micro-batch (the two sites above); the log-probability kernels and the embedding the rest.
+- <code>/tmp/r9/items</code> (<code>Tensor.item</code> by Python call site): only 2 per micro-batch from Python (the judge&#x27;s timer
+  hook), i.e. the FlashAttention-3 syncs are made in C++.
+- <code>/tmp/r9/cpu2</code> (CPU profile of one step, rank 0, with the two switches): 3519 syncs per step left (55 per
+  micro-batch), 3072 of them (6.84 s of host wait) in <code>AttnFuncWithCPAndKVP2PBackward</code>; garbage collection is
+  negligible (0.19 s per step). Per micro-batch about 26k <code>aten::</code> calls, 10k views, 7.7k allocations and
+  zeroings; FLA&#x27;s autograd functions hold about 63% of the profiled host time (per GDN layer and micro-batch
+  about 36 ms profiled: <code>CausalConv1dFunctionBackward</code> 12.8, <code>ChunkGatedDeltaRuleFunctionBackward</code> 7.0,
+  <code>CausalConv1dFunction</code> 6.4, <code>ChunkGatedDeltaRuleFunction</code> 5.6, gated norm 4.1).
+- <code>/tmp/r9/cuda3</code> (kernel timeline of step 1, i.e. with the Triton compilation of new shapes: not usable as a
+  time split; 499 gaps above 1 ms hold 38.7 s of 88 s, the largest 2.1 s, before GDN kernels = compilation).
+- <code>/tmp/r9/proto.log</code> (one GDN layer standalone, earlier in the round): the GDN Triton region is
+  padding-neutral for the token count (1000 -&gt; 1024, 2049 -&gt; 2304: bitwise the same outputs).
+
+<code>time</code> result (judge <code>time --side train</code>, dev tree with the two switches, output <code>/tmp/r9/time_host/time.json</code>,
+finished 01:05 UTC): train windows 39.138 / 39.825 / 37.652 s against the frozen reference 67.336 / 65.878 /
+65.511 s, ratios 1.7205 / 1.6542 / 1.7399, <b><code>speedup_vs_frozen_reference</code> train 1.7049</b> (the state before:
+1.6813; +1.4%, about the run-to-run noise of 1.5%). The timed copy (00:53 UTC) holds everything except (c).
+<code>first_use</code> 0 s; <code>reference_spread</code> 0.0151.
+
+Landed in the submission at 01:30 UTC: slime <code>53ebd9d7</code> (host offsets), <code>7cd376f0</code> (log-probability writes),
+<code>a7db3306</code> (collective entry points, memory check), Megatron-LM <code>e07587d</code> (embedding writes); both switches on.
+A low-overhead region accounting of a warm step (<code>/tmp/r9/regions</code>, 8 train steps, step 5) and the full check of
+this state (<code>/tmp/r9/check</code>) run next; results below.
+
+Checked and dropped this round: two threads for forward and backward (the host time is Python inside the GDN
+launch path, which holds the GIL: no gain to expect from threads); NCCL protocol and channel switches (the
+micro-benchmark of round 7 showed the protocol choice near-optimal, at most 0.4 s per step to gain).</pre></details><details><summary><em class="">5.8 h</em><span>Current summary (after round 8)</span></summary><pre>- Switch file: <code>/submission/switches.json</code> = `{&quot;environment&quot;: {&quot;SLIME_COMPACT_LOGPROBS&quot;: &quot;1&quot;,
+  &quot;SGLANG_OPT_SKIP_TOP_P_LOGBPROB_SYNC&quot;: &quot;1&quot;, &quot;SLIME_SKIP_DEAD_KL&quot;: &quot;1&quot;, &quot;SLIME_NO_RECOMPUTE&quot;: &quot;1&quot;,
+  &quot;SLIME_TRAIN_CPU_THREADS&quot;: &quot;16&quot;, &quot;SLIME_RESIDENT_TRAIN&quot;: &quot;1&quot;, &quot;SLIME_RESIDENT_ROLLOUT&quot;: &quot;1&quot;,
+  &quot;SLIME_SGLANG_MEM_FRACTION_STATIC&quot;: &quot;0.30&quot;}}`.
+- Tree: slime <code>8a3e1187</code> (working tree clean), sglang <code>d54b35f</code>, Megatron-LM unchanged (branch <code>opt</code>).
+- Latest full check: <b><code>/tmp/r8/check/check.json</code>: PASS, projected step speedup 1.8568, tier N1</b> (23:54 UTC), on
+  exactly the state above. Rollout side 2.0996x (windows 51.5 / 50.6 / 56.5 s vs 110.1 / 112.0 / 110.0 s), train
+  side 1.6813x (38.6 / 39.1 / 40.5 s vs 67.3 / 65.9 / 65.5 s); all gates with margin (token forcing ratio 1.0049,
+  top-k overlap 0.988054 vs 0.988055, mismatch ratios 1.0, update direction cos 0.9944 against the minimum 0.9554).
+  The final evaluation times the full loop instead; there the resident pair also removes about 7 s per step of
+  sleep, wake-up and release (full-loop diagnostic), which the train-only windows do not contain.
+- Gains by change (judge <code>time</code> vs frozen reference): compact logprob responses 1.296x rollout side; sampler
+  sync removal 2.139x cumulative (rollout windows 51.3 - 52.6 s vs 110 - 112 s); dead KL skip + no recompute
+  1.3898x train side; CPU threads of the optimizer step 1.4664x cumulative; resident pair 1.6813x cumulative
+  (train windows 38.6 - 40.5 s vs 65.5 - 67.3 s). Per full-loop step: rollout about 50 - 58 s + train about 36 s
+  + about 2 - 3 s of the rest of the loop instead of 184 s.
+- Directions that did not work: GDN heads split over the tensor parallel ranks (cos 0.9370) and a fused input
+  norm of the GDN layers (cos 0.9039 although its outputs differ in 6e-6 of the elements by one ulp): any change
+  that alters bf16 activation values fails the update direction gate, whose noise level is cos 0.991. Checked and
+  dropped: redundant forward for the old log-probs (already skipped upstream), native GQA (tilelang backend),
+  CPU thread count above 16 (memory bound). Admissible on the train side: dead work, thread counts, memory and
+  offload strategy, scheduling, and changes after the last bf16 rounding (gradient accumulations, optimizer).
+- Next: round 9 = train side, the host side of the train step (about 68 device syncs per micro-batch, 4337 per
+  step, and the launch overhead of the GDN layers; profile first: <code>/tmp/r9/proto.log</code> (one GDN layer standalone:
+  sync sites, CUDA graphs), <code>/tmp/r9/stacks</code> (call sites), <code>/tmp/r9/cuda</code> (GPU timeline)); then the rollout side:
+  the decode GEMMs (per rank and step 7.8 GB of weights at a measured 3.0 TB/s against about 4.1 TB/s at best;
+  about 0.5 - 1 ms of a 5.5 - 6.5 ms step) and the sampler + top-128 (about 0.42 ms of kernels per step).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-slime_grpo-astra62.html"><small>← 2.15×</small><strong>GPT-6.2 Astra</strong></a><a class="up" href="slime_grpo.html">↑ Slime GRPO</a><a class="next" href="t-slime_grpo-qwen4.html"><small>2.02× →</small><strong>Qwen4-Max</strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-25 18:02 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-slime_grpo-opus.html", "pts": [[1.304, 1.795, 1], [1.832, 1.956, 2], [7.022, 2.07, 3], [8.238, 2.299, 5], [8.628, 2.299, 6], [9.207, 2.485, 7]], "end": 10.0, "final": 2.3472, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-slime_grpo-sonnet.html", "pts": [[4.359, 2.047, 4], [5.571, 2.29, 7], [6.589, 2.446, 9]], "end": 10.011, "final": 2.4003, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-slime_grpo-haiku.html", "pts": [[0.996, 1.185, 2], [1.29, 1.432, 5], [1.526, 1.69, 6], [3.288, 1.79, 10], [7.333, 1.896, 18], [9.812, 1.896, 23]], "end": 10.058, "final": 1.8505, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-slime_grpo-astra62.html", "pts": [[0.777, 1.343, 1], [2.992, 1.672, 3], [4.95, 1.771, 5], [7.219, 1.98, 8]], "end": 10.0, "final": 2.1546, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-slime_grpo-sol62.html", "pts": [[0.907, 1.166, 1], [3.949, 1.693, 4], [9.019, 1.732, 10]], "end": 10.0, "final": 1.8457, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-slime_grpo-gneon.html", "pts": [[9.989, 2.621, 6]], "end": 9.998, "final": 2.8754, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-slime_grpo-gcarbon.html", "pts": [[8.859, 2.036, 9], [9.062, 2.036, 10]], "end": 9.998, "final": 2.1925, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-slime_grpo-ghydrogen.html", "pts": [], "end": 10.0, "final": 2.1969, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-slime_grpo-qwen4.html", "pts": [[0.618, 1.201, 1], [1.921, 1.504, 2], [1.921, 1.504, 3], [2.264, 1.514, 4], [2.515, 1.514, 6], [3.565, 1.788, 8], [4.207, 1.788, 9], [4.531, 1.788, 10], [4.827, 1.788, 11], [5.217, 1.788, 12], [5.868, 1.788, 14], [7.871, 1.991, 17], [8.482, 1.991, 18], [9.68, 1.991, 20]], "end": 10.0, "final": 2.0176, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-slime_grpo-step5.html", "pts": [[4.575, 1.557, 7], [4.89, 1.557, 8], [5.803, 1.557, 9], [5.858, 1.557, 10]], "end": 10.353, "final": 1.6657, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-slime_grpo-hy4.html", "pts": [[0.626, 1.32, 1], [4.144, 1.322, 4], [6.731, 1.348, 5], [7.918, 1.348, 8], [9.934, 1.348, 9]], "end": 10.0, "final": 1.2285, "rej": false}, {"k": "glm54", "name": "GLM-5.4", "short": "GLM-5.4", "tag": "", "color": "#101e7c", "href": "t-slime_grpo-glm54.html", "pts": [[0.839, 1.159, 1], [1.46, 1.472, 2], [2.887, 1.472, 4], [3.114, 1.472, 5], [4.614, 1.472, 6], [6.528, 2.139, 8], [8.914, 2.139, 9]], "end": 10.0, "final": 2.0988, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-slime_grpo-astra.html", "pts": [[1.576, 1.059, 8], [7.156, 1.084, 13], [9.948, 1.134, 19]], "end": 10.0, "final": 1.1501, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-slime_grpo-glm.html", "pts": [[0.378, 1.17, 1], [1.339, 1.513, 2], [3.224, 1.539, 4], [4.296, 1.602, 7], [5.228, 1.602, 8], [7.207, 1.602, 10], [8.524, 1.602, 12], [8.529, 1.717, 13], [9.769, 1.717, 14]], "end": 10.0, "final": 1.7909, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-slime_grpo-kimi.html", "pts": [[1.617, 1.165, 1], [2.018, 1.177, 2], [2.726, 1.177, 3], [2.756, 1.177, 4], [5.53, 1.243, 6], [7.719, 1.251, 7]], "end": 10.0, "final": 1.3505, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-slime_grpo-ds.html", "pts": [[1.394, 1.323, 2], [1.645, 1.323, 3], [2.503, 1.323, 4], [2.94, 1.396, 5], [3.785, 1.396, 6], [4.805, 1.396, 9], [5.209, 1.396, 11], [5.389, 1.396, 12], [5.674, 1.396, 13], [6.556, 1.396, 15], [7.775, 1.435, 16], [8.368, 1.456, 17], [8.368, 1.456, 18], [8.906, 1.456, 19], [9.873, 1.456, 20]], "end": 10.0, "final": 1.3951, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-slime_grpo-mm.html", "pts": [[0.688, 1.166, 1], [1.642, 1.409, 3], [5.606, 1.9, 10], [5.988, 1.9, 11], [9.586, 1.9, 16]], "end": 10.0, "final": 1.9085, "rej": false}], "focus": "glm54", "xmax": 10.5, "aria": "GLM-5.4 on Slime GRPO: best self-measured speedup over time"}</script><script src="chart.js?v=11250202"></script></body></html>

@@ -1,0 +1,467 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLM-5.4 · BAGEL SFT · RSI-Infra Bench</title><meta name="description" content="GLM-5.4 on BAGEL SFT: optimization trace"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'"><link rel="stylesheet" href="style.css?v=11250202"><link rel="icon" href="rba-mark.png"></head><body><header class="site-header wrap"><a class="wordmark" href="index.html"><img src="rba-mark.png" alt="" width="30" height="30">RSI-Infra<small>Bench</small></a><nav class="top" aria-label="Site"><a href="index.html" class="">Leaderboard</a><div class="dd on"><button type="button" aria-haspopup="true">Traces <i>▾</i></button><div class="menu"><a href="llava.html" class="">LLaVA</a><a href="r3.html" class="">R3</a><a href="3dgs.html" class="">3DGS</a><a href="bagel_sft.html" class="on">BAGEL SFT</a><a href="nanochat.html" class="">NanoChat</a><a href="yoco.html" class="">YOCO</a><a href="slime_grpo.html" class="">Slime GRPO</a><a href="slime_opd.html" class="">Slime OPD</a></div></div><a href="cost.html" class="">API cost</a><a href="../../">Blog</a></nav></header><main class="page wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Leaderboard</a><span>/</span><a href="bagel_sft.html">BAGEL SFT</a><span>/</span><b>GLM-5.4</b></nav><h1>GLM-5.4 <em>1.63×</em></h1><p class="lede">Harness: Claude Code · switches: <code>BAGEL_OPT_FAST_ATTN=1</code> <code>BAGEL_OPT_FAST_ATTN_ALL=1</code> <code>BAGEL_OPT_FSDP_UNLIMITED=1</code> <code>BAGEL_OPT_FSDP_BWD_PREFETCH2=1</code> <code>BAGEL_OPT_VAE_PREFETCH=1</code> <code>BAGEL_OPT_ADAM_FUSED=1</code> <code>BAGEL_OPT_MOT_NO_RECOMPUTE=1</code> <code>BAGEL_OPT_RMSNORM_FUSED=1</code> <code>BAGEL_OPT_FSDP_POSTDIV=1</code> <code>BAGEL_OPT_GC_FREEZE=1</code> <code>BAGEL_OPT_MOT_COMPACT=1</code> </p><dl class="stats"><div class="red"><dt>Judged</dt><dd>1.63×</dd></div><div class=""><dt>Tier</dt><dd>N1</dd></div><div class=""><dt>Self-best</dt><dd>1.60×</dd></div><div class=""><dt>Rounds</dt><dd>11</dd></div><div class=""><dt>Hours</dt><dd>10.0</dd></div><div class=""><dt>API cost (est.)</dt><dd>$46.1</dd></div><div class=""><dt>Input tokens · 97.8% cached</dt><dd>138 M</dd></div><div class=""><dt>Output tokens</dt><dd>1.5 M</dd></div><div class=""><dt>Requests</dt><dd>1,052</dd></div></dl><figure class="figure"><div class="chart grid-paper" id="chart"></div><div class="chips"><a class="chip" data-k="gneon" href="t-bagel_sft-gneon.html"><i style="background:#192de5"></i>Gemini 4 Neon<small>2.50×</small></a><a class="chip" data-k="sonnet" href="t-bagel_sft-sonnet.html"><i style="background:#e2831f"></i>Sonnet 5.5<small>2.21×</small></a><a class="chip" data-k="opus" href="t-bagel_sft-opus.html"><i style="background:#c8361f"></i>Opus 5.5<small>2.20×</small></a><a class="chip" data-k="gcarbon" href="t-bagel_sft-gcarbon.html"><i style="background:#892d6b"></i>Gemini 4 Carbon<small>2.14×</small></a><a class="chip" data-k="ghydrogen" href="t-bagel_sft-ghydrogen.html"><i style="background:#25b094"></i>Gemini 4 Hydrogen<small>1.97×</small></a><a class="chip" data-k="sol62" href="t-bagel_sft-sol62.html"><i style="background:#42bb1a"></i>GPT-6.2 Sol<small>1.86×</small></a><a class="chip" data-k="astra62" href="t-bagel_sft-astra62.html"><i style="background:#4fa3d9"></i>GPT-6.2 Astra<small>1.84×</small></a><a class="chip self" data-k="glm54" href="t-bagel_sft-glm54.html"><i style="background:#101e7c"></i>GLM-5.4<small>1.63×</small></a><a class="chip" data-k="astra" href="t-bagel_sft-astra.html"><i style="background:#151412"></i>GPT-6 Astra<span class="nerf">suspected nerf</span><small>1.62×</small></a><a class="chip" data-k="haiku" href="t-bagel_sft-haiku.html"><i style="background:#a07a00"></i>Haiku 5.5<small>1.60×</small></a><a class="chip" data-k="step5" href="t-bagel_sft-step5.html"><i style="background:#5e4b0c"></i>Step-5 Preview<small>1.56×</small></a><a class="chip" data-k="mm" href="t-bagel_sft-mm.html"><i style="background:#c4529a"></i>MiniMax M3.1 Flash<small>1.49×</small></a><a class="chip" data-k="glm" href="t-bagel_sft-glm.html"><i style="background:#2f6db5"></i>GLM-5.3<small>1.49×</small></a><a class="chip" data-k="kimi" href="t-bagel_sft-kimi.html"><i style="background:#2e8b57"></i>Kimi k3.1<small>1.42×</small></a><a class="chip" data-k="ds" href="t-bagel_sft-ds.html"><i style="background:#6b4fbf"></i>DeepSeek V4.1 Flash-1017<small>1.23×</small></a><a class="chip" data-k="qwen4" href="t-bagel_sft-qwen4.html"><i style="background:#bb00ff"></i>Qwen4-Max<small>1.22×</small></a><a class="chip" data-k="hy4" href="t-bagel_sft-hy4.html"><i style="background:#9a77f4"></i>Hy4<small>1.06×</small></a></div></figure><section class="sec"><div class="section-label"><span>§ 02</span>Key levers</div><dl class="levers"><dt>Attention kernel swap (split by mask structure)</dt><dd>✓ rounds 1 and 4: every query segment split out to FlashAttention (<code>BAGEL_OPT_FAST_ATTN</code> / <code>_ALL</code>, −236 / −143 ms)</dd><dt>Drop activation recompute (28 decoder layers)</dt><dd>partial: round 6 MoT-layer MLPs no longer recomputed (<code>BAGEL_OPT_MOT_NO_RECOMPUTE</code>, −198 ms)</dd><dt>Intra-layer MoT fusion (routing / RMSNorm / RoPE / SwiGLU)</dt><dd>✓ round 7 fused RMSNorm forward + backward (−136 ms); rounds 5 and 11 compact routing layout for the two experts (−84 ms)</dd><dt>Optimizer, EMA, step start / end</dt><dd>fused AdamW (−41 ms), gradient scaling in one pass (−36 ms), VAE prefetch (−51 ms), GC threshold; EMA unchanged (a one-pass lerp failed gate 3)</dd><dt>Other main levers</dt><dd>FSDP rate limiter off, second backward prefetch (−52 ms together)</dd></dl></section><section class="sec"><div class="section-label"><span>§ A</span>Raw trace</div><p class="cap">This work log is reconstructed from what the agent wrote into its WORK_LOG.md during the run (the last version of each section).</p><details class="raw"><summary><span>Raw work log</span><small>12 sections</small></summary><div class="rounds"><details><summary><em class="">0.9 h</em><span>Round 1 — profile of the unchanged reference (start 16:19 UTC, 2026-11-23)</span></summary><pre><code>profile</code> (rank 0, steps 8–9, <code>/tmp/r1/profile</code>), plus a CPU replay of the data stream of the timing configuration
+(<code>bench/data_config_interleave.yaml</code>, 4 ranks × 70 steps) to know the layouts the attention sees.
+
+<b>Per step on the profiled rank (2.77 s under the profiler; 2.59 s unprofiled):</b>
+
+| part | s/step | share | notes |
+|---|---|---|---|
+| compute kernels | 2.10 | 76% | GEMMs ≈0.83 (530 TFLOPs on the LM, 53% MFU), memory-efficient attention ≈0.56 (sm80 cutlass kernels: ~150 TFLOPs fwd, ~110 bwd), AdamW 0.073, EMA 0.072, elementwise/index/cat ≈0.5 |
+| exposed NCCL (no compute running) | 0.61 | 22% | one LM layer in backward: reduce-scatter 2.3 ms + all-gather 3 ms exposed; forward: all-gather 2.3 ms exposed per layer; waits of 15–135 ms for slower ranks (20–130 ms per step) |
+| GPU idle | 0.16 | 6% | 7.7 ms after the optimizer step, ViT forward launch gaps (~0.6 ms per layer), ~7 ms in the first LM layers |
+
+Backward cycle of one LM layer (28 per step): exposed RS 2.3 ms → exposed AG 3 ms → 60 ms compute, of which
+attention 24 ms (recompute 6.2 + backward 17.7 for samples of 7600 + 2600 tokens), GEMMs ≈27 ms, the rest
+elementwise (about 30 <code>index</code>/<code>index_put</code>/copy kernels per layer from the mixture-of-transformers token routing).
+Forward cycle: 19.8 ms compute + 2.3 ms exposed all-gather.
+
+NCCL in isolation moves one layer&#x27;s 932 MB in 2.2 ms (all-gather) / 2.3 ms (reduce-scatter); the collectives are
+not slow, they are exposed (issued after the previous one completes, no overlap with each other).
+
+<b>Data layouts (timing configuration, CPU replay):</b> per rank and step ≈9.4k tokens, ≈16 samples?? no —
+≈5 samples and ≈16 splits, Σ L² ≈ 27M (15–41M between ranks in one step); the slowest rank decides the step.
+Layouts: <code>c n</code> (t2i), <code>f c c</code> (VLM), <code>f c n</code> / <code>f f c n</code> (editing), multi-image chains of 5–8k tokens; 2% of the
+samples have a noise span followed by another split.
+
+<b>Inventory of fast paths (chosen hotspot first):</b>
+1. attention kernel: memory-efficient SDPA with a dense bf16 mask → FlashAttention varlen per query split (N1).
+2. exposed FSDP communication (0.21 s/step serialized + waits): overlap, protocol, prefetch depth.
+3. optimizer/EMA: AdamW foreach 73 ms + EMA 72 ms → fused / lerp (N1).
+4. elementwise overhead of the MoT routing, norms, RoPE (~0.4–0.5 s/step): fused kernels.
+5. step boundary: host syncs, logging, launch gaps (~0.16 s/step).
+
+### Change 1.1 — FlashAttention over the split layout (<code>BAGEL_OPT_FAST_ATTN=1</code>), tier N1
+
+<code>modeling/bagel/fast_attn.py</code> (new): the mask of a sample is determined by its splits (a query split sees the
+prefix of its sample that ends with the split: causal for text, bidirectional for an image span; a noise split is
+invisible to later splits). Each query split is one varlen sequence of FlashAttention: two calls per step
+(causal / bidirectional) over all samples, key/value rows gathered once per layer. Query splits after a noise
+split (2% of the samples) keep upstream&#x27;s SDPA on their rows of the mask. The split layout is attached to the mask
+tensor when the dataset builds it (<code>data/dataset_base.py</code>), carried through <code>pin_memory</code>/<code>cuda</code>; the batches
+(fields and bytes) are unchanged. Deterministic mode passes <code>deterministic=True</code>.
+
+Checked on one GPU (<code>/tmp/analysis/test_fast_attn.py</code>): 10 layouts × deterministic on/off, forward and gradients
+against upstream&#x27;s SDPA and an exact fp32 reference: same max error as SDPA&#x27;s (ratio ≤ 1.04), no NaN.
+Speed on the profiled layout (59M tokens², forward + backward incl. the K/V expansion): SDPA 26.7 ms → 8.4 ms.</pre></details><details><summary><em class="">1.7 h</em><span>Round 2 — exposed FSDP communication (18:04–18:38 UTC)</span></summary><pre>Hotspot from Round 1&#x27;s profile: exposed NCCL 0.61 s/step (22%) + CPU blocked by FSDP&#x27;s rate limiter. Profile of the
+tree with all three switches below (<code>/tmp/r2/profile</code>, rank 0, steps 8–9), idle of the compute stream per step:
+
+| gap type | reference | fast attn + FSDP switches |
+|---|---|---|
+| compute kernels | 2052 ms | 1868 ms |
+| only an all-gather running (mostly waiting for slower ranks) | 312 ms | 238 ms |
+| only a reduce-scatter running | 179 ms | 146 ms |
+| AG+RS back to back (exposed pair per LM layer in backward) | 79 ms | 28 ms |
+| no kernel at all (CPU-bound) | 118 ms | 81 ms |
+
+<b>Change 2.1 — <code>train/fsdp_overlap.py</code>, three switches (tier N0: same collectives, same data, other order/lead).</b>
+Toy run (2 ranks, deterministic, 4 steps): parameters and losses bitwise identical to upstream&#x27;s settings.
+
+| switch file | switches | <code>time</code> | s/step | windows | <code>speedup_vs_frozen_reference</code> |
+|---|---|---|---|---|---|
+| A | <code>BAGEL_OPT_FSDP_UNLIMITED=1</code> (<code>limit_all_gathers=False</code>) | <code>/tmp/r2/time_A</code> | 2.3122 | [2.3115, 2.3130] | 1.1209 |
+| B | A + <code>BAGEL_OPT_FSDP_FWD_PREFETCH=1</code> (<code>forward_prefetch=True</code>) | <code>/tmp/r2/time_B</code> | 2.3200 | [2.3230, 2.3169] | 1.1172 |
+| C | B + <code>BAGEL_OPT_FSDP_BWD_PREFETCH2=1</code> (all-gather of layer i−2 issued at the pre-backward hook of i) | <code>/tmp/r2/time_C</code> | 2.3047 | [2.2981, 2.3114] | 1.1246 |
+
+(baseline for this round: change 1.1 alone = 2.3560 s/step, 1.1001; all runs also have <code>BAGEL_OPT_FAST_ATTN=1</code>.)
+- No rate limiter: −44 ms (1.9%). Reserved memory 116.9 → 121.8 GiB (allocated peak unchanged, 82.0 GiB).
+- Forward prefetch: no gain (+8 ms, within noise) — with the rate limiter off the CPU already issues each
+  all-gather ≈60 ms before its layer runs; <b>dropped</b>.
+- Second layer of backward prefetch: −15 ms vs B, −7.5 ms vs A (0.3%; the window range of run C is 0.58%, so this
+  is at the noise level). On rank 0 the LM forward and backward now run without any gap ≥ 0.8 ms (reference: 5.3 ms
+  per layer), but the rank-0 profile cannot show the slowest rank&#x27;s timeline. Kept (N0, cheaper timeline).
+
+<b>What the new profile shows (findings for the next rounds):</b>
+1. The ranks are synchronised at the start of every step (the token all-reduce before the forward). Each step is
+   decided by its slowest rank; the step time varies 1.93–2.80 s from step to step with the data (stdev 0.2 s).
+2. Rank 0 waits 21 ms at the first ViT all-gather and <b>146 ms at the first LM all-gather</b> of the profiled step:
+   the other ranks are still encoding their conditioning images in the VAE (<code>vae_model.encode</code>, run at the start of
+   the step, before the model call). A 512 px image takes ≈70 ms (cudnn convs with NCHW↔NHWC copies, unfused
+   GroupNorm/SiLU, 5.7 ms attention); a rank with 3 images spends 200 ms there while a rank without spends none.
+   Next hotspot: take the VAE encode off the critical path (encode the next step&#x27;s images during the current step).
+3. After that point the ranks are in lockstep through the LM: no exposed communication left on rank 0; the LM
+   forward + backward is ≈1.9 s of compute per step (83%).
+4. CPU-bound phases (81 ms of GPU idle per step): 15 ms at the step boundary (stamp, logging), the ViT forward
+   (27 layers, 0.82 ms idle per layer with 0.13 ms all-gathers: launch-bound).
+5. AdamW (foreach: 5 multi-tensor kernels + 678 <code>pow</code> launches, ≈100 ms) and the EMA update (per-tensor slow path,
+   700 + 735 launches, 65 ms) run exposed after the step stamp; they delay the next step&#x27;s start.
+
+Full check of the tree at <code>499eea6</code> with <code>BAGEL_OPT_FAST_ATTN=1</code>, <code>BAGEL_OPT_FSDP_UNLIMITED=1</code>,
+<code>BAGEL_OPT_FSDP_BWD_PREFETCH2=1</code> started 18:38 UTC → <code>/tmp/r2/check</code>.</pre></details><details><summary><em class="">1.7 h</em><span>Full check of Round 2&#x27;s tree (started 18:38 UTC, finished 19:07 UTC, 29 min)</span></summary><pre><code>cd /opt/researchboost/ws &amp;&amp; /opt/bagel-env/bin/python bench/bench.py check --tree /submission/bagel_sft --config /submission/switches.json --out /tmp/r2/check</code>
+- Tree <code>499eea6</code>, switches FAST_ATTN + FSDP_UNLIMITED + FSDP_BWD_PREFETCH2: <b>status PASS, tier N1, speedup 1.1195</b> (candidate 2.3152 s/step vs the frozen reference 2.5918; windows 2.3161 / 2.3144, window_range 0.0007).
+- Gate 2 (record): exact items all identical (<code>exact_items_ok</code> True, 1408 shards per step compared), numbers not bitwise (gradients first, step 0) -&gt; N1.
+- Gate 2b (conformance, interleaved data): PASS; r_N 0.00578, r_J 0.00508, r_B 0.00478 (ratios N 1.16, J 1.02); production run r_N 0.00576, r_J 0.00522, r_B 0.00464 (N 1.15, J 1.04); limit 3.
+- Gate 3 (trajectory, seed 1, 150 steps): PASS (<code>equivalent</code>); all 14 endpoints within 1.3 sigma: largest |d|/sigma = disp_vit_s050_100 -1.29, log_grad_norm_s100_150 +1.03, disp_vit_s100_140 +0.57; CE/MSE/EMA endpoints below 0.02 sigma.</pre></details><details><summary><em class="">3.4 h</em><span>Round 3 — the VAE encode off the critical path; the step end (19:08–19:51 UTC)</span></summary><pre>Profile first (rank 0, <code>/tmp/r2/profile</code>, the trace of the full check&#x27;s switches; one heavy step of 2.744 s; scripts
+<code>/tmp/analysis/{kwindow,cpuops,vae_phase}.py</code>):
+- VAE encode: on the compute stream at the start of the step, after 23 ms of logging (6 all-reduces with a sync
+  each) and 17 ms of batch move: 124 ms in the heavy step (2.2897 → 2.4137 s in the trace). The other ranks are
+  still in theirs when rank 0 reaches the first LM all-gather (146 ms wait at 2.296 s). It is the largest block on
+  the critical path that nothing overlaps: the frozen VAE depends on the batch only.
+- Step end: AdamW 81 ms (foreach path: 1200 multi-tensor kernels, ≈0.9 TB/s) and the EMA 19 ms (foreach fast route,
+  174 kernels per operation). My Round 2 note &quot;EMA 65 ms exposed&quot; was a misattribution: the fp32 mul/add kernels I
+  had counted are the RMSNorms&#x27; <code>pow(2)</code> (4 per layer pass) and other elementwise work.
+- The batch move costs 17 ms of CPU per step with fast attention: the masks are converted to bf16 on the host and
+  copied from pageable memory (<code>item.to(device, dtype=bf16)</code> makes a new host tensor). That is my own cost of
+  Round 1 (the dense masks are ΣL² ≈ 27M floats ≈ 108 MB per rank-step).
+- Still on the profile, for the next rounds: (a) upstream&#x27;s SDPA path that fast attention keeps for query splits after
+  a noise split: in the timing data (interleave config) rank 0 has 2 such splits per step, and they are big ones
+  (later noise spans and image spans of editing chains): forward 4 × 0.8 ms + backward 2 × 2.5 ms per layer = 231
+  ms per step (10%); (b) MoT routing glue: index kernels ≈ 213 ms, copies ≈ 163 ms, zero fills 53 ms, residual
+  adds/rotary ≈ 130 ms per step; (c) GEMMs 819 ms, flash/mem-efficient attention ≈ 580 ms.
+
+Change 3.1 — VAE prefetch (<code>BAGEL_OPT_VAE_PREFETCH=1</code>), tier N0 (commit <code>e487112</code>, <code>train/vae_prefetch.py</code>).
+After the optimizer step of step k the loop fetches the batch of step k+1 and runs the same <code>AutoEncoder.encode</code>
+on a stream of its own (bf16 autocast, no grad, as upstream), beside the EMA update, the logging and the next
+step&#x27;s ViT forward; the compute stream waits for it when <code>Bagel.forward</code> first reads the latent (a lazy stand-in for
+the tensor, so the ViT forward overlaps too). The batch still goes through <code>SimpleCustomBatch.cuda</code> in its own
+step. The posterior draw keeps its place in the default generator&#x27;s sequence (after every draw of step k&#x27;s
+forward, before step k+1&#x27;s), so the noise is unchanged; the per-step logging sync waits for the compute stream
+only. Gate 2b&#x27;s judge-injected noise is keyed by the call&#x27;s ordinal, which the task statement says a VAE prefetch
+does not change.
+- Functional test <code>/tmp/analysis/test_vae_prefetch.py</code> (real batches, released VAE, one GPU; recipe data and
+  interleave data, 10 steps each): latents, the draws after them and the generator&#x27;s state bitwise equal to
+  upstream&#x27;s order. VAE encode time on a free GPU: 32 ms for one 1024×576 image, +17 ms per further image.
+- <code>time /tmp/r3/time_D</code> (switches of Round 2 + this): <b>2.2643 s/step, 1.1446</b> (Round 2&#x27;s exact switch set in the
+  full check: 2.3152 → −51 ms, −2.2%). Peak reserved memory 121.6 → 128.2 GiB (the stream&#x27;s own cache).
+
+Change 3.2 — fused AdamW and one-pass EMA (<code>BAGEL_OPT_ADAM_FUSED=1</code>, <code>BAGEL_OPT_EMA_LERP=1</code>), tier N1 (commit
+<code>65f8c7e</code>). <code>AdamW(fused=True)</code> (still <code>torch.optim.AdamW</code>, same hyper-parameters; torch then keeps the <code>step</code>
+state as an fp32 tensor on the GPU instead of the host), and <code>torch._foreach_lerp_</code> for the EMA. A microbenchmark
+(<code>/tmp/analysis/ema_bench.py</code>) showed <code>torch.compile</code> does not fuse a loop over 700 tensors in torch 2.5.1 (one
+Triton kernel per tensor) and that the fused mul+add of the Triton kernel is not bitwise upstream&#x27;s, so that
+option was dropped; an EMA on its own stream was dropped too (19 ms only).
+- <code>time /tmp/r3/time_E</code> (D + these): <b>2.2152 s/step, 1.1700</b> (−49 ms, −2.2% against D). Peak allocated 82.0 →
+  76.3 GiB.
+- <code>check --quick /tmp/r3/quick_E</code>: <code>NOT_BITWISE</code>, every exact item identical (<code>exact_items_ok</code> True, 1223 parameters,
+  1408 shards per step, 3 batches per rank, AdamW) — gates 2b and 3 decide (full check pending).
+
+Lost time: 9 minutes (19:36–19:45) because my runner script split <code>check --quick</code> into two arguments and the judge
+never started; fixed by quoting the command.
+
+Findings for the next rounds:
+1. The fast attention&#x27;s SDPA fallback costs 231 ms per step in the timing data (10%): generalize the varlen plan to
+   query splits after a noise split (their keys are row segments, not one range) — CPU check of the generalized plan
+   against upstream&#x27;s mask for all 363 layouts of up to 5 splits: 1641 query splits, 0 mismatches.
+2. With every query split in the varlen calls the dense masks are no longer read by the model: hand the split
+   layouts to the model instead of moving 108 MB of masks per step (saves the 17 ms of CPU of the batch move).
+3. Then the MoT routing glue (gathers, scatters, zero fills, residual adds).</pre></details><details><summary><em class="">4.0 h</em><span>Round 4 — attention class: every query split through FlashAttention; no dense masks moved (19:50–20:45 UTC)</span></summary><pre>Profile first (the same rank-0 trace as Round 3, <code>/tmp/r2/profile</code>, heavy step 2.744 s; kernels grouped by the CPU op
+that launched them, <code>/tmp/analysis/opclass.py</code>):
+- Upstream&#x27;s SDPA path that the fast attention of Round 1 kept for query splits after a noise split:
+  <code>_efficient_attention_forward</code> 185 ms + <code>_efficient_attention_backward</code> 283 ms per step (17%) — on the timing
+  data (interleave config) rank 0 has 2–4 such splits per step, and they are the big ones (image spans of editing
+  chains after the target latent).
+- The batch move: 17 ms of CPU per step converting the dense masks to bf16 on the host and copying them (108 MB per
+  rank-step), needed only by that fallback path.
+- The same accounting for the next round (MoT routing glue): <code>IndexPutBackward0 &gt; index</code> 60 ms, <code>&gt; mul</code> 39 ms,
+  <code>&gt; index_put_</code> 29 ms, <code>IndexBackward0 &gt; _index_put_impl_</code> 24 ms, <code>IndexSelectBackward0</code> 10 ms; zero fills 50 ms;
+  forward gathers <code>index</code> 30 ms, scatters 48 ms; dtype casts launched from <code>IndexPutBackward0</code> 25 ms.
+
+Change 4.1 — generalized varlen plan (<code>BAGEL_OPT_FAST_ATTN_ALL=1</code>, on top of <code>BAGEL_OPT_FAST_ATTN=1</code>), tier N1.
+A split sees the rows of the earlier splits that are not noise and its own rows: its keys are a list of row
+segments, merged when they touch. So the query splits after a noise split are sequences of the varlen calls like
+the others (the key/value rows of every split are gathered once per layer by <code>kv_index</code>; 363 layouts of up to 5
+splits checked against upstream&#x27;s mask on the CPU: 1641 query splits, 0 mismatches). With nothing left that reads
+the dense masks, <code>SimpleCustomBatch.cuda</code> hands the model the split layouts (<code>data.data_utils.SplitLayout</code> objects)
+instead of the mask tensors, which stay on the host. Without the switch the earlier path stays (SDPA fallback, bf16
+masks moved).
+- Tests (<code>/tmp/r4/tests3.log</code>, GPU 0): exhaustive test <code>/tmp/analysis/test_fast_attn2.py</code> — all 120 layouts of 1–4
+  splits over causal/full/noise, true and derived layouts, both deterministic modes, 312 cases: forward error
+  identical to upstream&#x27;s (ratio 1.00), gradients within noise (dq 0.39, dk 0.62, dv 0.47 of the upstream-vs-exact
+  error); with the switch off the same test covers the kept fallback path. End-to-end data path
+  (<code>/tmp/analysis/replay/test_layout_path.py</code>: DataLoader → <code>cuda()</code> → FSDP&#x27;s input cast → attention, versus
+  upstream&#x27;s SDPA on the dense masks) on real batches of the interleave data (6 steps: rank 0 has 3 query splits
+  after a noise span per step, 4 in FlashAttention on another) and of the recipe data: max |fast − upstream| / scale
+  4.4e-3.
+- <code>time /tmp/r4/time_G</code> (switches: Round 3&#x27;s + this): <b>2.0719 s/step, <code>speedup_vs_frozen_reference</code> 1.2509</b>
+  (windows 2.0739 / 2.0699; 2.2152 → −143 ms, −6.5%). Peak reserved 121.7 GiB.
+- Full check <code>/tmp/r4/check_G</code> (gate 1 timed in the check): see below.</pre></details><details><summary><em class="">4.6 h</em><span>Round 5 — MoT routing class: a compact layout for the two experts (20:33–20:58 UTC)</span></summary><pre>Profile first (the Round 4 tree after the EMA revert, <code>/tmp/r4/profile_G</code>, rank 0, one step under the
+profiler; kernels grouped by the CPU op that launched them): the routing glue of the mixture-of-transformers
+decoder layers is ≈ 240 ms per step — <code>IndexPutBackward0</code> gathers of the value gradients 45 ms, its <code>mul</code> 29 ms,
+zero fills 31 ms, forward scatters (<code>index_put_</code>) 35 ms, forward gathers 22 ms, <code>index_put_</code> in backward 21 ms,
+<code>IndexBackward0</code> 18 ms, the rest ≈ 40 ms — on top of 465 small kernels per layer.
+
+Change 5.1 — compact MoT layout (<code>BAGEL_OPT_MOT_COMPACT=1</code>), needs <code>BAGEL_OPT_FAST_ATTN_ALL=1</code>, tier N0 for
+itself. <code>Qwen2Model.forward_train</code> permutes the rows of the sequence once into &quot;the understanding expert&#x27;s tokens
+(sorted), then the generation expert&#x27;s&quot; and every decoder layer works on two contiguous slice views: the norms,
+the q/k/v/o projections and the MLPs of each expert read and write their own rows (what <code>forward_train</code> does
+with a zero buffer and <code>index_put_</code> at the token rows); only the rotary embedding and the packed attention see
+the rows joined, and the attention plan reads them through a row map (<code>fast_attn.packed_attention(…, row_map=…)</code>,
+the plan cache keyed by the tensor&#x27;s identity). The final norm runs on the slices, and one <code>index_select</code> puts
+the rows back in token order. A device-side assertion (<code>torch._assert_async</code>) stops the run if the two index lists
+are not a permutation; no host synchronization is added. Not taken when <code>freeze_und</code> is set (the compact path
+does not reproduce upstream&#x27;s detached zero gradient) or when a sample&#x27;s layout is unknown (then upstream&#x27;s path).
+- Test (<code>/tmp/r5/tests.log</code>, <code>/tmp/analysis/test_mot_compact.py</code>, GPU 0): a 2-layer model with the released
+  dimensions, random routing, split layouts with and without noise spans, L = 8900–11500, both deterministic
+  modes: in deterministic mode the output and all 59 gradient tensors are <b>bitwise identical</b> to the token-order
+  path of the same tree in the 6 cases; in production mode the output is still bitwise identical and the
+  gradients differ as much as two runs of the token-order path do (max 0.7% of the max gradient: atomics).
+  One decoder layer forward + backward: 40.3 → 37.5 ms (−7%).
+- <code>time /tmp/r5/time_G2</code> (the Round 4 tree without the EMA lerp, switches = this file&#x27;s without the new one):
+  2.0798 s/step, <code>speedup_vs_frozen_reference</code> <b>1.2462</b>. <code>time /tmp/r5/time_H</code> (with it): **2.0629 s/step,
+  1.2564** (windows 2.0657 / 2.0601): −17 ms. Less than the microbench predicts (28 layers × 2.8 ms = 79 ms):
+  the step is not bound by rank 0&#x27;s kernel time alone.
+- Why the gains lag the rank-0 profile (from the same trace and a CPU replay of the timing data,
+  <code>/tmp/analysis/replay/tok</code>):
+  - rank imbalance: tokens per rank and step differ (one step: 10121 / 10251 / 9229 / 9747; mean of
+    max ÷ mean over the steps = 1.10–1.14), the heaviest rank changes from step to step, so the step takes the
+    slowest rank and kernel time removed on a light rank buys nothing;
+  - the ranks are desynchronized at the step start (rank 0&#x27;s compute stream waits 242 ms per step behind
+    all-gathers, 119 + 77 + 25 ms in three waits at the start of the forward);
+  - CPU: 19k kernel launches per step on the main thread and 96k on the autograd thread; <code>cudaLaunchKernel</code>
+    blocks when the launch queue is full (the three longest block 151, 99 and 78 ms: there the GPU is the limit).
+- No full check of this state yet (the next GPU slot goes to it). Commit <code>306ac21</code>.</pre></details><details><summary><em class="">6.5 h</em><span>Round 6 — recompute class: the MLP of the MoT layers is no longer recomputed (21:00–22:55 UTC)</span></summary><pre>Profile first (the Round 5 tree, <code>/tmp/r4/profile_G</code>, rank 0, steps 8–9 under the profiler; further analyses of the
+same trace: <code>/tmp/analysis/leadbin.py</code>, <code>rtcall.py</code>, <code>tokstep.py</code>):
+- Step anatomy on rank 0 (2.33 s under the profiler): forward wall 831 ms with the compute stream busy 484 ms and
+  ≈ 350 ms waiting at FSDP all-gathers for the slower ranks (all-gathers of 63.5, 133.6, 160.6 and 74.0 ms, the first
+  at the ViT → language-model transition); backward wall 1449 ms at ≈ 100 % GPU occupancy with a 3.3 ms GPU-side wait
+  per layer (≈ 92 ms exposed). Idle time split by launch lead: CPU-bound idle 17.5 ms per step — rank 0 is never
+  CPU-bound (no <code>cudaMalloc</code>/<code>cudaFree</code> in the window; the autograd thread&#x27;s <code>cudaLaunchKernel</code> calls block only on a
+  full queue). The step is bound by the GPU time of the rank with the most work.
+- Recompute of the decoder layers: <code>aten::mm</code> (forward + recompute) 383.5 ms per step → the recompute of the two
+  experts&#x27; MLP costs ≈ 166 ms of GEMM + ≈ 20 ms of SiLU/mul per step at rank 0&#x27;s token count (≈ 10.5 ms per layer at
+  10.24k tokens), more on the heavier ranks.
+- Step time against the global token count the script logs: correlation 0.337 only; the slow steps 7, 13, 19, 32, 38
+  are not explained by tokens. CPUs: no cgroup throttling (quota 96 CPUs), every rank pinned to 11–12 physical cores of
+  NUMA node 0.
+
+Full check of H (tree <code>306ac21</code> with the compact layout, <code>/tmp/r6/check_H</code>, 21:25–21:52 UTC): <b>INCORRECT</b>. Gates 0,
+2 (exact items OK, not bitwise) and 2b (PASS: R_N ratio 1.455, R_J 1.040, bound 0.015, R_B 0.00493) passed; gate 3:
+<code>disp_vit_s050_100</code> beyond the bound at <b>−3.36 sigma</b> (candidate − reference −0.000899, sigma_seed 0.000268); the
+other 13 endpoints within (largest 0.97 sigma). Gate 1 of that run: 2.2581 s/step, 1.1478, but with interference
+(step 30 took 13.85 s; window range 0.181).
+
+Endpoints in sigma (candidate − reference over sigma_seed):
+
+| endpoint | r2 full check (PASS) | <code>check_G</code> (EMA lerp) | <code>check_H</code> (compact) | <code>n1_G2</code> | <code>n1_J</code> |
+|---|---|---|---|---|---|
+| ce_s050_100 / ce_s100_150 | −0.00 / −0.00 | −0.00 / +0.02 | −0.01 / +0.01 | −0.02 / +0.00 | −0.04 / −0.00 |
+| mse_s050_100 / mse_s100_150 | −0.00 / +0.02 | +0.01 / +0.03 | −0.00 / +0.01 | −0.01 / +0.01 | +0.01 / +0.01 |
+| log_grad_norm_s050_100 / s100_150 | +0.07 / +1.03 | +0.91 / −0.78 | −0.06 / −0.94 | −0.14 / +1.08 | +0.29 / −0.52 |
+| disp_vit_s050_100 / s100_140 | −1.29 / +0.57 | −1.23 / +0.12 | <b>−3.36</b> / +0.97 | −0.77 / +0.77 | −0.25 / −0.17 |
+| disp_lm_s050_100 / s100_140 | −0.45 / −0.34 | −0.80 / −0.25 | +0.08 / −0.22 | −0.23 / −0.45 | −0.11 / −0.15 |
+| disp_other_s050_100 / s100_140 | −0.60 / −0.46 | −0.86 / +0.03 | −0.26 / +0.59 | −0.33 / +0.30 | +0.30 / −0.17 |
+| disp_ema_s050_100 / s100_140 | −0.00 / −0.27 | −53.29 / −39.69 | +0.01 / −0.20 | +0.04 / −0.18 | −0.00 / −0.20 |
+
+(<code>n1_J</code>: <code>/tmp/r6/n1_J/check.json</code>, <code>ends.py</code>; the EMA endpoints of J: −0.00 and −0.20.)
+
+Finding: the gate-3 endpoints are a draw per rounding realization. In production settings one step is bitwise
+reproducible run to run for a fixed path (87/87 gradients, both layouts), while two paths that are bitwise identical in
+deterministic mode differ at bf16-ulp level (cuBLAS picks other algorithms outside deterministic mode). So every
+tree/switch set moves the 14 endpoints by about ±1 sigma (<code>log_grad_norm_s100_150</code>: +1.03, −0.78, −0.94, +1.08, −0.52
+over five token-order configurations; <code>disp_vit_s050_100</code>: −1.29, −1.23, −0.77, −0.25), and the compact layout —
+worth 17 ms — drew −3.36 sigma. It is out of the switch file; each new N1 state gets a <code>check --n1</code> before it is
+adopted.
+
+<code>check --n1</code> of G2 (tree <code>306ac21</code>, compact layout off; <code>/tmp/r6/n1_G2</code>, 22:01–22:19 UTC): <b>PASS</b>, all 14 endpoints
+within 1.08 sigma. <code>/submission/switches.json</code> was set to G2 (2.0798 s/step, 1.2462).
+
+Change 6.1 — <code>BAGEL_OPT_MOT_NO_RECOMPUTE=1</code> (commit <code>c171757</code>), tier <b>N1</b>. With the switch a <code>Qwen2MoTDecoderLayer</code>
+(token-order or compact layout) is left alone by the training script&#x27;s generic checkpoint wrapper
+(<code>grad_checkpoint_check_fn</code>): the layer checkpoints its attention block itself (<code>torch.utils.checkpoint.checkpoint</code>,
+<code>use_reentrant=False</code>, the same recompute as before for the attention), and the post-attention normalization and the
+MLP of the two experts run through a custom <code>torch.autograd.Function</code> (<code>_NormMLPTokenOrder</code> / <code>_NormMLPCompact</code>) that
+saves its input and the gate and up outputs and whose backward runs the ATen operations autograd runs for them, in
+their order (logged with a <code>TorchDispatchMode</code>). The parameters are inputs of the Function (their gradients reach
+them, and FSDP&#x27;s post-accumulate hooks, as before; saved as the same objects, so the all-gathered storage is not
+pinned). Memory: ≈ 0.44 GB more per layer at 10240 tokens (28 layers: ≈ 12 GB).
+- Test (<code>/tmp/r6/tests_norecompute2.log</code>, <code>/tmp/analysis/test_mot_norecompute.py</code>, GPU 0; 3 layers with the released
+  model&#x27;s dimensions, random routing, layouts with and without noise spans, L = 8900 and 10240, both layouts, fast
+  attention on): deterministic mode — output and all 87 gradients <b>bitwise identical</b> to the layer under upstream&#x27;s
+  checkpoint wrapper (plain modules), and under single-rank FSDP with the tree&#x27;s wrapper and <code>apply_activation_checkpointing</code>:
+  output, 4/4 flat-parameter gradients, the input gradient and the clip norm bitwise identical, every trained
+  parameter with its gradient. Production settings: run-to-run identical per path, 12–22 of 87 gradients bitwise
+  between the paths (max 1.2 % of the max gradient), as between any two paths.
+- <code>time /tmp/r6/time_J</code> (G2 + this): 2.1342 s/step, <code>speedup_vs_frozen_reference</code> <b>1.2144</b> nominal — with a stall:
+  steps 10 and 11 took 3.33 and 15.23 s on every rank (window range 0.237; windows 2.3871 / 1.8813). Without it the
+  steps are 1.82–1.88 s: median 1.885 s against 2.070 s for G2 (−185 ms, −9 %); the clean second window 2.0002 →
+  1.8202 s (−180 ms), which would be ≈ 1.42 over the frozen reference. Peak allocated 93.4 GiB (was 76.3), reserved
+  134.9 GiB (was 121.7) of the 139.8 GiB of a GPU.
+- <code>check --n1 /tmp/r6/n1_J</code> (22:33–22:51 UTC): <b>PASS</b> — conformance R_N ratio 1.457, R_J 1.013 (bound 0.015;
+  production PASS), the 14 endpoints within 0.52 sigma. The switch file of <code>/submission</code> is now J.
+- Stalls: 15–16 s stalls in <code>time_H</code> (step 1), the timing run of <code>check_H</code> (step 30) and <code>time_J</code> (steps 10–11), none
+  in the 8 timing runs before 20:44 UTC with the same data order → not tied to a sample; inside the training loop of
+  the step (the script&#x27;s own <code>Train Steps/Sec</code> shows it). The data is on a network filesystem (CPFS) and the host
+  shows a load average of 12–14 with nothing of mine running: interference of unknown origin (two of the three at
+  xx:29). The final evaluation rejects such runs (INVALID, measured again); a clean re-time of J follows
+  (<code>/tmp/r6/time_J2</code>).
+
+Pitfall noted: <code>/tmp/work/run.sh &quot;check --n1&quot; OUT CONFIG</code> — the flags must be one quoted argument.</pre></details><details><summary><em class="">7.4 h</em><span>Round 7 — normalization class: fused RMSNorm forward and backward (22:52–23:47 UTC)</span></summary><pre>Profile first, on the Round 6 state J (<code>/tmp/r7/profile_J</code>: rank 0, steps 8–9; <code>/tmp/r7/diag_J</code>: my all-rank
+diagnostic entry, steps 13–14 on every rank, traces r0–r3):
+- The step is bound by the rank with the most tokens (per-rank tokens in two steps: 10479/10317, 10714/11182,
+  7348/5232, 9591/8894). Rank 1 started 57 of the 58 reduce-scatters last (skew to the earliest rank up to 975 ms) and
+  is GPU-bound: compute stream busy 1512 ms of the 1.88 s step (24137 kernels), NCCL 448 ms (mostly spinning for the
+  other ranks), the VAE stream 56 ms, FSDP&#x27;s side streams 33 (gradient cast), 30 (<code>cat</code> of the flat gradient), 24
+  (all-gather copy-in), 17 (predivide) ms. GPU idle 93 ms per step in 20.5k gaps of 2–5 µs (launch gaps), plus ≈ 115 ms
+  in which the main thread sits in <code>aten::nonzero &gt; cudaStreamSynchronize</code> at the end of the forward (its queue is
+  that deep) and ≈ 8 ms before the autograd thread picks up the backward.
+- Rank 1, one step, kernels grouped by the CPU op that launched them (24987 kernels, 2125 ms including the NCCL
+  waits): MLP backward GEMMs 363 ms, forward linear GEMMs 214, all-gathers 280 + 75, FlashAttention backward 93 +
+  recompute 29 + forward 35, reduce-scatters 87, attention-projection backward 42; eager normalization / SiLU glue
+  ≈ 300 (<code>mul</code> 42.5 + 31.9 + 26.0 + 15.1 + 20.3, <code>div_</code> 30.5, copies 16.7 + 16.6 + 13.6 + 9.5, reductions ≈ 40);
+  token-index glue of the mixture of transformers ≈ 250–270 (<code>IndexPutBackward0 &gt; index</code> 45, forward <code>index_put_</code> 26,
+  gathers 25 + 19, <code>IndexBackward0</code> 19, <code>index_add_</code> 14, zero fills 22, …); FSDP gradient bookkeeping ≈ 110 (<code>cat</code> 30,
+  predivide 30, cast 20 + 13, <code>mul_</code> 10, <code>copy_</code> 13). GEMMs run at ≈ 680–800 TFLOP/s, near the practical peak.
+- Stalls: the diagnostic run stalled 31.1 s at step 15 and 3.8 s at step 21 on all four ranks at once, inside the
+  training loop (not a data wait: <code>data_wait_ms 0.3</code>, the batch of that step arrived 948 ms after the previous step end
+  against 62–132 ms normally); Python&#x27;s gen-2 collections around it took 607–708 ms instead of 47–98 ms, i.e. the CPU
+  side was 7–13× slower for some seconds. The host: a VM, container cpuset 2–47,98–143 (92 CPUs, NUMA node 0), CPU
+  quota 96 never throttled, memory limit 1 TiB with 477 GB used (page cache only ≈ 3.5 GB), load average 10–12 with
+  nothing of mine running, heavy i/o wait (data on CPFS, 94 % full). Cause not found; a watchdog and py-spy are
+  prepared (<code>/tmp/analysis/prof_entry.py</code>, <code>stall_spy.py</code>).
+
+Change 7.1 — <code>BAGEL_OPT_RMSNORM_FUSED=1</code> (commit <code>79eaafe</code>), tier <b>N1</b>. <code>modeling/bagel/rmsnorm_fused.py</code>:
+<code>Qwen2RMSNorm.forward</code> (eight ATen operations with fp32 temporaries, ≈ 18 in the backward) becomes four Triton kernels
+with the same roundings per element — fp32 sums, the normalized value rounded to the activation&#x27;s dtype before the
+weight, the weight gradient accumulated in fp32 in a fixed order — only the order of the sums differs (no atomics: the
+same path in deterministic mode and in production). Used by the module&#x27;s forward and by the saved-activation path of
+the mixture-of-transformers layer (<code>_norm_mlp_backward</code> takes the rows&#x27; rstd that <code>_norm_mlp_forward</code> kept). One
+compiled variant per kernel and hidden size (row counts not specialized, 16-byte alignment checked, a misaligned
+gradient is cloned) so that no compilation can land in a timed step.
+- Tests (<code>/tmp/r7/tests_rmsnorm2.log</code>, <code>/tmp/r7/tests_rmsnorm_model.log</code>, GPU 0): kernel level against ATen on
+  [4500, 3584] bf16 — 0–75 of 36.7M output elements differ (one ulp), <code>dx</code> 2–309, <code>dw</code> 0–8 of 3584, worst relative
+  3.8e-3 on a tiny element; forward 0.253 → 0.032 ms, forward + backward 0.812 → 0.190 ms. Model level (switch 0
+  against 1, both layouts, L = 10240 / 8900, two seeds): in deterministic mode the output and all 87 gradients are
+  bitwise identical between the paths in 0 of 8 cases (max 2.1 % of the max gradient, as between any two sum orders);
+  under single-rank FSDP no deterministic-mode error, clip norm within 2.4e-6.
+- Full check <code>/tmp/r7/check_K</code> (23:19:59–23:46:27 UTC, tree <code>79eaafe</code>, switch file <code>/tmp/work/sw/K.json</code> = J + this):
+  <b>PASS</b>, tier N1, <b>1.7452 s/step, <code>performance.speedup</code> 1.4851</b> against the frozen reference 2.5918 (windows
+  1.7479 / 1.7426 s, all four ranks within 0.4 ms, no stall; peak allocated 92.7 GiB, reserved 134.9 GiB). That is
+  −136 ms per step against J (1.8814).
+  - Gate 2: every exact item equal; not bitwise (as for every N1 state): per rank after step 0 the parameters 120/120
+    shards equal, gradients, moments 0/58, <code>state.step</code> 58/58; after step 1 parameters 62/120; after step 2 4/120.
+  - Gate 2b: conforming in both modes — deterministic R_N ratio 1.71, R_J 1.01 (R_B 0.0048); production R_N 1.71,
+    R_J 1.06 (R_B 0.0046); bound 0.015.
+  - Gate 3: PASS; endpoints in sigma (candidate − reference over the reference&#x27;s seed sigma): CE −0.01 / +0.03,
+    MSE +0.01 / +0.01, log grad norm +1.39 / −2.12, ViT displacement −1.72 / +0.91, LM −0.78 / +0.40, other −1.09 /
+    +0.12, EMA −0.05 / −0.23.
+<code>/submission/switches.json</code> is now K (<code>/tmp/work/sw/K.json</code>).
+
+Notes for the next rounds:
+- FSDP&#x27;s gradient scaling in torch 2.5.1 divides twice by 2 (predivide factor 2 on the whole 1 GB unsharded gradient,
+  postdivide 2 on the 255 MB shard) and then casts the shard to fp32: three passes that can be one exact pass (N0).
+- Unresolved: the token-index glue measures ≈ 250 ms per step on rank 1, but the compact layout (Round 5) gained 17 ms.
+  To be settled by a single-layer profile with the current switches (token-order against compact).
+- The <code>nonzero</code> synchronization at the end of the forward (≈ 8 ms CPU bubble per step) is not yet located in the code.</pre></details><details><summary><em class="">7.8 h</em><span>Round 8 — FSDP gradient bookkeeping class: the gradient scaling in one pass (23:47–00:20 UTC)</span></summary><pre>Profile first, on state K (<code>/tmp/r8/diag_K</code>: my all-rank diagnostic entry, steps 8–9 on every rank, traces r0–r3;
+<code>/tmp/r8/tl_r2_end.txt</code>: the GPU timeline of every stream around the end and the start of a step on rank 2):
+- Which rank is critical changes from step to step with the tokens each rank draws (step n=9: 4690 / 8194 / 11268 /
+  10215; step n=10: 10612 / 9667 / 9453 / 10428). Rank 2 when heaviest (step wall 1.780 s on all ranks; 18889 kernels,
+  1896 ms of kernel time): MLP backward GEMMs 395 ms, forward linear GEMMs 212, addmm 44 + 46, mm backward 24 (GEMMs
+  ≈ 721 ms at ≈ 470–800 TFLOP/s); FlashAttention backward 105 + forward 37 + recompute 32; all-gathers 81 + 78;
+  reduce-scatters 80; logging / token all-reduces 58 (up to 53 ms of spinning for late ranks); <code>to &gt; _to_copy &gt; copy_</code>
+  51 (978 kernels); token-index glue ≈ 250 (<code>IndexPutBackward0 &gt; index</code> 48.5, <code>SplitWithSizesBackward0 &gt; cat</code> 28,
+  <code>index_put_</code> 26 + 20, <code>IndexBackward0</code> 20, <code>index</code> 25, zero fills 29 + 10); FSDP gradient bookkeeping ≈ 76
+  (predivide <code>div_</code> 26, postdivide + cast on its side stream ≈ 37, <code>cat</code>); <code>FusedRMSNormBackward</code> 37;
+  <code>_NormMLPTokenOrderBackward &gt; mul</code> 28.
+- Streams on rank 2 over the two steps: compute 2900 ms (1450 per step of the 1.78 s step), FSDP&#x27;s NCCL stream
+  992 ms, the VAE 160 ms, the NCCL stream of the default process group 132 ms (the script&#x27;s own all-reduces: tokens,
+  logging), all-gather copy-in / <code>cat</code> / predivide / cast side streams 100 ms.
+- Step end and step start on rank 2 (relative to the end of the last reduce-scatter, 1781 ms): clip + fused AdamW
+  49 ms with the compute stream 99 % busy; the post-hook&#x27;s <code>cudaDeviceSynchronize</code> (48.96 ms); then ≈ 130 ms before
+  the steady compute of the language model, in which the GPU is mostly idle on all ranks: the CPU launches the VAE
+  encode of the next batch (1831–1863 ms: ≈ 384 kernels, a <code>cudnn_convolution</code> costs 0.9–1.7 ms of CPU each, so the
+  stream is launch-bound), the EMA&#x27;s two foreach operations are only launched after it (1863), the logging&#x27;s copy of a
+  pageable tensor waits 23.6 ms for the EMA on the default stream, the token all-reduce waits 19.4 ms for the slowest
+  rank, <code>FullyShardedDataParallel.forward</code> starts at 1916.7 and the first ViT all-gather waits 44.5 ms for a rank
+  that is still launching its VAE encode.
+- Allocator: rank 2 reached a new memory peak in the first profiled step — 196 <code>cudaFree</code> and 115 + 82 <code>cudaMalloc</code>
+  calls (205 ms) at 200–500 ms of that step; ranks 0 and 1 none. Python&#x27;s gen-2 collections cost 150–225 ms every 7–8
+  steps (≈ 2 million tracked objects), i.e. ≈ 25–30 ms per step on the main thread.
+- The 25–31 s &quot;stalls&quot; of my diagnostic runs are an artifact of that entry (it exports the 140 MB trace inside the
+  post-hook before it stamps the time); the 13–16 s stalls in the judge&#x27;s runs remain unexplained.
+
+Change 8.1 — <code>BAGEL_OPT_FSDP_POSTDIV=1</code> (commit <code>a7ac8ff</code>), tier <b>N0</b>. In torch 2.5.1 FSDP divides the whole
+unsharded gradient of a unit by the predivide factor (2: a pass over up to 1 GB), reduce-scatters, divides the shard by
+the postdivide factor (2) and casts it to fp32 — three passes besides the collective. Both factors are powers of two,
+so the bits outside the subnormal range do not depend on where the division happens: <code>train/fsdp_overlap.py</code> replaces
+FSDP&#x27;s <code>_reduce_grad</code> (sharded strategies without communication hook, CPU offload or tracing only) by: no predivide,
+the reduce-scatter, then one Triton kernel that does the two divisions (each rounded to bf16 as upstream&#x27;s <code>div_</code> are)
+and the cast of the shard in one pass. The upstream path stays for every other configuration.
+- Tests (<code>/tmp/r8/chain_b.log</code>, <code>/tmp/analysis/test_postdiv.py</code>, 4 GPUs, FSDP HYBRID_SHARD, bf16 mixed precision,
+  <code>use_orig_params</code>, deterministic algorithms, a different token count per rank): the kernel against upstream&#x27;s three
+  operations over all 65536 bf16 bit patterns — bitwise equal; on the same forward/backward the flat gradients, the
+  parameters&#x27; gradients and the parameters and <code>exp_avg</code> after clip + fused AdamW — bitwise identical to upstream&#x27;s
+  reduction on all four ranks. (Scaled into the bf16 subnormal range, below 4.7e-37, the paths differ in the last bit;
+  training gradients are far from it.)
+- <code>time</code> <code>/tmp/r8/time_N</code> (switch file <code>/tmp/work/sw/N.json</code> = K + this): **1.7094 s/step, <code>speedup_vs_frozen_reference</code>
+  1.5162** (windows 1.7148 / 1.7040, window range 0.63 %; no stall: slowest step 2.057 s), against K&#x27;s 1.7452:
+  <b>−35.8 ms per step</b>. No full check yet: the change is N0 on top of K, whose trajectory it keeps by construction
+  (the same bits at every step of gate 2 on the test; gate 2b and gate 3 to be re-run on the accumulated state).
+<code>/submission/switches.json</code> is now N (<code>/tmp/work/sw/N.json</code>).
+
+Notes for the next rounds:
+- The step start: ≈ 130 ms between the post-hook&#x27;s sync and the steady compute, mostly idle GPU, on every rank. The
+  CPU is the critical path there: the VAE launch (≈ 32 ms of CPU, its GPU work runs meanwhile on its own stream),
+  the EMA launched after it, the logging&#x27;s synchronous copies from pageable memory, and the all-reduces whose wait is
+  the spread between the ranks&#x27; arrival times (a rank with many images to encode is up to 44 ms late). The VAE launch
+  could go into the CPU&#x27;s idle time after <code>loss.backward()</code> returns (the GPU is still ≈ 0.5 s behind there), with
+  the VAE stream waiting on the compute stream so that its kernels run with the clip and AdamW; the order of the
+  random draws is unchanged by that (after the draws of this step&#x27;s forward, before those of the next).
+- Python GC (<code>gc.freeze()</code> after setup) and the allocator (<code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code>) are
+  N0 candidates.</pre></details><details><summary><em class="">8.4 h</em><span>Round 9 — host class: Python&#x27;s garbage collector (00:04–00:23 UTC)</span></summary><pre>- Profile finding (state K, the all-rank diagnostic trace of Round 8): Python&#x27;s gen-2 collections take 150–225 ms
+  every 7–8 steps on the main thread (≈ 2 million tracked objects), i.e. ≈ 25–30 ms per step; they fall wherever
+  the training loop is when the allocation count triggers them.
+- Change 9.1 — <code>BAGEL_OPT_GC_FREEZE=1</code> (commit <code>591f859</code>), tier <b>N0</b> (no arithmetic is touched): after the setup
+  (<code>train_iter = iter(train_loader)</code>) one <code>gc.collect()</code> and <code>gc.freeze()</code>: every object alive after the setup moves
+  to the permanent generation, which the collector no longer walks. Only collections of the objects the loop itself
+  creates remain (≈ 2 ms every 7–8 steps).
+- <code>time</code> <code>/tmp/r9/time_O</code> (switch file <code>/tmp/work/sw/O.json</code> = N + this): **1.6998 s/step,
+  <code>speedup_vs_frozen_reference</code> 1.5248** (windows 1.7159 / 1.6836, window range 1.9 %), against N&#x27;s 1.7094:
+  <b>−9.6 ms per step</b>; the per-10-step means move by +33, −50, +8, −17, −42 ms, so the single run only bounds the
+  gain loosely. Kept: the change is N0 and can only remove host time.
+- No check run in this round (the tree without the switch is unchanged; the full check below covers the state).</pre></details><details><summary><em class="">8.4 h</em><span>Round 10 — the step start: the VAE encode under the optimizer phase (00:23–01:05 UTC)</span></summary><pre>- Profile finding (state K, <code>/tmp/r8/diag_K</code>, all ranks): all ranks finish AdamW within ≈ 10 ms; then the VAE encode
+  of the next batch occupies its stream for 45–138 ms (GPU-bound: 40–73 ms of kernels), the EMA (13 ms of GPU time)
+  and the logging all-reduces (25 ms of waiting) overlap it, and the first ViT all-gather waits 44–50 ms for the
+  slowest rank; steady compute resumes 130–140 ms after AdamW. The VAE encode is the critical piece.
+- Change 10.1 — <code>BAGEL_OPT_VAE_EARLY</code> (uncommitted in the tree, off by default): the encode of the next batch is
+  started right after <code>loss.backward()</code> instead of after the optimizer step, so that its GPU time falls under the
+  backward or the optimizer phase instead of the idle step start. <code>1</code>: the VAE stream does not wait for the compute
+  stream (the encode runs beside the backward); <code>2</code>: it waits for it (the encode runs under clip + AdamW). The order
+  of the random draws is unchanged (after this step&#x27;s forward draws, before the next step&#x27;s).
+  - <code>time</code> <code>/tmp/r10/time_P1</code> (mode 1): <b>1.7362 s/step, 1.4928</b> — 36 ms slower than O.
+  - <code>time</code> <code>/tmp/r10/time_P2</code> (mode 2): <b>1.7222 s/step, 1.5049</b> — 22 ms slower than O.
+  - Not adopted: on the rank with the most work the backward and the optimizer phase keep the GPU busy, so the
+  encode&#x27;s kernels only take time from them (and its ≈ 400 launches contend with the autograd thread); the encode
+  is best placed where it is now, beside the EMA.
+- Re-timing of change 5.1 (the compact MoT layout) on the current state, prompted by the single-layer profile (design
+  aid, <code>/tmp/r10/lp_A</code>, <code>/tmp/r10/lp_B</code>: one layer, 11268 tokens, fused norms, no recompute — token order 46.1 ms
+  per forward + backward, compact 40.6 ms): <code>time</code> <code>/tmp/r10/time_Q</code> (O + <code>BAGEL_OPT_MOT_COMPACT=1</code>):
+  <b>1.6996 s/step, 1.5249</b> — the same as O (−0.2 ms; the per-10-step means differ by −44, −16, −8, +14, +26 ms).
+  Not adopted, for the second time: the gain a layer shows alone does not reach the step. See the notes below.</pre></details><details><summary><em class="">9.1 h</em><span>Round 11 — MoT routing class, continued: the compact layout in the real training; two host waits (00:58–01:30 UTC)</span></summary><pre>- Profile finding (state Q = O + <code>BAGEL_OPT_MOT_COMPACT=1</code>, all-rank diagnostic trace <code>/tmp/r11/diag_Q</code>, compared
+  with <code>/tmp/r8/diag_K</code> of state K): exactly the same kernels per class in the backward (GEMM 1461 kernels 477.7 ms,
+  FlashAttention 328 kernels 181.6 ms, elementwise 5199 kernels 147.9 ms, index 1660 kernels 129.7 ms). The compact
+  path had <b>never run in the real training</b>: its guard <code>isinstance(self.layers[0], Qwen2MoTDecoderLayer)</code> is false
+  under FSDP, which wraps every decoder layer. It had only run in the single-layer test of Round 5. So the re-timing
+  <code>/tmp/r10/time_Q</code> of Round 10 and check_H (gate 3 at −3.36 sigma) measured the token-order path, and the explanations
+  of the small gain were wrong.
+- Design aid of this round, a big square GEMM on this machine (<code>/tmp/analysis/gemm_peak.py</code>): 8192³ bf16 in
+  1.36–1.45 ms = <b>≈ 760 TF/s</b> (132 SMs, 1980 MHz, 384 W, no throttle reason; cuBLAS Hopper kernels; cuBLASLt no
+  better). The MoT MLP GEMMs run at ≈ 760 TF/s too, i.e. at the machine&#x27;s practical peak: of a 1568 ms step about
+  580 ms are GEMMs; the rest is memory-bound kernels, communication and waits.
+- Change 11.1 — the guard looks for the layer class under the FSDP and checkpoint wrappers (<code>is_mot_decoder_layer</code>),
+  commit <code>ce09c9b</code>, tier <b>N0</b> for the layout (Round 5&#x27;s unit test: output and all gradients bitwise identical to the
+  token-order layout in deterministic mode; in production mode its <code>index_add_</code> backward uses atomics, as before).
+  - <code>check --quick</code> <code>/tmp/r11/quick_Q3</code> (all switches): NOT_BITWISE, every exact item passes (the fused RMSNorm makes
+    the tree N1, as in state K).
+  - <code>time</code> <code>/tmp/r11/time_Q2</code> (switch file <code>/tmp/work/sw/Q2.json</code> = O + compact): **1.6157 s/step,
+    <code>speedup_vs_frozen_reference</code> 1.6041<b> (windows 1.6113 / 1.6201): </b>−84 ms per step** against O (1.6998).
+- Finding: <code>gc.freeze()</code> of change 9.1 broke the judge&#x27;s root discovery — <code>check --quick</code> <code>/tmp/r11/quick_Q2</code> ended in
+  ERROR &quot;0 FSDP roots (0 trained by the optimizer, 0 not)&quot;. The judge finds the two FSDP roots through
+  <code>gc.get_objects()</code>, which does not return the objects of the permanent generation. The switch file O would have
+  failed the final evaluation at gate 2.
+- Change 11.2 — <code>BAGEL_OPT_GC_FREEZE=1</code> now raises the collector&#x27;s third threshold (`gc.set_threshold(700, 10,
+  1000)<code>) instead of freezing, commit </code>0746536`, tier <b>N0</b>. Same effect (no gen-2 collections every few steps; an
+  explicit <code>gc.collect()</code> still collects everything). <code>/tmp/r11/quick_Q3</code> and <code>/tmp/r11/quick_S</code> pass with it.
+- Change 11.3 — <code>BAGEL_OPT_LOSS_NOSYNC=1</code> (off by default), commit <code>e665247</code>, tier <b>N0</b>: the three row selections of
+  the loss (<code>last_hidden_state[ce_loss_indexes]</code>, <code>lm_head</code> input, <code>target[has_mse]</code>) took a boolean mask path whose
+  <code>nonzero</code> makes the host wait for the whole forward before it can launch the loss kernels and the backward; now the
+  masks are turned into indexes on a side stream as soon as they are ready and the rows are selected by
+  <code>index_select</code>; the two token counts are written by a fill kernel instead of a copy from pageable memory (which
+  also made the host wait). Same tensors, same order of the random draws. Unit test
+  <code>/tmp/analysis/test_loss_nosync.py</code>: values and gradients bitwise identical under deterministic algorithms; host wait
+  with 600 ms queued on the stream: 823 ms → 1.6 ms.
+  - First version: <code>time</code> <code>/tmp/r11/time_R</code> ERROR (size mismatch: the event that guards the mask was recorded before
+    the mask was computed). Fixed by computing the mask right after the timestep shift and recording after it.
+  - <code>time</code> <code>/tmp/r11/time_S</code> (switch file S = Q2 + this): <b>1.5683 s/step, 1.6526</b> (windows 1.5718 / 1.5647,
+    window range 0.5 %): <b>−47 ms per step</b> against Q2 (medians 1.542 against 1.598: −56 ms).
+  - <code>check --quick</code> <code>/tmp/r11/quick_S</code>: NOT_BITWISE, every exact item passes.
+- Switch file <code>/submission/switches.json</code> is now S (<code>/tmp/work/sw/S.json</code>, 12 switches). Tree <code>e665247</code>.
+- Full check of this state launched at 01:30 UTC after a diagnostic trace of it: <code>/tmp/r12/diag_S</code>,
+  <code>/tmp/r12/check_S</code> (result in the next section / the summary).</pre></details></div></details></section><div class="pager"><a class="prev" href="t-bagel_sft-astra62.html"><small>← 1.84×</small><strong>GPT-6.2 Astra</strong></a><a class="up" href="bagel_sft.html">↑ BAGEL SFT</a><a class="next" href="t-bagel_sft-astra.html"><small>1.62× →</small><strong>GPT-6 Astra<span class="nerf">suspected nerf</span></strong></a></div></main><footer class="site-footer wrap">RSI-Infra Bench · data as of 2026-11-25 18:02 (UTC+8)</footer><div id="tip"></div><script type="application/json" id="data">{"series": [{"k": "opus", "name": "Claude Opus 5.5", "short": "Opus 5.5", "tag": "", "color": "#c8361f", "href": "t-bagel_sft-opus.html", "pts": [[1.099, 1.177, 1], [2.016, 1.504, 2], [2.997, 1.843, 3], [4.093, 1.918, 5], [7.048, 2.155, 7], [8.685, 2.217, 8]], "end": 9.253, "final": 2.1976, "rej": false}, {"k": "sonnet", "name": "Claude Sonnet 5.5", "short": "Sonnet 5.5", "tag": "", "color": "#e2831f", "href": "t-bagel_sft-sonnet.html", "pts": [[0.591, 1.192, 2], [0.712, 1.507, 3], [1.417, 1.981, 5], [2.374, 2.111, 8], [4.37, 2.181, 9], [5.074, 2.193, 10], [6.058, 2.193, 11], [6.527, 2.193, 12], [8.116, 2.198, 13], [8.673, 2.241, 14]], "end": 10.0, "final": 2.214, "rej": false}, {"k": "haiku", "name": "Claude Haiku 5.5", "short": "Haiku 5.5", "tag": "", "color": "#a07a00", "href": "t-bagel_sft-haiku.html", "pts": [[0.054, 1.02, 0], [0.454, 1.025, 2], [1.013, 1.092, 4], [2.126, 1.289, 5], [2.589, 1.29, 7], [3.32, 1.418, 8], [3.886, 1.442, 9], [5.613, 1.452, 11], [7.275, 1.558, 13], [8.066, 1.596, 14]], "end": 10.0, "final": 1.6007, "rej": false}, {"k": "astra62", "name": "GPT-6.2 Astra", "short": "GPT-6.2 Astra", "tag": "", "color": "#4fa3d9", "href": "t-bagel_sft-astra62.html", "pts": [[0.918, 1.142, 1], [0.992, 1.295, 2], [2.29, 1.444, 3], [2.4, 1.603, 4], [3.323, 1.649, 5], [3.664, 1.682, 6], [4.027, 1.725, 7], [4.662, 1.725, 8], [5.094, 1.764, 9], [5.907, 1.814, 10], [6.546, 1.817, 11], [7.089, 1.844, 12], [7.827, 1.856, 13], [8.145, 1.856, 14], [9.325, 1.931, 15], [9.52, 1.931, 16], [9.638, 1.931, 17]], "end": 10.0, "final": 1.8382, "rej": false}, {"k": "sol62", "name": "GPT-6.2 Sol", "short": "GPT-6.2 Sol", "tag": "", "color": "#42bb1a", "href": "t-bagel_sft-sol62.html", "pts": [[0.237, 1.171, 1], [0.963, 1.198, 2], [1.233, 1.399, 3], [2.177, 1.415, 4], [2.473, 1.489, 5], [3.266, 1.685, 6], [3.985, 1.697, 7], [4.19, 1.723, 8], [5.271, 1.751, 9], [5.469, 1.759, 10], [5.797, 1.778, 11], [7.08, 1.821, 12], [7.291, 1.821, 13], [7.67, 1.821, 14], [7.882, 1.821, 15], [8.17, 1.821, 16], [8.453, 1.821, 17], [8.736, 1.822, 18], [9.552, 1.87, 19], [9.745, 1.926, 20]], "end": 10.0, "final": 1.8629, "rej": false}, {"k": "gneon", "name": "Gemini 4 Neon", "short": "Gemini 4 Neon", "tag": "", "color": "#192de5", "href": "t-bagel_sft-gneon.html", "pts": [[0.549, 1.181, 2], [0.683, 1.278, 3], [0.907, 1.514, 4], [1.825, 1.92, 5], [2.882, 2.104, 6], [3.133, 2.254, 7], [3.441, 2.357, 8], [4.122, 2.464, 9], [6.226, 2.47, 10], [6.226, 2.582, 11], [6.226, 2.602, 12], [8.408, 2.602, 14], [8.408, 2.628, 15], [9.491, 2.628, 16]], "end": 10.0, "final": 2.4972, "rej": false}, {"k": "gcarbon", "name": "Gemini 4 Carbon", "short": "Gemini 4 Carbon", "tag": "", "color": "#892d6b", "href": "t-bagel_sft-gcarbon.html", "pts": [[0.793, 1.178, 2], [1.889, 1.499, 3], [2.431, 1.745, 4], [3.533, 1.813, 5], [3.977, 1.827, 6], [4.415, 1.842, 7], [5.078, 1.845, 8], [5.573, 1.868, 9], [6.047, 1.875, 10], [6.566, 1.998, 11], [7.147, 2.067, 12], [8.235, 2.107, 13], [9.741, 2.145, 14], [9.741, 2.145, 15]], "end": 9.998, "final": 2.1405, "rej": false}, {"k": "ghydrogen", "name": "Gemini 4 Hydrogen", "short": "Gemini 4 Hydrogen", "tag": "", "color": "#25b094", "href": "t-bagel_sft-ghydrogen.html", "pts": [[0.762, 1.235, 2], [1.002, 1.384, 3], [1.641, 1.796, 4], [2.798, 1.93, 5], [3.632, 2.045, 6], [4.744, 2.045, 7], [6.854, 2.136, 8], [9.005, 2.154, 10]], "end": 9.999, "final": 1.9653, "rej": false}, {"k": "qwen4", "name": "Qwen4-Max", "short": "Qwen4-Max", "tag": "", "color": "#bb00ff", "href": "t-bagel_sft-qwen4.html", "pts": [[0.798, 1.071, 4], [0.923, 1.12, 5], [1.189, 1.122, 6], [1.773, 1.122, 7], [2.612, 1.174, 8], [3.345, 1.194, 9], [4.38, 1.194, 13], [4.566, 1.194, 14], [5.815, 1.194, 15], [6.191, 1.194, 17], [7.18, 1.194, 18], [8.799, 1.231, 19], [9.692, 1.231, 21]], "end": 10.0, "final": 1.2224, "rej": false}, {"k": "step5", "name": "Step-5 Preview", "short": "Step-5 Preview", "tag": "", "color": "#5e4b0c", "href": "t-bagel_sft-step5.html", "pts": [[0.937, 1.184, 2], [1.607, 1.188, 4], [3.897, 1.208, 7], [4.478, 1.229, 8], [5.374, 1.365, 9], [8.629, 1.494, 11], [9.993, 1.565, 13]], "end": 10.077, "final": 1.5584, "rej": false}, {"k": "hy4", "name": "Hy4", "short": "Hy4", "tag": "", "color": "#9a77f4", "href": "t-bagel_sft-hy4.html", "pts": [[0.68, 1.031, 2], [2.875, 1.034, 4], [5.913, 1.057, 6], [8.177, 1.057, 12], [8.311, 1.059, 13], [9.629, 1.064, 15]], "end": 10.0, "final": 1.0608, "rej": false}, {"k": "glm54", "name": "GLM-5.4", "short": "GLM-5.4", "tag": "", "color": "#101e7c", "href": "t-bagel_sft-glm54.html", "pts": [[2.73, 1.119, 2], [3.959, 1.251, 4], [4.594, 1.251, 5], [6.461, 1.251, 6], [7.383, 1.485, 7], [8.366, 1.525, 9], [9.121, 1.604, 11]], "end": 10.0, "final": 1.6337, "rej": false}, {"k": "astra", "name": "GPT-6 Astra (suspected nerf)", "short": "GPT-6 Astra", "tag": "suspected nerf", "color": "#151412", "href": "t-bagel_sft-astra.html", "pts": [[0.248, 1.02, 1], [0.786, 1.077, 2], [1.416, 1.243, 3], [2.094, 1.269, 4], [3.645, 1.353, 5], [3.938, 1.353, 6], [4.247, 1.393, 7], [5.163, 1.443, 8], [6.628, 1.493, 9], [6.837, 1.503, 10], [7.192, 1.503, 11], [7.686, 1.508, 12], [8.014, 1.562, 13], [9.083, 1.611, 14], [9.96, 1.647, 15]], "end": 10.0, "final": 1.6179, "rej": false}, {"k": "glm", "name": "GLM-5.3", "short": "GLM-5.3", "tag": "", "color": "#2f6db5", "href": "t-bagel_sft-glm.html", "pts": [[0.475, 1.192, 2], [0.811, 1.213, 5], [0.811, 1.213, 6], [1.189, 1.361, 7], [1.774, 1.361, 8], [2.18, 1.361, 9], [9.258, 1.493, 19]], "end": 10.05, "final": 1.4873, "rej": false}, {"k": "kimi", "name": "Kimi k3.1-pro", "short": "Kimi k3.1", "tag": "", "color": "#2e8b57", "href": "t-bagel_sft-kimi.html", "pts": [[1.598, 1.007, 4], [1.989, 1.007, 5], [2.363, 1.007, 6], [3.287, 1.138, 7], [4.169, 1.153, 8], [4.697, 1.164, 9], [5.328, 1.165, 10], [5.705, 1.172, 11], [6.442, 1.182, 12], [6.765, 1.182, 13], [7.172, 1.182, 14], [7.547, 1.182, 15], [8.376, 1.376, 16], [8.713, 1.376, 17], [8.926, 1.376, 18], [9.553, 1.407, 19], [9.88, 1.426, 20]], "end": 10.0, "final": 1.4235, "rej": false}, {"k": "ds", "name": "DeepSeek V4.1 Flash-1017", "short": "DeepSeek V4.1 Flash-1017", "tag": "", "color": "#6b4fbf", "href": "t-bagel_sft-ds.html", "pts": [[0.216, 1.017, 1], [0.881, 1.061, 4], [1.083, 1.061, 5], [1.197, 1.074, 6], [1.391, 1.074, 7], [1.533, 1.093, 8], [1.778, 1.093, 9], [2.474, 1.095, 10], [2.875, 1.095, 11], [3.704, 1.095, 13], [4.65, 1.108, 16], [5.706, 1.108, 17], [5.706, 1.108, 18], [6.374, 1.111, 19], [6.53, 1.143, 20], [7.536, 1.166, 21], [8.014, 1.195, 22], [8.299, 1.196, 23], [8.794, 1.196, 24], [9.137, 1.208, 25], [9.854, 1.229, 26]], "end": 10.0, "final": 1.2313, "rej": false}, {"k": "mm", "name": "MiniMax M3.1 Flash", "short": "MiniMax M3.1 Flash", "tag": "", "color": "#c4529a", "href": "t-bagel_sft-mm.html", "pts": [[1.084, 1.08, 4], [1.287, 1.094, 5], [1.973, 1.1, 6], [2.34, 1.291, 7], [3.129, 1.354, 11], [3.129, 1.399, 12], [4.331, 1.399, 15], [4.806, 1.405, 18], [7.2, 1.469, 33], [7.2, 1.469, 34], [7.854, 1.469, 35], [8.313, 1.469, 37], [9.083, 1.477, 38], [9.083, 1.477, 39], [9.843, 1.479, 40]], "end": 10.0, "final": 1.4935, "rej": false}], "focus": "glm54", "xmax": 10.5, "aria": "GLM-5.4 on BAGEL SFT: best self-measured speedup over time"}</script><script src="chart.js?v=11250202"></script></body></html>
